@@ -83,8 +83,12 @@ faça login para abrir o PDV.
 npm run dist
 ```
 
-O instalador é gerado em `dist/CybhorPDV-Setup-<versão>.exe`. O arquivo `.env`
-é empacotado nos recursos do aplicativo.
+O instalador é gerado em `dist/CybhorPDV-Setup-<versão>.exe`. A conexão com o
+Firebase já vem **embutida no instalador** — quem instala o app não precisa
+configurar `.env` nem nenhum arquivo extra.
+
+> Apenas quem **gera o instalador** (`npm run dist`) precisa do `.env` na máquina
+> de build (ou dos secrets no GitHub Actions).
 
 ## GitHub Releases (distribuicao do instalador)
 
