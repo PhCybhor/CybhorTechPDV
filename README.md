@@ -86,6 +86,40 @@ npm run dist
 O instalador é gerado em `dist/CybhorPDV-Setup-<versão>.exe`. O arquivo `.env`
 é empacotado nos recursos do aplicativo.
 
+## GitHub Releases (distribuicao do instalador)
+
+O instalador oficial e publicado automaticamente nas **Releases** do GitHub.
+
+### Baixar a ultima versao
+
+Acesse: [github.com/cybhortech/sistemaPDV/releases](https://github.com/cybhortech/sistemaPDV/releases)
+
+Baixe o arquivo `CybhorPDV-Setup-x.x.x.exe` e execute para instalar.
+
+### Publicar uma nova versao
+
+1. Atualize a `version` no `package.json`.
+2. No GitHub, configure os **Secrets** do repositorio em  
+   `Settings → Secrets and variables → Actions` com as variaveis do Firebase:
+   - `FIREBASE_API_KEY`
+   - `FIREBASE_AUTH_DOMAIN`
+   - `FIREBASE_DATABASE_URL`
+   - `FIREBASE_PROJECT_ID`
+   - `FIREBASE_STORAGE_BUCKET`
+   - `FIREBASE_MESSAGING_SENDER_ID`
+   - `FIREBASE_APP_ID`
+   - `FIREBASE_MEASUREMENT_ID` (opcional)
+3. Crie e envie uma tag de versao:
+
+   ```bash
+   git tag v1.0.0
+   git push origin v1.0.0
+   ```
+
+   O workflow `.github/workflows/release.yml` gera o `.exe` e publica na Release.
+
+4. Ou dispare manualmente em **Actions → Release CybhorPDV → Run workflow**.
+
 ## Segurança
 
 - Senhas são armazenadas apenas como **hash PBKDF2 + salt** (nunca em texto
