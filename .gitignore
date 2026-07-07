@@ -1,5 +1,4 @@
 node_modules/
-build/firebase.config.json
 dist/
 renderer/dist/
 .env

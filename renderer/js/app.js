@@ -66,7 +66,7 @@ async function iniciar() {
     mostrarTela(temAdmin ? "tela-login" : "tela-setup");
   } catch (erro) {
     notificar(
-      "Falha ao conectar ao servidor. Verifique sua conexao com a internet.",
+      "Falha ao conectar ao banco de dados. Verifique a internet e o arquivo .env.",
       "erro",
       6000
     );

@@ -5,7 +5,8 @@ let instanciaDatabase = null;
 
 /**
  * Inicializa o app Firebase e o Realtime Database uma unica vez.
- * A configuracao vem do processo principal (via preload), embutida no instalador.
+ * A configuracao vem do processo principal (via preload), nunca do codigo-fonte,
+ * garantindo que as credenciais fiquem no arquivo .env.
  *
  * @returns {Promise<import("firebase/database").Database>}
  */
@@ -16,7 +17,7 @@ export async function obterDatabase() {
 
   if (!config || !config.databaseURL) {
     throw new Error(
-      "Nao foi possivel conectar ao servidor. Reinstale o aplicativo ou contate o suporte."
+      "Configuracao do Firebase ausente. Verifique o arquivo .env (FIREBASE_DATABASE_URL)."
     );
   }
 

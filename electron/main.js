@@ -4,34 +4,35 @@ const { app, BrowserWindow, ipcMain } = require("electron");
 const path = require("node:path");
 const fs = require("node:fs");
 
-let configuracaoFirebase = null;
+/**
+ * Carrega as variaveis de ambiente do arquivo .env.
+ * Em desenvolvimento o arquivo fica na raiz do projeto; empacotado no .exe
+ * ele e copiado para a pasta de recursos (process.resourcesPath).
+ */
+function carregarVariaveisDeAmbiente() {
+  const caminhoDev = path.join(__dirname, "..", ".env");
+  const caminhoProd = path.join(process.resourcesPath || "", ".env");
+  const caminho = fs.existsSync(caminhoDev) ? caminhoDev : caminhoProd;
+
+  if (fs.existsSync(caminho)) {
+    require("dotenv").config({ path: caminho });
+  }
+}
 
 /**
- * Carrega a configuracao do Firebase embutida no instalador.
- * Em desenvolvimento usa build/firebase.config.json (gerado a partir do .env).
- * O usuario final nunca precisa ver ou editar o .env.
- *
- * @returns {object | null}
+ * Monta o objeto de configuracao do Firebase a partir das variaveis de ambiente.
+ * @returns {Record<string, string>}
  */
-function carregarConfiguracaoFirebase() {
-  if (configuracaoFirebase) return configuracaoFirebase;
-
-  const caminhos = [
-    path.join(process.resourcesPath || "", "firebase.config.json"),
-    path.join(__dirname, "..", "build", "firebase.config.json"),
-  ];
-
-  for (const caminho of caminhos) {
-    if (!fs.existsSync(caminho)) continue;
-    try {
-      configuracaoFirebase = JSON.parse(fs.readFileSync(caminho, "utf8"));
-      return configuracaoFirebase;
-    } catch {
-      console.error("Falha ao ler configuracao do Firebase em", caminho);
-    }
-  }
-
-  return null;
+function obterConfiguracaoFirebase() {
+  return {
+    apiKey: process.env.FIREBASE_API_KEY || "",
+    authDomain: process.env.FIREBASE_AUTH_DOMAIN || "",
+    databaseURL: process.env.FIREBASE_DATABASE_URL || "",
+    projectId: process.env.FIREBASE_PROJECT_ID || "",
+    storageBucket: process.env.FIREBASE_STORAGE_BUCKET || "",
+    messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || "",
+    appId: process.env.FIREBASE_APP_ID || "",
+  };
 }
 
 function criarJanela() {
@@ -57,7 +58,9 @@ function criarJanela() {
   janela.once("ready-to-show", () => janela.show());
 }
 
-ipcMain.handle("obter-config-firebase", () => carregarConfiguracaoFirebase() || {});
+carregarVariaveisDeAmbiente();
+
+ipcMain.handle("obter-config-firebase", () => obterConfiguracaoFirebase());
 
 app.whenReady().then(() => {
   criarJanela();
