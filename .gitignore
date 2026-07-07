@@ -2,6 +2,11 @@ node_modules/
 dist/
 renderer/dist/
 .env
+.env.*
+!.env.example
 *.log
 Thumbs.db
 .DS_Store
+.vscode-test
+.npm
+.cache

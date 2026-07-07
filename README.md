@@ -16,7 +16,8 @@ distribuir nas máquinas.
   ou está sem estoque, um botão permite cadastrá-lo na hora, sem atrapalhar a
   venda.
 - **Controle de acesso**: login por usuário e senha (hash PBKDF2).
-- **Criação de funcionários/caixas protegida por senha de administrador**.
+- **Criação e gerenciamento de funcionários** com alteração de cargo (área do
+  administrador).
 - **Credenciais fora do código** (arquivo `.env`).
 
 ## Arquitetura
