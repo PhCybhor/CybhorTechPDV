@@ -1,0 +1,19 @@
+{
+  "rules": {
+    "funcionarios": {
+      ".read": true,
+      ".write": true,
+      ".indexOn": ["usuario", "cargo"]
+    },
+    "produtos": {
+      ".read": true,
+      ".write": true,
+      ".indexOn": ["nome", "codigoBarras"]
+    },
+    "vendas": {
+      ".read": true,
+      ".write": true,
+      ".indexOn": ["criadoEm", "funcionarioId"]
+    }
+  }
+}
