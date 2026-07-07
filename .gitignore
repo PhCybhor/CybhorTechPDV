@@ -1,6 +1,7 @@
 node_modules/
-dist/
-renderer/dist/
+dist/win-unpacked/
+dist/builder-debug.yml
+dist/.icon-ico/
 .env
 .env.*
 !.env.example
