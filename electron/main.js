@@ -1,8 +1,8 @@
 "use strict";
 
 const { app, BrowserWindow, ipcMain } = require("electron");
-const path = require("node:path");
-const fs = require("node:fs");
+const path = require("path");
+const fs = require("fs");
 
 /**
  * Carrega as variaveis de ambiente do arquivo .env.
@@ -53,6 +53,7 @@ function criarJanela() {
   });
 
   janela.setMenuBarVisibility(false);
+  janela.setTitle("CybhorPDV 2.0");
   janela.loadFile(path.join(__dirname, "..", "renderer", "index.html"));
 
   janela.once("ready-to-show", () => janela.show());

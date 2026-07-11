@@ -7,6 +7,7 @@ import {
   PointElement,
   CategoryScale,
   LinearScale,
+  Filler,
   Tooltip,
   Legend,
 } from "chart.js";
@@ -36,6 +37,7 @@ Chart.register(
   PointElement,
   CategoryScale,
   LinearScale,
+  Filler,
   Tooltip,
   Legend
 );
@@ -159,8 +161,8 @@ export class Dashboard {
           Number(venda.total) + (Number(venda.desconto) || 0);
         return `
         <div class="desconto-linha">
-          <span>${hora}</span>
-          <span>${escapeHtml(venda.funcionarioNome || "-")}</span>
+          <span title="${hora}">${hora}</span>
+          <span title="${escapeHtml(venda.funcionarioNome || "-")}">${escapeHtml(venda.funcionarioNome || "-")}</span>
           <span>${formatarMoeda(subtotal)}</span>
           <span class="desconto-valor">- ${formatarMoeda(venda.desconto || 0)}</span>
           <span class="desconto-total">${formatarMoeda(venda.total)}</span>

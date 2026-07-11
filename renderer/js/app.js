@@ -9,16 +9,23 @@ import {
 import {
   observarProdutos,
   criarProduto,
+  atualizarProduto,
+  excluirProduto,
+  ajustarEstoque,
+  encontrarPorCodigoBarras,
 } from "./services/produtoService.js";
 import { registrarVenda, observarVendas } from "./services/vendaService.js";
 import { atualizarIndice, buscar } from "./services/buscaFuzzy.js";
 import { Carrinho } from "./ui/carrinho.js";
 import { Dashboard } from "./ui/dashboard.js";
 import { PainelFuncionarios } from "./ui/funcionarios.js";
+import { PainelProdutos } from "./ui/produtos.js";
 import { notificar } from "./ui/notificacao.js";
 import { formatarMoeda } from "./utils/formato.js";
 import { debounce } from "./utils/debounce.js";
 import { escapeHtml } from "./utils/escape.js";
+
+const ROTAS = ["pdv", "produtos", "relatorios", "funcionarios"];
 
 /** Estado global minimo da aplicacao. */
 const estado = {
@@ -27,23 +34,35 @@ const estado = {
   carrinho: null,
   dashboard: null,
   painelFuncionarios: null,
+  painelProdutos: null,
+  cancelarObservacaoProdutos: null,
   cancelarObservacaoVendas: null,
   cancelarObservacaoFuncionarios: null,
   assinaturaProdutos: "",
+  produtoExcluirId: null,
+  rotaAtual: "pdv",
 };
 
 const $ = (id) => document.getElementById(id);
 
 /**
- * Exibe apenas a tela informada, ocultando as demais.
+ * Exibe mensagem de erro no elemento, ou oculta se vazia.
+ * @param {HTMLElement} el
+ * @param {string} texto
+ */
+function setErro(el, texto) {
+  el.textContent = texto || "";
+  el.classList.toggle("oculto", !texto);
+}
+
+/**
+ * Exibe apenas a tela raiz informada.
  * @param {string} idTela
  */
 function mostrarTela(idTela) {
-  ["tela-carregando", "tela-setup", "tela-login", "tela-pdv", "tela-relatorios", "tela-funcionarios"].forEach(
-    (id) => {
-      $(id).classList.toggle("oculto", id !== idTela);
-    }
-  );
+  ["tela-carregando", "tela-setup", "tela-login", "tela-app"].forEach((id) => {
+    $(id).classList.toggle("oculto", id !== idTela);
+  });
 }
 
 function abrirModal(id) {
@@ -52,6 +71,33 @@ function abrirModal(id) {
 
 function fecharModal(id) {
   $(id).classList.add("oculto");
+}
+
+/**
+ * Navega entre rotas internas do app autenticado.
+ * @param {string} rota
+ */
+function navegarPara(rota) {
+  if (!ROTAS.includes(rota)) return;
+  if (rota !== "pdv" && estado.funcionario?.cargo !== CARGOS.ADMIN) return;
+
+  estado.rotaAtual = rota;
+
+  ROTAS.forEach((nome) => {
+    $(`rota-${nome}`).classList.toggle("oculto", nome !== rota);
+    const nav = $(`nav-${nome}`);
+    if (nav) nav.classList.toggle("ativo", nome === rota);
+  });
+
+  if (rota === "relatorios") iniciarRelatorios();
+  else pararObservacaoVendas();
+
+  if (rota === "funcionarios") iniciarFuncionarios();
+  else pararObservacaoFuncionarios();
+
+  if (rota === "pdv") {
+    setTimeout(() => $("busca-produto")?.focus(), 50);
+  }
 }
 
 /* ---------------------------------------------------------------------------
@@ -64,7 +110,7 @@ async function iniciar() {
   try {
     const temAdmin = await existeAdministrador();
     mostrarTela(temAdmin ? "tela-login" : "tela-setup");
-  } catch (erro) {
+  } catch {
     notificar(
       "Falha ao conectar ao banco de dados. Verifique a internet e o arquivo .env.",
       "erro",
@@ -80,8 +126,7 @@ async function iniciar() {
 
 async function tratarSetup(evento) {
   evento.preventDefault();
-  const erroEl = $("setup-erro");
-  erroEl.textContent = "";
+  setErro($("setup-erro"), "");
 
   try {
     await criarFuncionario({
@@ -94,14 +139,13 @@ async function tratarSetup(evento) {
     $("form-setup").reset();
     mostrarTela("tela-login");
   } catch (erro) {
-    erroEl.textContent = erro.message;
+    setErro($("setup-erro"), erro.message);
   }
 }
 
 async function tratarLogin(evento) {
   evento.preventDefault();
-  const erroEl = $("login-erro");
-  erroEl.textContent = "";
+  setErro($("login-erro"), "");
 
   try {
     estado.funcionario = await autenticar(
@@ -109,63 +153,44 @@ async function tratarLogin(evento) {
       $("login-senha").value
     );
     $("form-login").reset();
-    await entrarNoPdv();
+    await entrarNoApp();
   } catch (erro) {
-    erroEl.textContent = erro.message;
+    setErro($("login-erro"), erro.message);
   }
 }
 
 function sair() {
   estado.funcionario = null;
-  estado.carrinho?.limpar();
+  estado.carrinho?.destruir();
+  estado.carrinho = null;
+  estado.painelProdutos?.destruir();
+  estado.painelProdutos = null;
+  estado.dashboard = null;
+  estado.painelFuncionarios = null;
+  pararObservacaoProdutos();
   pararObservacaoVendas();
   pararObservacaoFuncionarios();
+  estado.assinaturaProdutos = "";
   mostrarTela("tela-login");
 }
 
 /* ---------------------------------------------------------------------------
- * Relatorios (somente administrador)
+ * Observadores
  * ------------------------------------------------------------------------- */
 
-/** Encerra a escuta em tempo real das vendas, se ativa. */
+function pararObservacaoProdutos() {
+  if (typeof estado.cancelarObservacaoProdutos === "function") {
+    estado.cancelarObservacaoProdutos();
+    estado.cancelarObservacaoProdutos = null;
+  }
+}
+
 function pararObservacaoVendas() {
   if (typeof estado.cancelarObservacaoVendas === "function") {
     estado.cancelarObservacaoVendas();
     estado.cancelarObservacaoVendas = null;
   }
 }
-
-/** Abre o painel de relatorios e passa a observar as vendas em tempo real. */
-async function abrirRelatorios() {
-  if (estado.funcionario?.cargo !== CARGOS.ADMIN) return;
-
-  pararObservacaoFuncionarios();
-  $("admin-barra").classList.remove("oculto");
-
-  if (!estado.dashboard) {
-    estado.dashboard = new Dashboard({ raiz: $("tela-relatorios") });
-  }
-
-  mostrarTela("tela-relatorios");
-
-  try {
-    estado.cancelarObservacaoVendas = await observarVendas((vendas) =>
-      estado.dashboard.atualizar(vendas)
-    );
-  } catch (erro) {
-    notificar("Nao foi possivel carregar os relatorios.", "erro");
-  }
-}
-
-/** Fecha os relatorios e volta ao PDV. */
-function fecharRelatorios() {
-  pararObservacaoVendas();
-  mostrarTela("tela-pdv");
-}
-
-/* ---------------------------------------------------------------------------
- * Funcionarios (somente administrador)
- * ------------------------------------------------------------------------- */
 
 function pararObservacaoFuncionarios() {
   if (typeof estado.cancelarObservacaoFuncionarios === "function") {
@@ -174,18 +199,39 @@ function pararObservacaoFuncionarios() {
   }
 }
 
-async function abrirFuncionarios() {
+async function iniciarRelatorios() {
   if (estado.funcionario?.cargo !== CARGOS.ADMIN) return;
 
-  pararObservacaoVendas();
+  if (!estado.dashboard) {
+    estado.dashboard = new Dashboard({ raiz: $("rota-relatorios") });
+  }
+
+  if (estado.cancelarObservacaoVendas) return;
+
+  try {
+    estado.cancelarObservacaoVendas = await observarVendas((vendas) =>
+      estado.dashboard.atualizar(vendas)
+    );
+  } catch {
+    notificar("Nao foi possivel carregar os relatorios.", "erro");
+  }
+}
+
+async function iniciarFuncionarios() {
+  if (estado.funcionario?.cargo !== CARGOS.ADMIN) return;
 
   if (!estado.painelFuncionarios) {
     estado.painelFuncionarios = new PainelFuncionarios({
-      raiz: $("tela-funcionarios"),
+      listaEl: $("lista-funcionarios"),
+      formAuth: $("form-alterar-cargo"),
+      modalAuth: $("modal-alterar-cargo"),
+      erroEl: $("alterar-cargo-erro"),
+      resumoEl: $("alterar-cargo-resumo"),
+      inputUsuario: $("auth-admin-usuario"),
     });
   }
 
-  mostrarTela("tela-funcionarios");
+  if (estado.cancelarObservacaoFuncionarios) return;
 
   try {
     estado.cancelarObservacaoFuncionarios = await observarFuncionarios(
@@ -196,30 +242,21 @@ async function abrirFuncionarios() {
   }
 }
 
-function fecharFuncionarios() {
-  pararObservacaoFuncionarios();
-  mostrarTela("tela-pdv");
-}
-
-function abrirModalNovoFuncionario() {
-  $("form-funcionario").reset();
-  $("func-erro").textContent = "";
-  abrirModal("modal-funcionario");
-}
-
 /* ---------------------------------------------------------------------------
- * PDV
+ * App autenticado
  * ------------------------------------------------------------------------- */
 
-async function entrarNoPdv() {
+async function entrarNoApp() {
   const { nome, cargo } = estado.funcionario;
   const ehAdmin = cargo === CARGOS.ADMIN;
-  $("pdv-funcionario").innerHTML = `<strong>${escapeHtml(nome)}</strong> · ${escapeHtml(cargo)}`;
-  $("btn-novo-funcionario").classList.toggle("oculto", !ehAdmin);
-  $("btn-relatorios").classList.toggle("oculto", !ehAdmin);
-  $("btn-funcionarios").classList.toggle("oculto", !ehAdmin);
+
+  $("app-funcionario").innerHTML = `<strong>${escapeHtml(nome)}</strong>${escapeHtml(cargo)}`;
+  $("nav-produtos").classList.toggle("oculto", !ehAdmin);
+  $("nav-relatorios").classList.toggle("oculto", !ehAdmin);
+  $("nav-funcionarios").classList.toggle("oculto", !ehAdmin);
 
   estado.assinaturaProdutos = "";
+  estado.carrinho?.destruir();
 
   estado.carrinho = new Carrinho({
     containerItens: $("carrinho-itens"),
@@ -227,21 +264,43 @@ async function entrarNoPdv() {
     inputDesconto: $("carrinho-desconto"),
     elementoTotal: $("carrinho-total-valor"),
     botaoFinalizar: $("btn-finalizar"),
+    selectPagamento: $("forma-pagamento"),
+    blocoTroco: $("bloco-troco"),
+    inputRecebido: $("carrinho-recebido"),
+    elementoTroco: $("carrinho-troco-valor"),
   });
 
-  await observarProdutos((produtos) => {
+  if (ehAdmin) {
+    estado.painelProdutos?.destruir();
+    estado.painelProdutos = new PainelProdutos({
+      container: $("lista-gestao-produtos"),
+      inputFiltro: $("filtro-produtos"),
+      onEditar: (produto) => abrirModalProduto({ produto }),
+      onExcluir: (produto) => abrirModalExcluir(produto),
+      onAjustarEstoque: async (produto, delta) => {
+        try {
+          await ajustarEstoque(produto.id, produto.estoque, delta);
+        } catch (erro) {
+          notificar(erro.message, "erro");
+        }
+      },
+    });
+  }
+
+  pararObservacaoProdutos();
+  estado.cancelarObservacaoProdutos = await observarProdutos((produtos) => {
     estado.produtos = produtos;
     atualizarIndice(produtos);
     renderizarGradeProdutos(produtos);
+    estado.painelProdutos?.atualizar(produtos);
     atualizarSugestoes($("busca-produto").value);
   });
 
-  mostrarTela("tela-pdv");
+  mostrarTela("tela-app");
+  navegarPara("pdv");
 }
 
 /**
- * Renderiza a grade de produtos. So reescreve o DOM quando a lista mudou,
- * evitando flicker desnecessario a cada tick do Realtime Database.
  * @param {Array<object>} produtos
  */
 function renderizarGradeProdutos(produtos) {
@@ -257,7 +316,7 @@ function renderizarGradeProdutos(produtos) {
 
   if (ordenados.length === 0) {
     container.innerHTML =
-      '<p class="grade-vazia">Nenhum produto cadastrado.<br>Use a busca para cadastrar o primeiro.</p>';
+      '<p class="grade-vazia">Nenhum produto cadastrado.<br>Use a busca ou o botao Novo produto.</p>';
     return;
   }
 
@@ -265,7 +324,7 @@ function renderizarGradeProdutos(produtos) {
     .map((produto) => {
       const semEstoque = (Number(produto.estoque) || 0) < 1;
       return `
-      <div class="produto-card${semEstoque ? " sem-estoque" : ""}" data-produto-id="${escapeHtml(produto.id)}">
+      <div class="produto-card${semEstoque ? " sem-estoque" : ""}" data-produto-id="${escapeHtml(produto.id)}" ${semEstoque ? 'aria-disabled="true"' : ""}>
         <span class="produto-nome">${escapeHtml(produto.nome)}</span>
         <span class="produto-preco">${formatarMoeda(produto.preco)}</span>
         <span class="produto-estoque ${semEstoque ? "sem" : ""}">
@@ -277,7 +336,6 @@ function renderizarGradeProdutos(produtos) {
 }
 
 /**
- * Adiciona um produto ao carrinho pelo id, avisando quando sem estoque.
  * @param {string} produtoId
  */
 function adicionarAoCarrinho(produtoId) {
@@ -287,19 +345,17 @@ function adicionarAoCarrinho(produtoId) {
   const adicionado = estado.carrinho.adicionar(produto);
   if (!adicionado) {
     notificar(
-      `"${produto.nome}" sem estoque suficiente. Cadastre/reabasteca o produto.`,
+      `"${produto.nome}" sem estoque suficiente.`,
       "alerta"
     );
   }
 }
 
 /* ---------------------------------------------------------------------------
- * Busca com sugestao (fuzzy)
+ * Busca + codigo de barras
  * ------------------------------------------------------------------------- */
 
 /**
- * Atualiza a lista de sugestoes conforme o termo digitado.
- * Quando nada e encontrado, oferece o cadastro rapido do produto.
  * @param {string} termo
  */
 function atualizarSugestoes(termo) {
@@ -318,13 +374,13 @@ function atualizarSugestoes(termo) {
   if (resultados.length === 0) {
     painel.innerHTML = `
       <div class="sugestao-vazia">
-        <p>Nenhum produto encontrado para "<strong>${escapeHtml(consulta)}</strong>".</p>
-        <button class="btn btn-primario" id="btn-criar-da-busca">
+        <p>Nenhum produto para "<strong>${escapeHtml(consulta)}</strong>".</p>
+        <button type="button" class="btn btn-primario" id="btn-criar-da-busca">
           + Cadastrar "${escapeHtml(consulta)}"
         </button>
       </div>`;
     $("btn-criar-da-busca").addEventListener("click", () =>
-      abrirModalProduto(consulta)
+      abrirModalProduto({ nomeInicial: consulta })
     );
     return;
   }
@@ -333,7 +389,7 @@ function atualizarSugestoes(termo) {
     .map((produto) => {
       const semEstoque = (Number(produto.estoque) || 0) < 1;
       return `
-      <div class="sugestao" data-produto-id="${escapeHtml(produto.id)}">
+      <div class="sugestao" data-produto-id="${escapeHtml(produto.id)}" role="option">
         <div class="sugestao-info">
           <span class="sugestao-nome">${escapeHtml(produto.nome)}</span>
           <span class="sugestao-meta">
@@ -347,62 +403,140 @@ function atualizarSugestoes(termo) {
     .join("");
 }
 
+/**
+ * Enter na busca: codigo de barras exato ou primeiro resultado fuzzy.
+ * @param {string} termo
+ */
+function confirmarBusca(termo) {
+  const consulta = (termo || "").trim();
+  if (!consulta) return;
+
+  const porCodigo = encontrarPorCodigoBarras(estado.produtos, consulta);
+  if (porCodigo) {
+    adicionarAoCarrinho(porCodigo.id);
+    $("busca-produto").value = "";
+    atualizarSugestoes("");
+    return;
+  }
+
+  const resultados = buscar(consulta);
+  if (resultados.length > 0) {
+    adicionarAoCarrinho(resultados[0].id);
+    $("busca-produto").value = "";
+    atualizarSugestoes("");
+  }
+}
+
 /* ---------------------------------------------------------------------------
- * Cadastro rapido de produto
+ * Produtos
  * ------------------------------------------------------------------------- */
 
 /**
- * Abre o modal de cadastro de produto, opcionalmente com o nome pre-preenchido.
- * @param {string} [nomeInicial=""]
+ * @param {{nomeInicial?: string, produto?: object}} [opcoes]
  */
-function abrirModalProduto(nomeInicial = "") {
+function abrirModalProduto({ nomeInicial = "", produto = null } = {}) {
   $("form-produto").reset();
-  $("produto-erro").textContent = "";
-  $("produto-nome").value = nomeInicial;
-  $("produto-estoque").value = "1";
-  $("produto-adicionar-venda").checked = true;
+  setErro($("produto-erro"), "");
+
+  const editando = Boolean(produto);
+  $("modal-produto-titulo").textContent = editando
+    ? "Editar produto"
+    : "Cadastrar produto";
+  $("produto-id").value = produto?.id || "";
+  $("produto-nome").value = produto?.nome || nomeInicial;
+  $("produto-preco").value = produto ? String(produto.preco) : "";
+  $("produto-estoque").value = produto ? String(produto.estoque) : "1";
+  $("produto-codigo").value = produto?.codigoBarras || "";
+  $("produto-categoria").value = produto?.categoria || "";
+  $("produto-adicionar-venda").checked = !editando;
+  $("wrap-adicionar-venda").classList.toggle("oculto", editando);
+
   abrirModal("modal-produto");
-  $("produto-preco").focus();
+  (editando ? $("produto-nome") : $("produto-preco")).focus();
+}
+
+function abrirModalExcluir(produto) {
+  estado.produtoExcluirId = produto.id;
+  $("excluir-produto-resumo").textContent =
+    `Remover "${produto.nome}" do catalogo? Esta acao nao pode ser desfeita.`;
+  abrirModal("modal-excluir-produto");
 }
 
 async function tratarCadastroProduto(evento) {
   evento.preventDefault();
-  const erroEl = $("produto-erro");
-  erroEl.textContent = "";
+  setErro($("produto-erro"), "");
+
+  const idExistente = $("produto-id").value.trim();
+  const payload = {
+    nome: $("produto-nome").value,
+    preco: $("produto-preco").value,
+    estoque: $("produto-estoque").value,
+    codigoBarras: $("produto-codigo").value,
+    categoria: $("produto-categoria").value,
+  };
 
   try {
-    const adicionarNaVenda = $("produto-adicionar-venda").checked;
-    const id = await criarProduto({
-      nome: $("produto-nome").value,
-      preco: $("produto-preco").value,
-      estoque: $("produto-estoque").value,
-      codigoBarras: $("produto-codigo").value,
-      categoria: $("produto-categoria").value,
-    });
+    if (idExistente) {
+      await atualizarProduto(idExistente, payload);
+      fecharModal("modal-produto");
+      notificar("Produto atualizado.", "sucesso");
+      return;
+    }
 
+    const adicionarNaVenda = $("produto-adicionar-venda").checked;
+    const id = await criarProduto(payload);
     fecharModal("modal-produto");
-    notificar("Produto cadastrado com sucesso.", "sucesso");
+    notificar("Produto cadastrado.", "sucesso");
 
     if (adicionarNaVenda) {
-      // O observador em tempo real atualiza estado.produtos; aguardamos um tick.
-      setTimeout(() => adicionarAoCarrinho(id), 400);
+      const tentar = () => {
+        if (estado.produtos.some((p) => p.id === id)) {
+          adicionarAoCarrinho(id);
+          return true;
+        }
+        return false;
+      };
+      if (!tentar()) {
+        let tentativas = 0;
+        const timer = setInterval(() => {
+          tentativas += 1;
+          if (tentar() || tentativas >= 10) clearInterval(timer);
+        }, 200);
+      }
     }
 
     $("busca-produto").value = "";
     atualizarSugestoes("");
   } catch (erro) {
-    erroEl.textContent = erro.message;
+    setErro($("produto-erro"), erro.message);
+  }
+}
+
+async function confirmarExcluirProduto() {
+  if (!estado.produtoExcluirId) return;
+  try {
+    await excluirProduto(estado.produtoExcluirId);
+    estado.produtoExcluirId = null;
+    fecharModal("modal-excluir-produto");
+    notificar("Produto excluido.", "sucesso");
+  } catch (erro) {
+    notificar(erro.message, "erro");
   }
 }
 
 /* ---------------------------------------------------------------------------
- * Cadastro de funcionario / caixa (autorizado por admin)
+ * Funcionarios
  * ------------------------------------------------------------------------- */
+
+function abrirModalNovoFuncionario() {
+  $("form-funcionario").reset();
+  setErro($("func-erro"), "");
+  abrirModal("modal-funcionario");
+}
 
 async function tratarCadastroFuncionario(evento) {
   evento.preventDefault();
-  const erroEl = $("func-erro");
-  erroEl.textContent = "";
+  setErro($("func-erro"), "");
 
   try {
     const adminOk = await validarAdministrador(
@@ -410,7 +544,7 @@ async function tratarCadastroFuncionario(evento) {
       $("func-admin-senha").value
     );
     if (!adminOk) {
-      erroEl.textContent = "Credenciais de administrador invalidas.";
+      setErro($("func-erro"), "Credenciais de administrador invalidas.");
       return;
     }
 
@@ -423,32 +557,43 @@ async function tratarCadastroFuncionario(evento) {
 
     fecharModal("modal-funcionario");
     $("form-funcionario").reset();
-    notificar("Funcionario cadastrado com sucesso.", "sucesso");
+    notificar("Funcionario cadastrado.", "sucesso");
   } catch (erro) {
-    erroEl.textContent = erro.message;
+    setErro($("func-erro"), erro.message);
   }
 }
 
 /* ---------------------------------------------------------------------------
- * Finalizacao da venda
+ * Venda
  * ------------------------------------------------------------------------- */
 
 async function finalizarVenda() {
   const itens = estado.carrinho.obterItens();
   if (itens.length === 0) return;
 
+  if (!estado.carrinho.pagamentoDinheiroOk()) {
+    notificar("Valor recebido insuficiente para o troco.", "alerta");
+    return;
+  }
+
   const botao = $("btn-finalizar");
   botao.disabled = true;
 
   try {
+    const troco = estado.carrinho.obterTroco();
+    const forma = $("forma-pagamento").value;
     const { total } = await registrarVenda({
       itens,
       desconto: estado.carrinho.obterDesconto(),
-      formaPagamento: $("forma-pagamento").value,
+      formaPagamento: forma,
       funcionario: estado.funcionario,
     });
     estado.carrinho.limpar();
-    notificar(`Venda finalizada: ${formatarMoeda(total)}`, "sucesso");
+    const msgTroco =
+      forma === "dinheiro" && troco > 0
+        ? ` · Troco: ${formatarMoeda(troco)}`
+        : "";
+    notificar(`Venda finalizada: ${formatarMoeda(total)}${msgTroco}`, "sucesso");
   } catch (erro) {
     notificar(erro.message, "erro");
     botao.disabled = false;
@@ -456,7 +601,7 @@ async function finalizarVenda() {
 }
 
 /* ---------------------------------------------------------------------------
- * Eventos gerais
+ * Eventos
  * ------------------------------------------------------------------------- */
 
 function registrarEventosGerais() {
@@ -466,26 +611,39 @@ function registrarEventosGerais() {
 
   $("form-produto").addEventListener("submit", tratarCadastroProduto);
   $("form-funcionario").addEventListener("submit", tratarCadastroFuncionario);
+  $("btn-confirmar-excluir").addEventListener("click", confirmarExcluirProduto);
 
   $("btn-novo-funcionario").addEventListener("click", abrirModalNovoFuncionario);
-  $("btn-novo-funcionario-2").addEventListener("click", abrirModalNovoFuncionario);
+  $("btn-novo-produto").addEventListener("click", () => abrirModalProduto());
+  $("btn-novo-produto-pdv").addEventListener("click", () => abrirModalProduto());
 
-  $("btn-relatorios").addEventListener("click", abrirRelatorios);
-  $("btn-voltar-pdv").addEventListener("click", fecharRelatorios);
-
-  $("btn-funcionarios").addEventListener("click", abrirFuncionarios);
-  $("btn-voltar-pdv-func").addEventListener("click", fecharFuncionarios);
-  $("btn-gerenciar-func-relatorios").addEventListener("click", abrirFuncionarios);
-  $("btn-gerenciar-func-barra").addEventListener("click", abrirFuncionarios);
-  $("btn-novo-func-barra").addEventListener("click", abrirModalNovoFuncionario);
+  document.querySelectorAll(".nav-item[data-rota]").forEach((botao) => {
+    botao.addEventListener("click", () => navegarPara(botao.dataset.rota));
+  });
 
   $("btn-finalizar").addEventListener("click", finalizarVenda);
   $("btn-limpar").addEventListener("click", () => estado.carrinho?.limpar());
 
   document.querySelectorAll("[data-fechar-modal]").forEach((botao) => {
-    botao.addEventListener("click", () =>
-      fecharModal(botao.dataset.fecharModal)
-    );
+    botao.addEventListener("click", () => {
+      const id = botao.dataset.fecharModal;
+      fecharModal(id);
+      if (id === "modal-alterar-cargo") {
+        estado.painelFuncionarios?.fecharModalAuth();
+      }
+    });
+  });
+
+  // Fecha modal ao clicar no backdrop (fora da caixa)
+  document.querySelectorAll(".modal").forEach((modal) => {
+    modal.addEventListener("click", (evento) => {
+      if (evento.target === modal) {
+        modal.classList.add("oculto");
+        if (modal.id === "modal-alterar-cargo") {
+          estado.painelFuncionarios?.fecharModalAuth();
+        }
+      }
+    });
   });
 
   const inputBusca = $("busca-produto");
@@ -495,8 +653,13 @@ function registrarEventosGerais() {
   inputBusca.addEventListener("focus", (e) =>
     atualizarSugestoes(e.target.value)
   );
+  inputBusca.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      confirmarBusca(e.target.value);
+    }
+  });
 
-  // Clique em sugestao adiciona o produto ao carrinho.
   $("busca-sugestoes").addEventListener("click", (evento) => {
     const alvo = evento.target.closest(".sugestao[data-produto-id]");
     if (!alvo) return;
@@ -506,15 +669,24 @@ function registrarEventosGerais() {
     inputBusca.focus();
   });
 
-  // Clique em produto da grade adiciona ao carrinho.
   $("lista-produtos").addEventListener("click", (evento) => {
     const card = evento.target.closest(".produto-card[data-produto-id]");
-    if (card) adicionarAoCarrinho(card.dataset.produtoId);
+    if (!card || card.classList.contains("sem-estoque")) return;
+    adicionarAoCarrinho(card.dataset.produtoId);
   });
 
-  // Fecha as sugestoes ao clicar fora do campo de busca.
   document.addEventListener("click", (evento) => {
     if (!evento.target.closest(".busca")) {
+      $("busca-sugestoes").classList.add("oculto");
+    }
+  });
+
+  document.addEventListener("keydown", (evento) => {
+    if (evento.key === "Escape") {
+      document.querySelectorAll(".modal:not(.oculto)").forEach((modal) => {
+        modal.classList.add("oculto");
+      });
+      estado.painelFuncionarios?.fecharModalAuth();
       $("busca-sugestoes").classList.add("oculto");
     }
   });

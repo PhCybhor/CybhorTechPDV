@@ -3,7 +3,7 @@ import { escapeHtml } from "../utils/escape.js";
 
 /**
  * Gerencia o estado e a renderizacao do carrinho da venda atual.
- * Mantem os itens em memoria e atualiza a interface a cada alteracao.
+ * Inclui desconto e calculo de troco para pagamento em dinheiro.
  */
 export class Carrinho {
   /**
@@ -13,6 +13,10 @@ export class Carrinho {
    * @param {HTMLInputElement} opcoes.inputDesconto
    * @param {HTMLElement} opcoes.elementoTotal
    * @param {HTMLButtonElement} opcoes.botaoFinalizar
+   * @param {HTMLSelectElement} [opcoes.selectPagamento]
+   * @param {HTMLElement} [opcoes.blocoTroco]
+   * @param {HTMLInputElement} [opcoes.inputRecebido]
+   * @param {HTMLElement} [opcoes.elementoTroco]
    */
   constructor({
     containerItens,
@@ -20,38 +24,68 @@ export class Carrinho {
     inputDesconto,
     elementoTotal,
     botaoFinalizar,
+    selectPagamento = null,
+    blocoTroco = null,
+    inputRecebido = null,
+    elementoTroco = null,
   }) {
     this.containerItens = containerItens;
     this.elementoSubtotal = elementoSubtotal;
     this.inputDesconto = inputDesconto;
     this.elementoTotal = elementoTotal;
     this.botaoFinalizar = botaoFinalizar;
+    this.selectPagamento = selectPagamento;
+    this.blocoTroco = blocoTroco;
+    this.inputRecebido = inputRecebido;
+    this.elementoTroco = elementoTroco;
     /** @type {Map<string, object>} */
     this.itens = new Map();
     this.desconto = 0;
+    this.valorRecebido = 0;
+    this._destruido = false;
+    this._aoCliqueItens = (evento) => this._tratarCliqueItens(evento);
+    this._aoDesconto = () => {
+      this.desconto = Number(this.inputDesconto.value) || 0;
+      this._atualizarTotais();
+    };
+    this._aoRecebido = () => {
+      this.valorRecebido = Number(this.inputRecebido?.value) || 0;
+      this._atualizarTotais();
+    };
+    this._aoPagamento = () => this._atualizarTotais();
     this._registrarEventos();
   }
 
   _registrarEventos() {
-    this.containerItens.addEventListener("click", (evento) => {
-      const alvo = evento.target.closest("[data-acao]");
-      if (!alvo) return;
+    this.containerItens.addEventListener("click", this._aoCliqueItens);
+    this.inputDesconto.addEventListener("input", this._aoDesconto);
+    this.inputRecebido?.addEventListener("input", this._aoRecebido);
+    this.selectPagamento?.addEventListener("change", this._aoPagamento);
+  }
 
-      const { acao, id } = alvo.dataset;
-      if (acao === "aumentar") this.alterarQuantidade(id, 1);
-      if (acao === "diminuir") this.alterarQuantidade(id, -1);
-      if (acao === "remover") this.remover(id);
-    });
+  /** Remove listeners para evitar duplicacao em re-login. */
+  destruir() {
+    if (this._destruido) return;
+    this._destruido = true;
+    this.containerItens.removeEventListener("click", this._aoCliqueItens);
+    this.inputDesconto.removeEventListener("input", this._aoDesconto);
+    this.inputRecebido?.removeEventListener("input", this._aoRecebido);
+    this.selectPagamento?.removeEventListener("change", this._aoPagamento);
+    this.itens.clear();
+  }
 
-    this.inputDesconto.addEventListener("input", () => {
-      this.desconto = Number(this.inputDesconto.value) || 0;
-      this._atualizarTotais();
-    });
+  _tratarCliqueItens(evento) {
+    const alvo = evento.target.closest("[data-acao]");
+    if (!alvo) return;
+    const { acao, id } = alvo.dataset;
+    if (acao === "aumentar") this.alterarQuantidade(id, 1);
+    if (acao === "diminuir") this.alterarQuantidade(id, -1);
+    if (acao === "remover") this.remover(id);
   }
 
   /**
-   * Adiciona um produto ao carrinho, respeitando o estoque disponivel.
    * @param {object} produto
+   * @returns {boolean}
    */
   adicionar(produto) {
     const existente = this.itens.get(produto.id);
@@ -60,6 +94,7 @@ export class Carrinho {
     if (existente) {
       if (existente.quantidade + 1 > estoque) return false;
       existente.quantidade += 1;
+      existente.estoqueAtual = estoque;
     } else {
       if (estoque < 1) return false;
       this.itens.set(produto.id, {
@@ -75,7 +110,6 @@ export class Carrinho {
   }
 
   /**
-   * Altera a quantidade de um item; remove quando chega a zero.
    * @param {string} produtoId
    * @param {number} delta
    */
@@ -94,29 +128,27 @@ export class Carrinho {
     this.renderizar();
   }
 
-  /**
-   * Remove um item do carrinho.
-   * @param {string} produtoId
-   */
+  /** @param {string} produtoId */
   remover(produtoId) {
     this.itens.delete(produtoId);
     this.renderizar();
   }
 
-  /** Esvazia o carrinho e zera o desconto. */
   limpar() {
     this.itens.clear();
     this.desconto = 0;
+    this.valorRecebido = 0;
     this.inputDesconto.value = "0";
+    if (this.inputRecebido) this.inputRecebido.value = "0";
     this.renderizar();
   }
 
-  /** @returns {Array<object>} itens do carrinho. */
+  /** @returns {Array<object>} */
   obterItens() {
     return Array.from(this.itens.values());
   }
 
-  /** @returns {number} soma dos itens, sem desconto. */
+  /** @returns {number} */
   obterSubtotal() {
     return this.obterItens().reduce(
       (soma, item) => soma + item.precoUnitario * item.quantidade,
@@ -124,21 +156,30 @@ export class Carrinho {
     );
   }
 
-  /**
-   * Desconto efetivo aplicado, limitado ao intervalo [0, subtotal].
-   * @returns {number}
-   */
+  /** @returns {number} */
   obterDesconto() {
     const subtotal = this.obterSubtotal();
     return Math.min(Math.max(0, this.desconto), subtotal);
   }
 
-  /** @returns {number} total da venda ja com o desconto aplicado. */
+  /** @returns {number} */
   obterTotal() {
     return this.obterSubtotal() - this.obterDesconto();
   }
 
-  /** Atualiza a interface do carrinho. */
+  /** @returns {number} */
+  obterTroco() {
+    if (this.selectPagamento?.value !== "dinheiro") return 0;
+    return Math.max(0, this.valorRecebido - this.obterTotal());
+  }
+
+  /** @returns {boolean} */
+  pagamentoDinheiroOk() {
+    if (this.selectPagamento?.value !== "dinheiro") return true;
+    if (this.obterTotal() <= 0) return true;
+    return this.valorRecebido + 0.001 >= this.obterTotal();
+  }
+
   renderizar() {
     const itens = this.obterItens();
 
@@ -150,7 +191,7 @@ export class Carrinho {
         .map(
           (item) => `
         <div class="item">
-          <span class="item-nome">${escapeHtml(item.nome)}</span>
+          <span class="item-nome" title="${escapeHtml(item.nome)}">${escapeHtml(item.nome)}</span>
           <span class="item-subtotal">${formatarMoeda(
             item.precoUnitario * item.quantidade
           )}</span>
@@ -166,12 +207,21 @@ export class Carrinho {
     }
 
     this._atualizarTotais();
-    this.botaoFinalizar.disabled = itens.length === 0;
   }
 
-  /** Recalcula e exibe subtotal, desconto e total. */
   _atualizarTotais() {
+    const total = this.obterTotal();
     this.elementoSubtotal.textContent = formatarMoeda(this.obterSubtotal());
-    this.elementoTotal.textContent = formatarMoeda(this.obterTotal());
+    this.elementoTotal.textContent = formatarMoeda(total);
+
+    const ehDinheiro = this.selectPagamento?.value === "dinheiro";
+    this.blocoTroco?.classList.toggle("oculto", !ehDinheiro);
+
+    if (this.elementoTroco) {
+      this.elementoTroco.textContent = formatarMoeda(this.obterTroco());
+    }
+
+    const temItens = this.itens.size > 0;
+    this.botaoFinalizar.disabled = !temItens || !this.pagamentoDinheiroOk();
   }
 }

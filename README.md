@@ -8,7 +8,7 @@ Sistema de ponto de venda (PDV) para loja, em desktop (Windows), construído com
 **Nao precisa baixar o codigo.** So o instalador:
 
 1. Acesse **[Releases](https://github.com/cybhortech/sistemaPDV/releases)**
-2. Baixe `CybhorPDV-Setup-1.0.0.exe`
+2. Baixe `CybhorPDV-Setup-2.0.0-x64.exe` (ou `-ia32.exe` em PCs 32 bits)
 3. Instale e abra o CybhorPDV
 
 Instrucoes detalhadas: [INSTALAR.md](INSTALAR.md)

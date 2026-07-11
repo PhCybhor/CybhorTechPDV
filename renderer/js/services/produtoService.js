@@ -1,4 +1,4 @@
-import { ref, get, push, update, onValue } from "firebase/database";
+import { ref, get, push, update, remove, onValue } from "firebase/database";
 import { obterDatabase } from "../config/firebaseClient.js";
 
 const CAMINHO_PRODUTOS = "produtos";
@@ -11,6 +11,31 @@ const CAMINHO_PRODUTOS = "produtos";
 function mapearProdutos(valor) {
   if (!valor) return [];
   return Object.entries(valor).map(([id, dados]) => ({ id, ...dados }));
+}
+
+/**
+ * Valida e normaliza os campos de um produto.
+ * @param {object} dados
+ * @returns {object}
+ */
+function normalizarProduto({ nome, codigoBarras, preco, estoque, categoria }) {
+  const nomeLimpo = (nome || "").trim();
+  const precoNumero = Number(preco);
+  const estoqueNumero = Number(estoque);
+
+  if (nomeLimpo.length < 2) throw new Error("Informe o nome do produto.");
+  if (!Number.isFinite(precoNumero) || precoNumero < 0)
+    throw new Error("Preco invalido.");
+  if (!Number.isFinite(estoqueNumero) || estoqueNumero < 0)
+    throw new Error("Estoque invalido.");
+
+  return {
+    nome: nomeLimpo,
+    codigoBarras: (codigoBarras || "").trim(),
+    preco: precoNumero,
+    estoque: estoqueNumero,
+    categoria: (categoria || "").trim(),
+  };
 }
 
 /**
@@ -37,31 +62,44 @@ export async function observarProdutos(callback) {
 
 /**
  * Cadastra um novo produto.
- * @param {{nome: string, codigoBarras?: string, preco: number, estoque: number, categoria?: string}} produto
+ * @param {object} produto
  * @returns {Promise<string>} id gerado
  */
-export async function criarProduto({ nome, codigoBarras, preco, estoque, categoria }) {
-  const nomeLimpo = (nome || "").trim();
-  const precoNumero = Number(preco);
-  const estoqueNumero = Number(estoque);
-
-  if (nomeLimpo.length < 2) throw new Error("Informe o nome do produto.");
-  if (!Number.isFinite(precoNumero) || precoNumero < 0)
-    throw new Error("Preco invalido.");
-  if (!Number.isFinite(estoqueNumero) || estoqueNumero < 0)
-    throw new Error("Estoque invalido.");
-
+export async function criarProduto(produto) {
+  const dados = normalizarProduto(produto);
   const db = await obterDatabase();
   const referencia = await push(ref(db, CAMINHO_PRODUTOS), {
-    nome: nomeLimpo,
-    codigoBarras: (codigoBarras || "").trim(),
-    preco: precoNumero,
-    estoque: estoqueNumero,
-    categoria: (categoria || "").trim(),
+    ...dados,
     criadoEm: Date.now(),
   });
-
   return referencia.key;
+}
+
+/**
+ * Atualiza um produto existente.
+ * @param {string} produtoId
+ * @param {object} produto
+ * @returns {Promise<void>}
+ */
+export async function atualizarProduto(produtoId, produto) {
+  if (!produtoId) throw new Error("Produto invalido.");
+  const dados = normalizarProduto(produto);
+  const db = await obterDatabase();
+  await update(ref(db, `${CAMINHO_PRODUTOS}/${produtoId}`), {
+    ...dados,
+    atualizadoEm: Date.now(),
+  });
+}
+
+/**
+ * Remove um produto do catalogo.
+ * @param {string} produtoId
+ * @returns {Promise<void>}
+ */
+export async function excluirProduto(produtoId) {
+  if (!produtoId) throw new Error("Produto invalido.");
+  const db = await obterDatabase();
+  await remove(ref(db, `${CAMINHO_PRODUTOS}/${produtoId}`));
 }
 
 /**
@@ -76,5 +114,22 @@ export async function ajustarEstoque(produtoId, estoqueAtual, variacao) {
   const db = await obterDatabase();
   await update(ref(db, `${CAMINHO_PRODUTOS}/${produtoId}`), {
     estoque: novoEstoque,
+    atualizadoEm: Date.now(),
   });
+}
+
+/**
+ * Busca produto por codigo de barras exato (para leitor).
+ * @param {Array<object>} produtos
+ * @param {string} codigo
+ * @returns {object | null}
+ */
+export function encontrarPorCodigoBarras(produtos, codigo) {
+  const alvo = (codigo || "").trim();
+  if (!alvo) return null;
+  return (
+    produtos.find(
+      (p) => (p.codigoBarras || "").trim() === alvo
+    ) || null
+  );
 }

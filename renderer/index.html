@@ -7,18 +7,18 @@
       content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com wss://*.firebaseio.com; img-src 'self' data:;"
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>CybhorPDV</title>
+    <title>CybhorPDV 2.0</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <!-- Tela de carregamento -->
+    <!-- Carregamento -->
     <section id="tela-carregando" class="tela tela-central">
       <img src="assets/logo.png" class="logo-loading" alt="CybhorPDV" />
       <div class="spinner"></div>
       <p>Conectando ao sistema...</p>
     </section>
 
-    <!-- Configuracao inicial: cria o primeiro administrador -->
+    <!-- Setup inicial -->
     <section id="tela-setup" class="tela tela-central oculto">
       <div class="cartao cartao-form">
         <img src="assets/logo.png" class="logo-login" alt="CybhorPDV" />
@@ -38,7 +38,7 @@
             <input type="password" id="setup-senha" required />
           </label>
           <button type="submit" class="btn btn-primario">Criar administrador</button>
-          <p class="mensagem-erro" id="setup-erro"></p>
+          <p class="mensagem-erro oculto" id="setup-erro"></p>
         </form>
       </div>
     </section>
@@ -47,7 +47,7 @@
     <section id="tela-login" class="tela tela-central oculto">
       <div class="cartao cartao-form">
         <img src="assets/logo.png" class="logo-login" alt="CybhorPDV" />
-        <h1 class="titulo">CybhorPDV</h1>
+        <h1 class="titulo">CybhorPDV 2.0</h1>
         <p class="subtitulo">Acesse com seu usuario e senha.</p>
         <form id="form-login" class="form">
           <label>Usuario
@@ -57,240 +57,282 @@
             <input type="password" id="login-senha" required />
           </label>
           <button type="submit" class="btn btn-primario">Entrar</button>
-          <p class="mensagem-erro" id="login-erro"></p>
+          <p class="mensagem-erro oculto" id="login-erro"></p>
         </form>
       </div>
     </section>
 
-    <!-- Tela principal do PDV -->
-    <section id="tela-pdv" class="tela oculto">
-      <header class="cabecalho">
-        <div class="cabecalho-marca">
-          <img src="assets/logo.png" class="logo-cabecalho" alt="" />
-          CybhorPDV
-        </div>
-        <div class="cabecalho-acoes">
-          <span id="pdv-funcionario" class="chip"></span>
-          <button id="btn-relatorios" class="btn btn-secundario oculto">
-            Relatorios
-          </button>
-          <button id="btn-funcionarios" class="btn btn-secundario oculto">
-            Gerenciar funcionarios
-          </button>
-          <button id="btn-novo-funcionario" class="btn btn-secundario oculto">
-            + Novo caixa
-          </button>
-          <button id="btn-sair" class="btn btn-texto">Sair</button>
-        </div>
-      </header>
-
-      <main class="pdv-conteudo">
-        <div class="pdv-catalogo">
-          <div class="busca">
-            <input
-              type="text"
-              id="busca-produto"
-              class="busca-input"
-              placeholder="Buscar produto por nome, codigo ou categoria..."
-              autocomplete="off"
-            />
-            <div id="busca-sugestoes" class="sugestoes oculto"></div>
+    <!-- Shell autenticado: sidebar + area de conteudo -->
+    <section id="tela-app" class="tela oculto">
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar-marca">
+          <img src="assets/logo.png" class="logo-sidebar" alt="" />
+          <div class="sidebar-marca-texto">
+            <strong>CybhorPDV</strong>
+            <span>v2.0</span>
           </div>
-          <div id="lista-produtos" class="grade-produtos"></div>
         </div>
 
-        <aside class="pdv-carrinho">
-          <h2 class="carrinho-titulo">Venda atual</h2>
-          <div id="carrinho-itens" class="carrinho-itens">
-            <p class="carrinho-vazio">Nenhum item adicionado.</p>
-          </div>
-          <div class="carrinho-rodape">
-            <div class="carrinho-linha">
-              <span>Subtotal</span>
-              <span id="carrinho-subtotal-valor">R$ 0,00</span>
+        <nav class="sidebar-nav" aria-label="Menu principal">
+          <button type="button" class="nav-item ativo" data-rota="pdv" id="nav-pdv">
+            <span class="nav-icone" aria-hidden="true">▣</span>
+            <span>Caixa</span>
+          </button>
+          <button type="button" class="nav-item oculto" data-rota="produtos" id="nav-produtos">
+            <span class="nav-icone" aria-hidden="true">◫</span>
+            <span>Produtos</span>
+          </button>
+          <button type="button" class="nav-item oculto" data-rota="relatorios" id="nav-relatorios">
+            <span class="nav-icone" aria-hidden="true">▤</span>
+            <span>Relatorios</span>
+          </button>
+          <button type="button" class="nav-item oculto" data-rota="funcionarios" id="nav-funcionarios">
+            <span class="nav-icone" aria-hidden="true">☺</span>
+            <span>Equipe</span>
+          </button>
+        </nav>
+
+        <div class="sidebar-rodape">
+          <div id="app-funcionario" class="chip-usuario"></div>
+          <button type="button" id="btn-sair" class="btn btn-texto btn-bloco">Sair</button>
+        </div>
+      </aside>
+
+      <div class="app-principal">
+        <!-- PDV / Caixa -->
+        <div id="rota-pdv" class="rota">
+          <header class="rota-cabecalho">
+            <div>
+              <h1 class="rota-titulo">Caixa</h1>
+              <p class="rota-sub">Busque, adicione itens e finalize a venda</p>
             </div>
-            <label class="campo-desconto">Desconto (R$)
-              <input
-                type="number"
-                id="carrinho-desconto"
-                min="0"
-                step="0.01"
-                value="0"
-              />
-            </label>
-            <div class="carrinho-total">
-              <span>Total</span>
-              <strong id="carrinho-total-valor">R$ 0,00</strong>
+            <button type="button" id="btn-novo-produto-pdv" class="btn btn-secundario">
+              + Novo produto
+            </button>
+          </header>
+
+          <div class="pdv-conteudo">
+            <div class="pdv-catalogo">
+              <div class="busca">
+                <input
+                  type="text"
+                  id="busca-produto"
+                  class="busca-input"
+                  placeholder="Nome, codigo de barras ou categoria (Enter = adicionar)"
+                  autocomplete="off"
+                />
+                <div id="busca-sugestoes" class="sugestoes oculto" role="listbox"></div>
+              </div>
+              <div id="lista-produtos" class="grade-produtos"></div>
             </div>
-            <label class="campo-pagamento">Forma de pagamento
-              <select id="forma-pagamento">
-                <option value="dinheiro">Dinheiro</option>
-                <option value="pix">PIX</option>
-                <option value="debito">Cartao de debito</option>
-                <option value="credito">Cartao de credito</option>
-              </select>
-            </label>
-            <button id="btn-finalizar" class="btn btn-primario btn-bloco" disabled>
-              Finalizar venda
-            </button>
-            <button id="btn-limpar" class="btn btn-texto btn-bloco">Limpar</button>
-          </div>
-        </aside>
-      </main>
-    </section>
 
-    <!-- Tela de relatorios (somente administrador) -->
-    <section id="tela-relatorios" class="tela oculto">
-      <header class="cabecalho">
-        <div class="cabecalho-marca">
-          <img src="assets/logo.png" class="logo-cabecalho" alt="" />
-          Relatorios
-        </div>
-        <div class="cabecalho-acoes">
-          <button id="btn-gerenciar-func-relatorios" class="btn btn-secundario">
-            Gerenciar funcionarios
-          </button>
-          <button id="btn-voltar-pdv" class="btn btn-secundario">
-            Voltar ao PDV
-          </button>
-        </div>
-      </header>
-
-      <main class="relatorios-conteudo">
-        <div class="admin-barra oculto" id="admin-barra">
-          <div class="admin-barra-info">
-            <span class="admin-barra-titulo">Area do administrador</span>
-            <span class="admin-barra-sub">Gerencie funcionarios e cargos da loja</span>
-          </div>
-          <div class="admin-barra-acoes">
-            <button id="btn-gerenciar-func-barra" class="btn btn-primario">
-              Gerenciar funcionarios
-            </button>
-            <button id="btn-novo-func-barra" class="btn btn-secundario">
-              + Novo caixa
-            </button>
-          </div>
-        </div>
-
-        <div class="relatorios-cartoes">
-          <div class="cartao-metrica cartao-metrica--sucesso">
-            <span class="metrica-titulo">Vendido hoje</span>
-            <strong id="card-total-hoje" class="metrica-valor sucesso">R$ 0,00</strong>
-            <span id="card-qtd-hoje" class="metrica-sub">0 venda(s)</span>
-          </div>
-          <div class="cartao-metrica">
-            <span class="metrica-titulo">Total do mes</span>
-            <strong id="card-total-mes" class="metrica-valor">R$ 0,00</strong>
-            <span class="metrica-sub">Acumulado do mes atual</span>
-          </div>
-          <div class="cartao-metrica cartao-metrica--alerta">
-            <span class="metrica-titulo">Descontos concedidos (mes)</span>
-            <strong id="card-total-descontos" class="metrica-valor alerta">R$ 0,00</strong>
-            <span class="metrica-sub">Somatorio dos descontos do mes</span>
-          </div>
-        </div>
-
-        <div class="relatorios-grade">
-          <div class="painel-grafico painel-largo">
-            <div class="painel-cabecalho">
-              <h3 class="painel-titulo">Vendas por dia</h3>
-              <div class="painel-controles">
-                <input type="date" id="relatorio-data" class="input-data" />
-                <button id="btn-gerar-pdf" class="btn btn-primario">
-                  Gerar PDF
+            <aside class="pdv-carrinho">
+              <h2 class="carrinho-titulo">Venda atual</h2>
+              <div id="carrinho-itens" class="carrinho-itens">
+                <p class="carrinho-vazio">Nenhum item adicionado.</p>
+              </div>
+              <div class="carrinho-rodape">
+                <div class="carrinho-linha">
+                  <span>Subtotal</span>
+                  <span id="carrinho-subtotal-valor">R$ 0,00</span>
+                </div>
+                <label class="campo-inline">Desconto (R$)
+                  <input
+                    type="number"
+                    id="carrinho-desconto"
+                    min="0"
+                    step="0.01"
+                    value="0"
+                  />
+                </label>
+                <div class="carrinho-total">
+                  <span>Total</span>
+                  <strong id="carrinho-total-valor">R$ 0,00</strong>
+                </div>
+                <label class="campo-bloco">Forma de pagamento
+                  <select id="forma-pagamento">
+                    <option value="dinheiro">Dinheiro</option>
+                    <option value="pix">PIX</option>
+                    <option value="debito">Cartao de debito</option>
+                    <option value="credito">Cartao de credito</option>
+                  </select>
+                </label>
+                <div id="bloco-troco" class="bloco-troco oculto">
+                  <label class="campo-inline">Valor recebido (R$)
+                    <input
+                      type="number"
+                      id="carrinho-recebido"
+                      min="0"
+                      step="0.01"
+                      value="0"
+                    />
+                  </label>
+                  <div class="carrinho-linha">
+                    <span>Troco</span>
+                    <strong id="carrinho-troco-valor" class="troco-valor">R$ 0,00</strong>
+                  </div>
+                </div>
+                <button id="btn-finalizar" class="btn btn-primario btn-bloco" disabled>
+                  Finalizar venda
                 </button>
+                <button id="btn-limpar" class="btn btn-texto btn-bloco">Limpar carrinho</button>
+              </div>
+            </aside>
+          </div>
+        </div>
+
+        <!-- Produtos (admin) -->
+        <div id="rota-produtos" class="rota oculto">
+          <header class="rota-cabecalho">
+            <div>
+              <h1 class="rota-titulo">Produtos</h1>
+              <p class="rota-sub">Cadastre, edite, ajuste estoque e remova itens</p>
+            </div>
+            <button type="button" id="btn-novo-produto" class="btn btn-primario">
+              + Novo produto
+            </button>
+          </header>
+
+          <div class="painel-conteudo">
+            <div class="barra-filtro">
+              <input
+                type="text"
+                id="filtro-produtos"
+                class="busca-input"
+                placeholder="Filtrar produtos..."
+                autocomplete="off"
+              />
+            </div>
+            <div id="lista-gestao-produtos" class="lista-gestao"></div>
+          </div>
+        </div>
+
+        <!-- Relatorios (admin) -->
+        <div id="rota-relatorios" class="rota oculto">
+          <header class="rota-cabecalho">
+            <div>
+              <h1 class="rota-titulo">Relatorios</h1>
+              <p class="rota-sub">Vendas, descontos e desempenho da loja</p>
+            </div>
+          </header>
+
+          <div class="painel-conteudo relatorios-conteudo">
+            <div class="relatorios-cartoes">
+              <div class="cartao-metrica cartao-metrica--sucesso">
+                <span class="metrica-titulo">Vendido hoje</span>
+                <strong id="card-total-hoje" class="metrica-valor sucesso">R$ 0,00</strong>
+                <span id="card-qtd-hoje" class="metrica-sub">0 venda(s)</span>
+              </div>
+              <div class="cartao-metrica">
+                <span class="metrica-titulo">Total do mes</span>
+                <strong id="card-total-mes" class="metrica-valor">R$ 0,00</strong>
+                <span class="metrica-sub">Acumulado do mes atual</span>
+              </div>
+              <div class="cartao-metrica cartao-metrica--alerta">
+                <span class="metrica-titulo">Descontos (mes)</span>
+                <strong id="card-total-descontos" class="metrica-valor alerta">R$ 0,00</strong>
+                <span class="metrica-sub">Somatorio dos descontos</span>
               </div>
             </div>
-            <div id="resumo-dia" class="resumo-dia"></div>
-            <div id="tabela-dia" class="tabela-descontos"></div>
-          </div>
 
-          <div class="painel-grafico">
-            <h3 class="painel-titulo">Mais vendidos no mes</h3>
-            <p id="mais-vendidos-vazio" class="ranking-vazio oculto">
-              Ainda nao ha vendas neste mes.
-            </p>
-            <div class="grafico-area">
-              <canvas id="grafico-mais-vendidos"></canvas>
+            <div class="relatorios-grade">
+              <div class="painel-grafico painel-largo">
+                <div class="painel-cabecalho">
+                  <h3 class="painel-titulo">Vendas por dia</h3>
+                  <div class="painel-controles">
+                    <input type="date" id="relatorio-data" class="input-data" />
+                    <button type="button" id="btn-gerar-pdf" class="btn btn-primario">
+                      Gerar PDF
+                    </button>
+                  </div>
+                </div>
+                <div id="resumo-dia" class="resumo-dia"></div>
+                <div id="tabela-dia" class="tabela-dados"></div>
+              </div>
+
+              <div class="painel-grafico">
+                <h3 class="painel-titulo">Mais vendidos no mes</h3>
+                <p id="mais-vendidos-vazio" class="ranking-vazio oculto">
+                  Ainda nao ha vendas neste mes.
+                </p>
+                <div class="grafico-area">
+                  <canvas id="grafico-mais-vendidos"></canvas>
+                </div>
+              </div>
+
+              <aside class="painel-ranking">
+                <h3 class="painel-titulo">Em alta (7 dias)</h3>
+                <div id="lista-em-alta" class="ranking-lista"></div>
+              </aside>
+
+              <div class="painel-grafico painel-largo">
+                <h3 class="painel-titulo">Receita por dia (ultimos 7 dias)</h3>
+                <div class="grafico-area">
+                  <canvas id="grafico-receita-diaria"></canvas>
+                </div>
+              </div>
+
+              <div class="painel-grafico painel-largo">
+                <h3 class="painel-titulo">Vendas com desconto</h3>
+                <div id="tabela-descontos" class="tabela-dados"></div>
+              </div>
             </div>
           </div>
+        </div>
 
-          <aside class="painel-ranking">
-            <h3 class="painel-titulo">Em alta (ultimos 7 dias)</h3>
-            <div id="lista-em-alta" class="ranking-lista"></div>
-          </aside>
+        <!-- Funcionarios (admin) -->
+        <div id="rota-funcionarios" class="rota oculto">
+          <header class="rota-cabecalho">
+            <div>
+              <h1 class="rota-titulo">Equipe</h1>
+              <p class="rota-sub">Gerencie caixas e administradores</p>
+            </div>
+            <button type="button" id="btn-novo-funcionario" class="btn btn-primario">
+              + Novo funcionario
+            </button>
+          </header>
 
-          <div class="painel-grafico painel-largo">
-            <h3 class="painel-titulo">Receita por dia (ultimos 7 dias)</h3>
-            <div class="grafico-area">
-              <canvas id="grafico-receita-diaria"></canvas>
+          <div class="painel-conteudo">
+            <div class="painel-grafico painel-solto">
+              <p class="subtitulo painel-sub">
+                Altere o cargo de cada funcionario. A confirmacao exige senha de administrador.
+              </p>
+              <div id="lista-funcionarios" class="lista-funcionarios"></div>
             </div>
           </div>
-
-          <div class="painel-grafico painel-largo">
-            <h3 class="painel-titulo">Vendas com desconto</h3>
-            <div id="tabela-descontos" class="tabela-descontos"></div>
-          </div>
-        </div>
-      </main>
-    </section>
-
-    <!-- Gerenciar funcionarios (somente administrador) -->
-    <section id="tela-funcionarios" class="tela oculto">
-      <header class="cabecalho">
-        <div class="cabecalho-marca">
-          <img src="assets/logo.png" class="logo-cabecalho" alt="" />
-          Gerenciar funcionarios
-        </div>
-        <div class="cabecalho-acoes">
-          <button id="btn-novo-funcionario-2" class="btn btn-secundario">
-            + Novo caixa
-          </button>
-          <button id="btn-voltar-pdv-func" class="btn btn-secundario">
-            Voltar ao PDV
-          </button>
-        </div>
-      </header>
-
-      <main class="funcionarios-conteudo">
-        <div class="painel-grafico painel-largo">
-          <h3 class="painel-titulo">Gerenciar funcionarios</h3>
-          <p class="subtitulo painel-sub">
-            Altere o cargo de cada funcionario. A confirmacao exige senha de administrador.
-          </p>
-          <div id="lista-funcionarios" class="lista-funcionarios"></div>
-        </div>
-      </main>
-
-      <!-- Modal: confirmar alteracao de cargo -->
-      <div id="modal-alterar-cargo" class="modal oculto">
-        <div class="modal-caixa">
-          <h2 class="titulo">Confirmar alteracao de cargo</h2>
-          <p id="alterar-cargo-resumo" class="subtitulo"></p>
-          <form id="form-alterar-cargo" class="form">
-            <label>Usuario admin
-              <input type="text" id="auth-admin-usuario" autocomplete="off" required />
-            </label>
-            <label>Senha admin
-              <input type="password" id="auth-admin-senha" required />
-            </label>
-            <div class="modal-acoes">
-              <button type="button" class="btn btn-texto" data-fechar-modal="modal-alterar-cargo">
-                Cancelar
-              </button>
-              <button type="submit" class="btn btn-primario">Confirmar</button>
-            </div>
-            <p class="mensagem-erro" id="alterar-cargo-erro"></p>
-          </form>
         </div>
       </div>
     </section>
 
-    <!-- Modal: cadastro de produto -->
+    <!-- Modal: alterar cargo -->
+    <div id="modal-alterar-cargo" class="modal oculto">
+      <div class="modal-caixa" role="dialog" aria-modal="true">
+        <h2 class="titulo">Confirmar alteracao de cargo</h2>
+        <p id="alterar-cargo-resumo" class="subtitulo"></p>
+        <form id="form-alterar-cargo" class="form">
+          <label>Usuario admin
+            <input type="text" id="auth-admin-usuario" autocomplete="off" required />
+          </label>
+          <label>Senha admin
+            <input type="password" id="auth-admin-senha" required />
+          </label>
+          <div class="modal-acoes">
+            <button type="button" class="btn btn-texto" data-fechar-modal="modal-alterar-cargo">
+              Cancelar
+            </button>
+            <button type="submit" class="btn btn-primario">Confirmar</button>
+          </div>
+          <p class="mensagem-erro oculto" id="alterar-cargo-erro"></p>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal: produto (criar / editar) -->
     <div id="modal-produto" class="modal oculto">
-      <div class="modal-caixa">
-        <h2 class="titulo">Cadastrar produto</h2>
+      <div class="modal-caixa" role="dialog" aria-modal="true">
+        <h2 class="titulo" id="modal-produto-titulo">Cadastrar produto</h2>
         <form id="form-produto" class="form">
+          <input type="hidden" id="produto-id" value="" />
           <label>Nome
             <input type="text" id="produto-nome" required />
           </label>
@@ -310,27 +352,45 @@
               <input type="text" id="produto-categoria" autocomplete="off" />
             </label>
           </div>
-          <label class="checkbox">
+          <label class="checkbox" id="wrap-adicionar-venda">
             <input type="checkbox" id="produto-adicionar-venda" checked />
-            Adicionar a venda atual apos cadastrar
+            Adicionar a venda atual apos salvar
           </label>
           <div class="modal-acoes">
             <button type="button" class="btn btn-texto" data-fechar-modal="modal-produto">
               Cancelar
             </button>
-            <button type="submit" class="btn btn-primario">Salvar produto</button>
+            <button type="submit" class="btn btn-primario" id="btn-salvar-produto">
+              Salvar produto
+            </button>
           </div>
-          <p class="mensagem-erro" id="produto-erro"></p>
+          <p class="mensagem-erro oculto" id="produto-erro"></p>
         </form>
       </div>
     </div>
 
-    <!-- Modal: cadastro de funcionario/caixa (exige senha de administrador) -->
+    <!-- Modal: confirmar exclusao de produto -->
+    <div id="modal-excluir-produto" class="modal oculto">
+      <div class="modal-caixa modal-caixa--sm" role="dialog" aria-modal="true">
+        <h2 class="titulo">Excluir produto</h2>
+        <p id="excluir-produto-resumo" class="subtitulo"></p>
+        <div class="modal-acoes">
+          <button type="button" class="btn btn-texto" data-fechar-modal="modal-excluir-produto">
+            Cancelar
+          </button>
+          <button type="button" id="btn-confirmar-excluir" class="btn btn-perigo">
+            Excluir
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: funcionario -->
     <div id="modal-funcionario" class="modal oculto">
-      <div class="modal-caixa">
-        <h2 class="titulo">Novo caixa / funcionario</h2>
+      <div class="modal-caixa" role="dialog" aria-modal="true">
+        <h2 class="titulo">Novo funcionario</h2>
         <p class="subtitulo">
-          Confirme com um usuario e senha de administrador para autorizar.
+          Confirme com usuario e senha de administrador para autorizar.
         </p>
         <form id="form-funcionario" class="form">
           <fieldset class="bloco">
@@ -366,7 +426,7 @@
             </button>
             <button type="submit" class="btn btn-primario">Criar funcionario</button>
           </div>
-          <p class="mensagem-erro" id="func-erro"></p>
+          <p class="mensagem-erro oculto" id="func-erro"></p>
         </form>
       </div>
     </div>

@@ -12,17 +12,25 @@ const ROTULO_CARGO = {
  * permite alterar o cargo com confirmacao de senha do administrador.
  */
 export class PainelFuncionarios {
-  /** @param {{raiz: HTMLElement}} opcoes */
-  constructor({ raiz }) {
-    this.raiz = raiz;
+  /**
+   * @param {{
+   *   listaEl: HTMLElement,
+   *   formAuth: HTMLFormElement,
+   *   modalAuth: HTMLElement,
+   *   erroEl: HTMLElement,
+   *   resumoEl: HTMLElement,
+   *   inputUsuario: HTMLInputElement,
+   * }} opcoes
+   */
+  constructor({ listaEl, formAuth, modalAuth, erroEl, resumoEl, inputUsuario }) {
+    this.listaEl = listaEl;
+    this.formAuth = formAuth;
+    this.modalAuth = modalAuth;
+    this.erroEl = erroEl;
+    this.resumoEl = resumoEl;
+    this.inputUsuario = inputUsuario;
     this.funcionarios = [];
     this.alteracaoPendente = null;
-
-    this.listaEl = raiz.querySelector("#lista-funcionarios");
-    this.formAuth = raiz.querySelector("#form-alterar-cargo");
-    this.modalAuth = raiz.querySelector("#modal-alterar-cargo");
-    this.erroEl = raiz.querySelector("#alterar-cargo-erro");
-    this.resumoEl = raiz.querySelector("#alterar-cargo-resumo");
 
     this._registrarEventos();
   }
@@ -35,10 +43,6 @@ export class PainelFuncionarios {
     });
 
     this.formAuth.addEventListener("submit", (e) => this._confirmarAlteracao(e));
-
-    this.raiz
-      .querySelector("[data-fechar-modal='modal-alterar-cargo']")
-      .addEventListener("click", () => this._fecharModalAuth());
   }
 
   /**
@@ -100,37 +104,45 @@ export class PainelFuncionarios {
     this.alteracaoPendente = { funcionarioId, novoCargo, funcionario };
     this.formAuth.reset();
     this.erroEl.textContent = "";
+    this.erroEl.classList.add("oculto");
     this.resumoEl.textContent = `Alterar "${funcionario.nome}" de ${ROTULO_CARGO[funcionario.cargo]} para ${ROTULO_CARGO[novoCargo]}.`;
     this.modalAuth.classList.remove("oculto");
-    this.raiz.querySelector("#auth-admin-usuario").focus();
+    this.inputUsuario.focus();
   }
 
   async _confirmarAlteracao(evento) {
     evento.preventDefault();
     this.erroEl.textContent = "";
+    this.erroEl.classList.add("oculto");
 
     if (!this.alteracaoPendente) return;
 
     const { funcionarioId, novoCargo } = this.alteracaoPendente;
+    const adminUsuario =
+      this.formAuth.querySelector("#auth-admin-usuario")?.value || "";
+    const adminSenha =
+      this.formAuth.querySelector("#auth-admin-senha")?.value || "";
 
     try {
       await atualizarCargoFuncionario({
         funcionarioId,
         cargo: novoCargo,
-        adminUsuario: this.raiz.querySelector("#auth-admin-usuario").value,
-        adminSenha: this.raiz.querySelector("#auth-admin-senha").value,
+        adminUsuario,
+        adminSenha,
       });
-      this._fecharModalAuth();
+      this.fecharModalAuth();
       notificar("Cargo atualizado com sucesso.", "sucesso");
     } catch (erro) {
       this.erroEl.textContent = erro.message;
+      this.erroEl.classList.remove("oculto");
     }
   }
 
-  _fecharModalAuth() {
+  fecharModalAuth() {
     this.alteracaoPendente = null;
     this.modalAuth.classList.add("oculto");
     this.formAuth.reset();
     this.erroEl.textContent = "";
+    this.erroEl.classList.add("oculto");
   }
 }
