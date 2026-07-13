@@ -431,6 +431,22 @@
       </div>
     </div>
 
+    <div id="modal-venda-sucesso" class="modal oculto">
+      <div class="modal-caixa modal-caixa--sm" role="dialog" aria-modal="true" aria-labelledby="venda-sucesso-titulo">
+        <h2 class="titulo" id="venda-sucesso-titulo">Venda finalizada</h2>
+        <p class="rota-sub" id="venda-sucesso-resumo">A venda foi registrada com sucesso.</p>
+        <p class="venda-impressao-status oculto" id="venda-sucesso-impressao-status"></p>
+        <div class="modal-acoes modal-acoes--coluna">
+          <button type="button" id="btn-imprimir-cupom" class="btn btn-primario btn-bloco">
+            Imprimir cupom / nota
+          </button>
+          <button type="button" class="btn btn-texto btn-bloco" data-fechar-modal="modal-venda-sucesso">
+            Fechar
+          </button>
+        </div>
+      </div>
+    </div>
+
     <div id="notificacoes" class="notificacoes"></div>
 
     <script src="dist/bundle.js"></script>

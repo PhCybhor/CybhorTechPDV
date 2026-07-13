@@ -15,6 +15,7 @@ import {
   encontrarPorCodigoBarras,
 } from "./services/produtoService.js";
 import { registrarVenda, observarVendas } from "./services/vendaService.js";
+import { imprimirCupomVenda } from "./services/impressaoService.js";
 import { atualizarIndice, buscar } from "./services/buscaFuzzy.js";
 import { Carrinho } from "./ui/carrinho.js";
 import { Dashboard } from "./ui/dashboard.js";
@@ -41,6 +42,8 @@ const estado = {
   assinaturaProdutos: "",
   produtoExcluirId: null,
   rotaAtual: "pdv",
+  /** Ultima venda finalizada, usada pelo botao de imprimir cupom. */
+  ultimaVendaCupom: null,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -567,6 +570,68 @@ async function tratarCadastroFuncionario(evento) {
  * Venda
  * ------------------------------------------------------------------------- */
 
+/**
+ * Abre o modal pos-venda com botao de imprimir o cupom na Jetway.
+ * @param {object} venda
+ * @param {string} msgExtra
+ */
+function abrirModalVendaSucesso(venda, msgExtra = "") {
+  estado.ultimaVendaCupom = venda;
+  const resumo = `Total: ${formatarMoeda(venda.total)}${msgExtra}`;
+  $("venda-sucesso-resumo").textContent = resumo;
+  const status = $("venda-sucesso-impressao-status");
+  status.textContent = "";
+  status.classList.add("oculto");
+  const botaoImprimir = $("btn-imprimir-cupom");
+  botaoImprimir.disabled = false;
+  botaoImprimir.textContent = "Imprimir cupom / nota";
+  abrirModal("modal-venda-sucesso");
+}
+
+/**
+ * Envia a ultima venda para a impressora Jetway JP-800.
+ */
+async function imprimirUltimaVenda() {
+  const venda = estado.ultimaVendaCupom;
+  if (!venda) {
+    notificar("Nenhuma venda disponivel para impressao.", "alerta");
+    return;
+  }
+
+  const botao = $("btn-imprimir-cupom");
+  const status = $("venda-sucesso-impressao-status");
+  botao.disabled = true;
+  botao.textContent = "Imprimindo...";
+  status.classList.add("oculto");
+
+  try {
+    const impressao = await imprimirCupomVenda(venda);
+    if (!impressao.ok) {
+      status.textContent =
+        impressao.mensagem || "Impressora nao respondeu. Verifique a Jetway JP-800.";
+      status.classList.remove("oculto");
+      notificar(status.textContent, "alerta");
+      botao.disabled = false;
+      botao.textContent = "Tentar imprimir de novo";
+      return;
+    }
+
+    status.textContent = impressao.impressora
+      ? `Enviado para: ${impressao.impressora}`
+      : "Cupom enviado para a impressora.";
+    status.classList.remove("oculto");
+    notificar("Cupom enviado para impressao.", "sucesso");
+    botao.textContent = "Imprimir novamente";
+    botao.disabled = false;
+  } catch (erro) {
+    status.textContent = erro.message || "Falha ao imprimir o cupom.";
+    status.classList.remove("oculto");
+    notificar(status.textContent, "erro");
+    botao.disabled = false;
+    botao.textContent = "Tentar imprimir de novo";
+  }
+}
+
 async function finalizarVenda() {
   const itens = estado.carrinho.obterItens();
   if (itens.length === 0) return;
@@ -581,8 +646,9 @@ async function finalizarVenda() {
 
   try {
     const troco = estado.carrinho.obterTroco();
+    const valorRecebido = estado.carrinho.obterValorRecebido();
     const forma = $("forma-pagamento").value;
-    const { total } = await registrarVenda({
+    const venda = await registrarVenda({
       itens,
       desconto: estado.carrinho.obterDesconto(),
       formaPagamento: forma,
@@ -593,7 +659,15 @@ async function finalizarVenda() {
       forma === "dinheiro" && troco > 0
         ? ` · Troco: ${formatarMoeda(troco)}`
         : "";
-    notificar(`Venda finalizada: ${formatarMoeda(total)}${msgTroco}`, "sucesso");
+    notificar(`Venda finalizada: ${formatarMoeda(venda.total)}${msgTroco}`, "sucesso");
+    abrirModalVendaSucesso(
+      {
+        ...venda,
+        valorRecebido,
+        troco,
+      },
+      msgTroco
+    );
   } catch (erro) {
     notificar(erro.message, "erro");
     botao.disabled = false;
@@ -623,6 +697,7 @@ function registrarEventosGerais() {
 
   $("btn-finalizar").addEventListener("click", finalizarVenda);
   $("btn-limpar").addEventListener("click", () => estado.carrinho?.limpar());
+  $("btn-imprimir-cupom").addEventListener("click", imprimirUltimaVenda);
 
   document.querySelectorAll("[data-fechar-modal]").forEach((botao) => {
     botao.addEventListener("click", () => {

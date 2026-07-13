@@ -8,6 +8,7 @@
   "scripts": {
     "build:renderer": "node scripts/build-renderer.mjs",
     "start": "npm run build:renderer && electron .",
+    "test:impressao": "node scripts/testar-impressao-jp800.js",
     "dist": "npm run dist:win10",
     "dist:win10": "npm run build:renderer && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win zip nsis --x64 -c.win.signAndEditExecutable=false",
     "dist:win7": "npm run build:renderer && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win zip --x64 --ia32 -c.win.signAndEditExecutable=false -c.electronVersion=22.3.27",
@@ -39,6 +40,9 @@
       "renderer/assets/**/*",
       "!renderer/js/**/*",
       "!**/*.map"
+    ],
+    "asarUnpack": [
+      "electron/impressao/**"
     ],
     "extraResources": [
       {

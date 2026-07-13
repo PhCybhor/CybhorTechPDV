@@ -11,3 +11,7 @@ Thumbs.db
 .vscode-test
 .npm
 .cache
+
+# Drivers JP-800 ficam locais (symlinks para Downloads); so o README vai no Git
+vendor/jp800/Driver_Utilitarios_JP-800
+vendor/jp800/Exemplo_JP800_Delphi

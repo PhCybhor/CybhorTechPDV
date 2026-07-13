@@ -1311,6 +1311,22 @@ input[type="date"] {
   flex-wrap: wrap;
 }
 
+.modal-acoes--coluna {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: stretch;
+}
+
+.modal-acoes--coluna .btn-bloco {
+  width: 100%;
+}
+
+.venda-impressao-status {
+  margin: 8px 0 0;
+  font-size: 0.9rem;
+  color: var(--cybhor-texto-suave, #9fb3c8);
+}
+
 .bloco {
   border: 1px solid var(--cybhor-borda);
   border-radius: var(--raio-sm);

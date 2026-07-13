@@ -3,6 +3,7 @@
 const { app, BrowserWindow, ipcMain } = require("electron");
 const path = require("path");
 const fs = require("fs");
+const { imprimirCupomVenda } = require("./impressao/imprimirCupom");
 
 /**
  * Carrega as variaveis de ambiente do arquivo .env.
@@ -62,6 +63,18 @@ function criarJanela() {
 carregarVariaveisDeAmbiente();
 
 ipcMain.handle("obter-config-firebase", () => obterConfiguracaoFirebase());
+
+ipcMain.handle("imprimir-cupom", async (_evento, dadosVenda) => {
+  try {
+    return await imprimirCupomVenda(dadosVenda || {});
+  } catch (erro) {
+    console.error("Falha na impressao do cupom:", erro);
+    return {
+      ok: false,
+      mensagem: erro?.message || "Nao foi possivel imprimir o cupom.",
+    };
+  }
+});
 
 app.whenReady().then(() => {
   criarJanela();

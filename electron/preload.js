@@ -9,4 +9,10 @@ const { contextBridge, ipcRenderer } = require("electron");
  */
 contextBridge.exposeInMainWorld("pdvAPI", {
   obterConfigFirebase: () => ipcRenderer.invoke("obter-config-firebase"),
+  /**
+   * Envia o comprovante de venda para a impressora Jetway.
+   * @param {object} dadosVenda
+   * @returns {Promise<{ok: boolean, impressora?: string, mensagem?: string}>}
+   */
+  imprimirCupom: (dadosVenda) => ipcRenderer.invoke("imprimir-cupom", dadosVenda),
 });

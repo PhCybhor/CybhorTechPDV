@@ -30,12 +30,14 @@ Instrucoes detalhadas: [INSTALAR.md](INSTALAR.md)
 - **Criação e gerenciamento de funcionários** com alteração de cargo (área do
   administrador).
 - **Credenciais fora do código** (arquivo `.env`).
+- **Impressão automática do cupom** na impressora térmica Jetway ao finalizar a venda.
 
 ## Arquitetura
 
 ```
 sistemaPDV/
-├── electron/            # Processo principal (main) e ponte segura (preload)
+├── electron/            # Processo principal (main), preload e impressao Jetway
+│   └── impressao/       # Layout do cupom 80mm e envio silencioso a impressora
 ├── renderer/            # Front-end (interface do PDV)
 │   ├── index.html
 │   ├── styles.css
@@ -78,6 +80,22 @@ instalador; o código-fonte legível não é incluído.
 
 3. No Console do Firebase, publique as regras do arquivo `database.rules.json`
    no Realtime Database.
+
+4. (Opcional) Configure a impressora Jetway JP-800 no `.env`:
+   - `IMPRESSORA_NOME=Jetway JP-800` (nome criado pelo driver oficial)
+   - `LOJA_NOME`, `LOJA_CNPJ`, `LOJA_ENDERECO`, `LOJA_TELEFONE` — cabecalho do cupom
+   - Em desenvolvimento Linux: `IMPRESSORA_MODO=teste` (grava o ESC/POS em `/tmp`)
+
+Materiais oficiais em `vendor/jp800/` (Driver + Exemplo Delphi). No Windows,
+rode `scripts/instalar-driver-jp800-windows.bat` ou o
+`JetwayPrinterDriverJP-800.exe`. O PDV imprime em **ESC/POS RAW** (igual ao
+exemplo Delphi com `WritePrinter` / porta COM).
+
+Teste local do cupom (sem impressora):
+
+```bash
+npm run test:impressao
+```
 
 ## Executar em desenvolvimento
 

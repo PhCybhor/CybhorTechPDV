@@ -168,6 +168,11 @@ export class Carrinho {
   }
 
   /** @returns {number} */
+  obterValorRecebido() {
+    return Number(this.valorRecebido) || 0;
+  }
+
+  /** @returns {number} */
   obterTroco() {
     if (this.selectPagamento?.value !== "dinheiro") return 0;
     return Math.max(0, this.valorRecebido - this.obterTotal());

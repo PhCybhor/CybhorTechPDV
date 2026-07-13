@@ -46,7 +46,16 @@ export async function observarVendas(callback) {
  *   formaPagamento: string,
  *   funcionario: {id: string, nome: string}
  * }} venda
- * @returns {Promise<{id: string, total: number}>}
+ * @returns {Promise<{
+ *   id: string,
+ *   total: number,
+ *   subtotal: number,
+ *   desconto: number,
+ *   formaPagamento: string,
+ *   funcionarioNome: string,
+ *   itens: Array<object>,
+ *   criadoEm: number
+ * }>}
  */
 export async function registrarVenda({
   itens,
@@ -69,21 +78,24 @@ export async function registrarVenda({
   const referenciaVenda = push(ref(db, CAMINHO_VENDAS));
   const atualizacoes = {};
 
+  const criadoEm = Date.now();
+  const itensVenda = itens.map((item) => ({
+    produtoId: item.produtoId,
+    nome: item.nome,
+    quantidade: item.quantidade,
+    precoUnitario: item.precoUnitario,
+    subtotal: item.precoUnitario * item.quantidade,
+  }));
+
   atualizacoes[`${CAMINHO_VENDAS}/${referenciaVenda.key}`] = {
-    itens: itens.map((item) => ({
-      produtoId: item.produtoId,
-      nome: item.nome,
-      quantidade: item.quantidade,
-      precoUnitario: item.precoUnitario,
-      subtotal: item.precoUnitario * item.quantidade,
-    })),
+    itens: itensVenda,
     subtotal,
     desconto: descontoAplicado,
     total,
     formaPagamento,
     funcionarioId: funcionario.id,
     funcionarioNome: funcionario.nome,
-    criadoEm: Date.now(),
+    criadoEm,
   };
 
   for (const item of itens) {
@@ -93,5 +105,14 @@ export async function registrarVenda({
 
   await update(ref(db), atualizacoes);
 
-  return { id: referenciaVenda.key, total };
+  return {
+    id: referenciaVenda.key,
+    total,
+    subtotal,
+    desconto: descontoAplicado,
+    formaPagamento,
+    funcionarioNome: funcionario.nome,
+    itens: itensVenda,
+    criadoEm,
+  };
 }
