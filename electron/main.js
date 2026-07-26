@@ -1,14 +1,25 @@
 "use strict";
 
-const { app, BrowserWindow, ipcMain } = require("electron");
+const { app, BrowserWindow, ipcMain, shell } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const { imprimirCupomVenda } = require("./impressao/imprimirCupom");
+const {
+  carregarConfigApp,
+  obterConfigApp,
+  salvarConfigApp,
+} = require("./configApp");
+const {
+  lerLicenca,
+  salvarLicenca,
+  limparLicenca,
+} = require("./licencaStore");
+const { validarLicencaRemota, obterUrlApi } = require("./licencaApi");
+
+const { consultarAssistente } = require("./assistenteGemini");
 
 /**
- * Carrega as variaveis de ambiente do arquivo .env.
- * Em desenvolvimento o arquivo fica na raiz do projeto; empacotado no .exe
- * ele e copiado para a pasta de recursos (process.resourcesPath).
+ * Carrega as variáveis de ambiente do arquivo .env.
  */
 function carregarVariaveisDeAmbiente() {
   const caminhoDev = path.join(__dirname, "..", ".env");
@@ -21,7 +32,6 @@ function carregarVariaveisDeAmbiente() {
 }
 
 /**
- * Monta o objeto de configuracao do Firebase a partir das variaveis de ambiente.
  * @returns {Record<string, string>}
  */
 function obterConfiguracaoFirebase() {
@@ -64,19 +74,146 @@ carregarVariaveisDeAmbiente();
 
 ipcMain.handle("obter-config-firebase", () => obterConfiguracaoFirebase());
 
-ipcMain.handle("imprimir-cupom", async (_evento, dadosVenda) => {
+ipcMain.handle("obter-config-app", () => {
   try {
-    return await imprimirCupomVenda(dadosVenda || {});
+    return { ok: true, config: obterConfigApp() };
   } catch (erro) {
-    console.error("Falha na impressao do cupom:", erro);
     return {
       ok: false,
-      mensagem: erro?.message || "Nao foi possivel imprimir o cupom.",
+      mensagem: erro?.message || "Não foi possível ler as configurações.",
     };
   }
 });
 
+ipcMain.handle("salvar-config-app", (_evento, parcial) => {
+  try {
+    const config = salvarConfigApp(parcial || {});
+    return { ok: true, config };
+  } catch (erro) {
+    console.error("Falha ao salvar config-app:", erro);
+    return {
+      ok: false,
+      mensagem: erro?.message || "Não foi possível salvar as configurações.",
+    };
+  }
+});
+
+ipcMain.handle("listar-impressoras", async () => {
+  try {
+    const janela =
+      BrowserWindow.getFocusedWindow() || BrowserWindow.getAllWindows()[0];
+    if (!janela) return { ok: true, impressoras: [] };
+    const lista = await janela.webContents.getPrintersAsync();
+    return {
+      ok: true,
+      impressoras: (lista || []).map((p) => ({
+        nome: p.name,
+        padrao: Boolean(p.isDefault),
+        status: p.status,
+      })),
+    };
+  } catch (erro) {
+    return {
+      ok: false,
+      impressoras: [],
+      mensagem: erro?.message || "Falha ao listar impressoras.",
+    };
+  }
+});
+
+ipcMain.handle("imprimir-cupom", async (_evento, dadosVenda) => {
+  try {
+    return await imprimirCupomVenda(dadosVenda || {});
+  } catch (erro) {
+    console.error("Falha na impressão do cupom:", erro);
+    return {
+      ok: false,
+      mensagem: erro?.message || "Não foi possível imprimir o cupom.",
+    };
+  }
+});
+
+ipcMain.handle("obter-licenca", async () => {
+  const local = lerLicenca();
+  if (!local) return { ok: false, ativada: false };
+
+  // Revalida online quando possível (licença suspensa bloqueia)
+  if (local.chave && process.env.CYBHOR_MODO_DEV !== "1") {
+    const remota = await validarLicencaRemota(local.chave);
+    if (!remota.ok) {
+      return {
+        ok: false,
+        ativada: false,
+        mensagem: remota.mensagem || "Licença inválida ou suspensa.",
+      };
+    }
+    if (remota.lojaId && remota.lojaId !== local.lojaId) {
+      return {
+        ok: false,
+        ativada: false,
+        mensagem: "Licença não corresponde a esta instalação.",
+      };
+    }
+  }
+
+  return {
+    ok: true,
+    ativada: true,
+    lojaId: local.lojaId,
+    email: local.email || "",
+    nomeLoja: local.nomeLoja || "",
+    apiUrl: obterUrlApi(),
+  };
+});
+
+ipcMain.handle("ativar-licenca", async (_evento, chave) => {
+  const validacao = await validarLicencaRemota(chave);
+  if (!validacao.ok) {
+    return { ok: false, mensagem: validacao.mensagem };
+  }
+  const salva = salvarLicenca({
+    lojaId: validacao.lojaId,
+    chave: validacao.chave,
+    email: validacao.email,
+    nomeLoja: validacao.nomeLoja,
+  });
+  return {
+    ok: true,
+    ativada: true,
+    lojaId: salva.lojaId,
+    email: salva.email,
+    nomeLoja: salva.nomeLoja,
+  };
+});
+
+ipcMain.handle("limpar-licenca", () => {
+  limparLicenca();
+  return { ok: true };
+});
+
+ipcMain.handle("consultar-assistente", async (_evento, payload) => {
+  try {
+    return await consultarAssistente(payload || {});
+  } catch (erro) {
+    console.error("assistente:", erro);
+    return {
+      ok: false,
+      mensagem: erro?.message || "Falha ao consultar a IA.",
+    };
+  }
+});
+
+ipcMain.handle("abrir-externo", async (_evento, url) => {
+  const texto = String(url || "").trim();
+  if (!/^https?:\/\//i.test(texto)) {
+    return { ok: false, mensagem: "URL inválida." };
+  }
+  await shell.openExternal(texto);
+  return { ok: true };
+});
+
 app.whenReady().then(() => {
+  carregarConfigApp();
   criarJanela();
 
   app.on("activate", () => {

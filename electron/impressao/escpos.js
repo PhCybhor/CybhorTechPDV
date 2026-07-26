@@ -23,9 +23,13 @@ function juntar(...partes) {
   return Buffer.concat(buffers);
 }
 
-/** ESC @ — inicializa impressora */
+/** ESC @ — inicializa impressora + code page PC850 (acentos BR) */
 function inicializar() {
-  return Buffer.from([ESC, 0x40]);
+  return Buffer.from([
+    ESC, 0x40,
+    // ESC t 2 = PC850 (Latin1/BR) — evita lixo e erro no driver com .toLocaleString
+    ESC, 0x74, 0x02,
+  ]);
 }
 
 /**
@@ -45,7 +49,7 @@ function negrito(ligado) {
 
 /** ESC G n — negrito duplo (como textoNegrito do TP650) */
 function negritoDuplo(ligado) {
-  return Buffer.from([ESC, 0x47, ligado ? 0xff : 0x00]);
+  return Buffer.from([ESC, 0x47, ligado ? 1 : 0]);
 }
 
 /** ESC M n — fonte condensada (n=1) */
@@ -58,7 +62,7 @@ function fonteCondensada(ligada) {
  * @param {string} texto
  */
 function texto(textoLivre) {
-  return Buffer.from(String(textoLivre ?? ""), "latin1");
+  return Buffer.from(textoSeguro(textoLivre), "latin1");
 }
 
 function linha(textoLivre = "") {
@@ -71,11 +75,11 @@ function avancarPapel(linhas = 5) {
 }
 
 /**
- * Corte parcial — TP650.cortePapel = ESC m (27, 109).
- * Algumas JP-800 tambem aceitam GS V; mantemos o do exemplo oficial.
+ * Corte parcial — GS V 1 (mais compativel com drivers USB da JP-800).
+ * O ESC m do TP650 falhava em algumas instalacoes Windows 10/11.
  */
 function cortarPapel() {
-  return Buffer.from([ESC, 0x6d]);
+  return Buffer.from([GS, 0x56, 0x01]);
 }
 
 /**
@@ -128,14 +132,29 @@ function separador(colunas = 48) {
 }
 
 /**
+ * Formata moeda em ASCII puro (sem NBSP/Unicode do toLocaleString),
+ * para nao corromper o buffer latin1 / ESC/POS e gerar erro na fila.
  * @param {number} valor
  * @returns {string}
  */
 function moeda(valor) {
-  return Number(valor || 0).toLocaleString("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  });
+  const numero = Number(valor) || 0;
+  const [inteiro, decimal = "00"] = Math.abs(numero).toFixed(2).split(".");
+  const comPontos = inteiro.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  const sinal = numero < 0 ? "-" : "";
+  return `${sinal}R$ ${comPontos},${decimal}`;
+}
+
+/**
+ * Remove acentos e caracteres fora do latin1 que podem quebrar a JP-800.
+ * @param {string} valor
+ * @returns {string}
+ */
+function textoSeguro(valor) {
+  return String(valor ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\x20-\x7E\xA0-\xFF]/g, "?");
 }
 
 /**
@@ -216,8 +235,16 @@ function gerarBufferEscPos(dados, loja = {}) {
   partes.push(linha("CybhorPDV"));
   partes.push(avancarPapel(5));
   partes.push(cortarPapel());
+  if (dados.abrirGaveta) {
+    partes.push(abrirGaveta());
+  }
 
   return juntar(...partes);
+}
+
+/** ESC p m t1 t2 — pulso na gaveta de dinheiro (pin 2). */
+function abrirGaveta() {
+  return Buffer.from([ESC, 0x70, 0x00, 0x19, 0xfa]);
 }
 
 module.exports = {
@@ -226,6 +253,7 @@ module.exports = {
   alinhar,
   cortarPapel,
   avancarPapel,
+  abrirGaveta,
   qrcode,
   juntar,
 };

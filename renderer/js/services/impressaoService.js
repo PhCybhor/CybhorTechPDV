@@ -9,7 +9,7 @@ export async function imprimirCupomVenda(dadosVenda) {
   if (!window.pdvAPI?.imprimirCupom) {
     return {
       ok: false,
-      mensagem: "API de impressao indisponivel neste ambiente.",
+      mensagem: "API de impressão indisponível neste ambiente.",
     };
   }
   return window.pdvAPI.imprimirCupom(dadosVenda);

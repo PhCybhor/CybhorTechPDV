@@ -33,7 +33,7 @@ function obterDadosLoja() {
 }
 
 /**
- * @param {Array<{name: string, isDefault?: boolean}>} impressoras
+ * @param {Array<{name: string, isDefault?: boolean, status?: number}>} impressoras
  * @returns {string | null}
  */
 function escolherImpressora(impressoras) {
@@ -44,24 +44,33 @@ function escolherImpressora(impressoras) {
 
   const configurada = (process.env.IMPRESSORA_NOME || "").trim().toLowerCase();
   if (configurada) {
-    const exata = impressoras.find(
+    const candidatas = impressoras.filter((p) =>
+      String(p.name || "").toLowerCase().includes(configurada)
+    );
+    const exata = candidatas.find(
       (p) => String(p.name || "").toLowerCase() === configurada
     );
     if (exata) return exata.name;
-
-    const parcial = impressoras.find((p) =>
-      String(p.name || "").toLowerCase().includes(configurada)
+    // Prefere a impressora sem "(1)", "(2)" etc. (instalacoes duplicadas)
+    const principal = candidatas.find(
+      (p) => !/\(\d+\)$/.test(String(p.name || "").trim())
     );
-    if (parcial) return parcial.name;
-
+    if (principal) return principal.name;
+    if (candidatas[0]) return candidatas[0].name;
     return (process.env.IMPRESSORA_NOME || "").trim();
   }
 
-  const jetway = impressoras.find((p) => {
+  const jetways = impressoras.filter((p) => {
     const nome = String(p.name || "").toLowerCase();
     return PALAVRAS_JETWAY.some((trecho) => nome.includes(trecho));
   });
-  if (jetway) return jetway.name;
+
+  if (jetways.length > 0) {
+    const principal = jetways.find(
+      (p) => !/\(\d+\)$/.test(String(p.name || "").trim())
+    );
+    return (principal || jetways[0]).name;
+  }
 
   const padrao = impressoras.find((p) => p.isDefault);
   return padrao?.name || impressoras[0]?.name || null;
@@ -122,6 +131,7 @@ function caminhoScriptRaw() {
 
 /**
  * Envia bytes RAW via Winspool WritePrinter (formaEnvio=1 do exemplo Delphi).
+ * Se falhar, tenta o metodo classico `copy /b` para a fila compartilhada.
  * @param {string} nomeImpressora
  * @param {Buffer} buffer
  */
@@ -151,16 +161,47 @@ async function enviarViaWritePrinter(nomeImpressora, buffer) {
       tmp,
     ]);
 
-    if (resultado.code !== 0 || !resultado.stdout.includes("OK:")) {
-      const detalhe =
-        (resultado.stderr || resultado.stdout || "Falha no WritePrinter RAW").trim();
-      throw new Error(detalhe);
+    if (resultado.code === 0 && resultado.stdout.includes("OK:")) {
+      return { ok: true, impressora: nomeImpressora, modo: "RAW" };
     }
 
-    return { ok: true, impressora: nomeImpressora, modo: "RAW" };
+    const detalheRaw =
+      (resultado.stderr || resultado.stdout || "Falha no WritePrinter RAW").trim();
+    console.warn("WritePrinter falhou, tentando copy /b:", detalheRaw);
+
+    const resultadoCopy = await enviarViaCopyBinario(nomeImpressora, tmp);
+    if (resultadoCopy.ok) return resultadoCopy;
+
+    throw new Error(`${detalheRaw} | ${resultadoCopy.mensagem || "copy /b falhou"}`);
   } finally {
     fs.promises.unlink(tmp).catch(() => {});
   }
+}
+
+/**
+ * Fallback classico Windows: copy /b arquivo "\\localhost\NomeDaImpressora"
+ * Funciona bem quando o driver aceita RAW mas o WritePrinter da erro na fila.
+ * @param {string} nomeImpressora
+ * @param {string} caminhoArquivo
+ */
+async function enviarViaCopyBinario(nomeImpressora, caminhoArquivo) {
+  const destino = `\\\\localhost\\${nomeImpressora}`;
+  const resultado = await executar("cmd.exe", [
+    "/c",
+    "copy",
+    "/b",
+    caminhoArquivo,
+    destino,
+  ]);
+
+  if (resultado.code === 0) {
+    return { ok: true, impressora: nomeImpressora, modo: "COPY" };
+  }
+
+  return {
+    ok: false,
+    mensagem: (resultado.stderr || resultado.stdout || "copy /b falhou").trim(),
+  };
 }
 
 /**
@@ -245,6 +286,49 @@ async function gravarCupomTeste(buffer) {
 }
 
 /**
+ * Verifica no Windows se a impressora esta Offline/erro antes de enviar o job.
+ * @param {string} nomeImpressora
+ * @returns {Promise<{problema: boolean, mensagem?: string} | null>}
+ */
+async function diagnosticarImpressoraWindows(nomeImpressora) {
+  const ps = [
+    `$p = Get-Printer -Name '${String(nomeImpressora).replace(/'/g, "''")}' -ErrorAction SilentlyContinue;`,
+    `if (-not $p) { Write-Output 'MISSING'; exit 0 };`,
+    `Write-Output ("STATUS=" + $p.PrinterStatus + ";PORT=" + $p.PortName)`,
+  ].join(" ");
+
+  const resultado = await executar("powershell.exe", [
+    "-NoProfile",
+    "-ExecutionPolicy",
+    "Bypass",
+    "-Command",
+    ps,
+  ]);
+
+  const saida = `${resultado.stdout || ""}${resultado.stderr || ""}`.trim();
+  if (saida.includes("MISSING")) {
+    return {
+      problema: true,
+      mensagem:
+        `Impressora "${nomeImpressora}" nao encontrada. Rode scripts\\reparar-jp800.ps1 e reinstale o driver Jetway (USB).`,
+    };
+  }
+
+  const statusMatch = /STATUS=([^;]+)/i.exec(saida);
+  const status = (statusMatch?.[1] || "").trim().toLowerCase();
+  if (status.includes("error") || status.includes("offline") || status.includes("door") || status.includes("paper")) {
+    return {
+      problema: true,
+      mensagem:
+        `A impressora "${nomeImpressora}" esta com status "${statusMatch?.[1] || status}" no Windows. ` +
+        `Verifique cabo USB, energia, papel e tampa. Remova impressoras Jetway duplicadas e rode scripts\\reparar-jp800.ps1.`,
+    };
+  }
+
+  return { problema: false };
+}
+
+/**
  * Imprime o comprovante na JP-800 no mesmo modelo do exemplo Delphi:
  * 1) Porta COM/serial se IMPRESSORA_PORTA estiver definida
  * 2) WritePrinter RAW no Windows (driver Jetway JP-800)
@@ -280,6 +364,19 @@ async function imprimirCupomVenda(dadosVenda) {
     escolherImpressora(impressoras) ||
     (process.env.IMPRESSORA_NOME || "").trim() ||
     "Jetway JP-800";
+
+  // Diagnostico rapido via PowerShell (Windows): se a fila esta Offline/erro,
+  // nao adianta enviar — devolve mensagem clara para o operador.
+  if (process.platform === "win32") {
+    const diagnostico = await diagnosticarImpressoraWindows(deviceName);
+    if (diagnostico && diagnostico.problema) {
+      return {
+        ok: false,
+        impressora: deviceName,
+        mensagem: diagnostico.mensagem,
+      };
+    }
+  }
 
   if (process.platform === "win32" && modoForcado !== "html") {
     try {

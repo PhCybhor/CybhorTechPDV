@@ -13,6 +13,17 @@ import {
 } from "chart.js";
 import { gerarResumo, vendasDoDia } from "../services/relatorioService.js";
 import { gerarPdfVendasDia } from "../services/pdfService.js";
+import {
+  resumirFechamento,
+  registrarFechamento,
+} from "../services/fechamentoService.js";
+import { somarSangriasDoDia } from "../services/sangriaService.js";
+import {
+  lerEstadoCaixa,
+  somarSuprimentosDoDia,
+  somarVendasDinheiroDoDia,
+  calcularDinheiroEsperado,
+} from "../services/caixaCicloService.js";
 import { formatarMoeda } from "../utils/formato.js";
 import { escapeHtml } from "../utils/escape.js";
 import { notificar } from "./notificacao.js";
@@ -59,13 +70,57 @@ Chart.defaults.animation = false;
  * mais vendidos no mes, receita diaria e ranking de produtos em alta.
  */
 export class Dashboard {
-  /** @param {{raiz: HTMLElement}} opcoes */
-  constructor({ raiz }) {
+  /**
+   * @param {{
+   *   raiz: HTMLElement,
+   *   obterFuncionario?: () => object | null,
+   *   obterProdutos?: () => Array<object>,
+   *   obterDespesas?: () => Array<object>,
+   *   obterSangrias?: () => Array<object>,
+   *   obterSuprimentos?: () => Array<object>,
+   * }} opcoes
+   */
+  constructor({
+    raiz,
+    obterFuncionario = () => null,
+    obterProdutos = () => [],
+    obterDespesas = () => [],
+    obterSangrias = () => [],
+    obterSuprimentos = () => [],
+  }) {
     this.raiz = raiz;
+    this.obterFuncionario = obterFuncionario;
+    this.obterProdutos = obterProdutos;
+    this.obterDespesas = obterDespesas;
+    this.obterSangrias = obterSangrias;
+    this.obterSuprimentos = obterSuprimentos;
     this.graficoMaisVendidos = null;
     this.graficoReceitaDiaria = null;
     this.vendasAtuais = [];
     this._configurarPainelDia();
+    this._configurarFechamento();
+    this._configurarAbas();
+  }
+
+  _configurarAbas() {
+    const abas = this.raiz.querySelectorAll("[data-aba-relatorio]");
+    if (!abas.length) return;
+    abas.forEach((botao) => {
+      botao.addEventListener("click", () => {
+        const id = botao.getAttribute("data-aba-relatorio");
+        abas.forEach((b) => {
+          const ativo = b === botao;
+          b.classList.toggle("ativo", ativo);
+          b.setAttribute("aria-selected", ativo ? "true" : "false");
+        });
+        this.raiz.querySelectorAll("[data-painel-relatorio]").forEach((painel) => {
+          const mostrar =
+            painel.getAttribute("data-painel-relatorio") === id;
+          painel.classList.toggle("oculto", !mostrar);
+          painel.classList.toggle("ativo", mostrar);
+        });
+      });
+    });
   }
 
   /**
@@ -74,13 +129,123 @@ export class Dashboard {
    */
   atualizar(vendas) {
     this.vendasAtuais = Array.isArray(vendas) ? vendas : [];
-    const resumo = gerarResumo(this.vendasAtuais);
+    const resumo = gerarResumo(this.vendasAtuais, {
+      produtos: this.obterProdutos(),
+      despesas: this.obterDespesas(),
+    });
     this._atualizarCartoes(resumo);
     this._atualizarGraficoMaisVendidos(resumo.maisVendidosMes);
     this._atualizarGraficoReceitaDiaria(resumo.serieReceitaDiaria);
     this._atualizarEmAlta(resumo.emAltaRecente);
     this._atualizarVendasComDesconto(resumo.vendasComDesconto);
     this._renderizarDiaSelecionado();
+    this._renderizarFechamento();
+  }
+
+  _configurarFechamento() {
+    this.raiz
+      .querySelector("#btn-fechar-caixa")
+      ?.addEventListener("click", () => this._salvarFechamento());
+  }
+
+  _renderizarFechamento() {
+    const resumo = resumirFechamento(this.vendasAtuais);
+    const totalSangrias = somarSangriasDoDia(this.obterSangrias());
+    const el = this.raiz.querySelector("#fechamento-resumo");
+    const detalhe = this.raiz.querySelector("#fechamento-detalhe");
+    if (!el) return;
+
+    el.innerHTML = `
+      <div class="resumo-dia-item">
+        <span class="resumo-dia-rotulo">Vendas feitas</span>
+        <span class="resumo-dia-valor">${resumo.quantidadeVendas}</span>
+      </div>
+      <div class="resumo-dia-item">
+        <span class="resumo-dia-rotulo">Itens vendidos</span>
+        <span class="resumo-dia-valor">${resumo.itensVendidos}</span>
+      </div>
+      <div class="resumo-dia-item">
+        <span class="resumo-dia-rotulo">Total que entrou</span>
+        <span class="resumo-dia-valor resumo-dia-valor--sucesso">${formatarMoeda(resumo.totalLiquido)}</span>
+      </div>
+      <div class="resumo-dia-item">
+        <span class="resumo-dia-rotulo">Tirei do caixa</span>
+        <span class="resumo-dia-valor resumo-dia-valor--alerta">${formatarMoeda(totalSangrias)}</span>
+      </div>
+      <div class="resumo-dia-item">
+        <span class="resumo-dia-rotulo">Vendas canceladas</span>
+        <span class="resumo-dia-valor">${resumo.quantidadeCanceladas}</span>
+      </div>
+      <div class="resumo-dia-item">
+        <span class="resumo-dia-rotulo">Deveria ter na gaveta</span>
+        <span class="resumo-dia-valor" id="fechamento-dinheiro-esperado">…</span>
+      </div>`;
+
+    lerEstadoCaixa()
+      .then((estadoCaixa) => {
+        const esperado = calcularDinheiroEsperado({
+          fundoInicial: estadoCaixa.fundoInicial,
+          suprimentosDia: somarSuprimentosDoDia(this.obterSuprimentos()),
+          vendasDinheiro: somarVendasDinheiroDoDia(this.vendasAtuais),
+          sangriasDia: totalSangrias,
+        });
+        const elEsp = this.raiz.querySelector("#fechamento-dinheiro-esperado");
+        if (elEsp) elEsp.textContent = formatarMoeda(esperado);
+      })
+      .catch(() => {
+        const elEsp = this.raiz.querySelector("#fechamento-dinheiro-esperado");
+        if (elEsp) elEsp.textContent = "—";
+      });
+
+    if (detalhe) {
+      const formas = Object.entries(resumo.porForma)
+        .map(
+          ([forma, total]) =>
+            `<div class="desconto-linha"><span>${escapeHtml(forma)}</span><span class="desconto-total">${formatarMoeda(total)}</span></div>`
+        )
+        .join("");
+      detalhe.innerHTML =
+        `<div class="desconto-cabecalho" style="grid-template-columns:1fr 1fr"><span>Como pagaram</span><span>Total</span></div>` +
+        (formas || '<p class="ranking-vazio">Nenhuma venda hoje ainda.</p>');
+    }
+  }
+
+  async _salvarFechamento() {
+    const funcionario = this.obterFuncionario();
+    if (!funcionario) {
+      notificar("Faça login novamente.", "alerta");
+      return;
+    }
+    try {
+      const resumo = resumirFechamento(this.vendasAtuais);
+      const totalSangrias = somarSangriasDoDia(this.obterSangrias());
+      const estadoCaixa = await lerEstadoCaixa();
+      const suprimentosDia = somarSuprimentosDoDia(this.obterSuprimentos());
+      const vendasDinheiro = somarVendasDinheiroDoDia(this.vendasAtuais);
+      const dinheiroEsperado = calcularDinheiroEsperado({
+        fundoInicial: estadoCaixa.fundoInicial,
+        suprimentosDia,
+        vendasDinheiro,
+        sangriasDia: totalSangrias,
+      });
+      await registrarFechamento(
+        {
+          ...resumo,
+          totalSangrias,
+          fundoInicial: estadoCaixa.fundoInicial,
+          suprimentosDia,
+          vendasDinheiro,
+          dinheiroEsperado,
+        },
+        funcionario
+      );
+      notificar(
+        `Fechamento salvo: entrou ${formatarMoeda(resumo.totalLiquido)} · na gaveta deveria ter ${formatarMoeda(dinheiroEsperado)}`,
+        "sucesso"
+      );
+    } catch (erro) {
+      notificar(erro.message || "Falha ao registrar fechamento.", "erro");
+    }
   }
 
   /** Configura o seletor de data (ultimos 12 meses) e o botao de PDF. */
@@ -115,7 +280,7 @@ export class Dashboard {
 
     containerResumo.innerHTML = `
       <div class="resumo-dia-item">
-        <span class="resumo-dia-rotulo">Vendas</span>
+        <span class="resumo-dia-rotulo">Vendas feitas</span>
         <span class="resumo-dia-valor">${resumo.quantidadeVendas}</span>
       </div>
       <div class="resumo-dia-item">
@@ -123,13 +288,13 @@ export class Dashboard {
         <span class="resumo-dia-valor">${resumo.itensVendidos}</span>
       </div>
       <div class="resumo-dia-item">
-        <span class="resumo-dia-rotulo">Total recebido</span>
+        <span class="resumo-dia-rotulo">Dinheiro que entrou</span>
         <span class="resumo-dia-valor resumo-dia-valor--sucesso">${formatarMoeda(
           resumo.totalLiquido
         )}</span>
       </div>
       <div class="resumo-dia-item">
-        <span class="resumo-dia-rotulo">Descontos</span>
+        <span class="resumo-dia-rotulo">Descontos dados</span>
         <span class="resumo-dia-valor resumo-dia-valor--alerta">${formatarMoeda(
           resumo.totalDescontos
         )}</span>
@@ -144,7 +309,7 @@ export class Dashboard {
     const cabecalho = `
       <div class="desconto-cabecalho">
         <span>Hora</span>
-        <span>Funcionario</span>
+        <span>Funcionário</span>
         <span>Subtotal</span>
         <span>Desconto</span>
         <span>Total</span>
@@ -186,7 +351,7 @@ export class Dashboard {
       await gerarPdfVendasDia(dataISO, resumo);
       notificar("PDF gerado com sucesso.", "sucesso");
     } catch (erro) {
-      notificar("Nao foi possivel gerar o PDF.", "erro");
+      notificar("Não foi possível gerar o PDF.", "erro");
     }
   }
 
@@ -202,6 +367,63 @@ export class Dashboard {
     this.raiz.querySelector("#card-total-descontos").textContent = formatarMoeda(
       resumo.totalDescontosMes
     );
+
+    const lucroBruto = this.raiz.querySelector("#card-lucro-bruto");
+    const cmv = this.raiz.querySelector("#card-cmv-mes");
+    const despesas = this.raiz.querySelector("#card-despesas-mes");
+    const lucroLiq = this.raiz.querySelector("#card-lucro-liquido");
+    const ponto = this.raiz.querySelector("#card-ponto-equilibrio");
+    const alerta = this.raiz.querySelector("#alerta-lucro-custo");
+
+    if (lucroBruto) lucroBruto.textContent = formatarMoeda(resumo.lucroBrutoMes || 0);
+    if (cmv) {
+      cmv.textContent = `Você pagou ${formatarMoeda(resumo.cmvMes || 0)} nos produtos vendidos`;
+    }
+    if (despesas) despesas.textContent = formatarMoeda(resumo.despesasMes || 0);
+
+    const cardSangrias = this.raiz.querySelector("#card-sangrias-hoje");
+    if (cardSangrias) {
+      cardSangrias.textContent = formatarMoeda(
+        somarSangriasDoDia(this.obterSangrias())
+      );
+    }
+
+    const despesasNoLucro = this.raiz.querySelector("#card-despesas-no-lucro");
+    if (despesasNoLucro) {
+      const contas = resumo.despesasMes || 0;
+      despesasNoLucro.textContent =
+        contas > 0
+          ? `Já tirou ${formatarMoeda(contas)} de contas (aluguel, luz…)`
+          : "Cadastre as contas na aba Contas para ver o lucro de verdade";
+    }
+
+    if (lucroLiq) {
+      lucroLiq.textContent = formatarMoeda(resumo.lucroLiquidoMes || 0);
+      lucroLiq.classList.toggle(
+        "alerta",
+        (resumo.lucroLiquidoMes || 0) < 0
+      );
+      lucroLiq.classList.toggle(
+        "sucesso",
+        (resumo.lucroLiquidoMes || 0) >= 0
+      );
+    }
+    if (ponto) {
+      ponto.textContent =
+        resumo.pontoEquilibrio != null
+          ? `Para empatar as contas, venda pelo menos ${formatarMoeda(resumo.pontoEquilibrio)}`
+          : "Meta mínima: cadastre o custo dos produtos";
+    }
+    if (alerta) {
+      const semCusto = Number(resumo.produtosSemCusto) || 0;
+      if (semCusto > 0) {
+        alerta.textContent = `${semCusto} produto(s) sem “quanto você pagou” — o lucro só conta os que têm custo preenchido.`;
+        alerta.classList.remove("oculto");
+      } else {
+        alerta.classList.add("oculto");
+        alerta.textContent = "";
+      }
+    }
   }
 
   _atualizarGraficoMaisVendidos(itens) {
@@ -301,7 +523,7 @@ export class Dashboard {
 
     if (itens.length === 0) {
       lista.innerHTML =
-        '<p class="ranking-vazio">Sem vendas nos ultimos dias.</p>';
+        '<p class="ranking-vazio">Sem vendas nos últimos dias.</p>';
       return;
     }
 
@@ -333,7 +555,7 @@ export class Dashboard {
     const cabecalho = `
       <div class="desconto-cabecalho">
         <span>Data</span>
-        <span>Funcionario</span>
+        <span>Funcionário</span>
         <span>Subtotal</span>
         <span>Desconto</span>
         <span>Total pago</span>

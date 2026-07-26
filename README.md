@@ -3,98 +3,62 @@
 Sistema de ponto de venda (PDV) para loja, em desktop (Windows), construído com
 **Electron** e **Firebase Realtime Database**.
 
-## Baixar e instalar (usuarios da loja)
+## Baixar e instalar (usuários da loja)
 
-**Nao precisa baixar o codigo.** So o instalador:
+1. Compre a **licença** (Mercado Pago) e guarde a chave `CYB-…`
+2. Baixe o instalador nas **[Releases](https://github.com/cybhortech/sistemaPDV/releases)**
+3. Abra o app → **Ativar licença** → crie o administrador da loja
 
-1. Acesse **[Releases](https://github.com/cybhortech/sistemaPDV/releases)**
-2. Baixe `CybhorPDV-Setup-2.0.0-x64.exe` (ou `-ia32.exe` em PCs 32 bits)
-3. Instale e abra o CybhorPDV
+Cada licença isola os dados em `lojas/{lojaId}/…` — lojas diferentes não se misturam.
 
-Instrucoes detalhadas: [INSTALAR.md](INSTALAR.md)
+Instruções: [INSTALAR.md](INSTALAR.md) · Venda/API: [VENDER.md](VENDER.md)
 
 ---
 
 ## Principais recursos
 
+- **Licença por loja** com ativação criptografada no PC.
 - **Venda com carrinho** e baixa automática de estoque.
-- **Desconto sobre o total** da venda, com registro do valor concedido.
-- **Painel do administrador** mostrando as vendas com desconto e quanto foi
-  concedido (além de métricas e gráficos de vendas).
-- **Busca inteligente de produtos** tolerante a erros de digitação (fuzzy
-  search com Fuse.js) — funciona como "indicação" do produto mais provável.
-- **Cadastro rápido de produto durante a venda**: se o item buscado não existe
-  ou está sem estoque, um botão permite cadastrá-lo na hora, sem atrapalhar a
-  venda.
-- **Controle de acesso**: login por usuário e senha (hash PBKDF2).
-- **Criação e gerenciamento de funcionários** com alteração de cargo (área do
-  administrador).
-- **Credenciais fora do código** (arquivo `.env`).
-- **Impressão automática do cupom** na impressora térmica Jetway ao finalizar a venda.
+- **Desconto, troco, histórico, cancelamento** e reimpressão de cupom.
+- **Painel do administrador** com métricas, gráficos e PDF do dia.
+- **Busca fuzzy** e cadastro rápido durante a venda.
+- **Equipe** (admin/operador) com senhas em hash PBKDF2.
+- **Configurações** de loja/impressora na interface.
+- **Impressão** ESC/POS na Jetway JP-800.
+- **Bundle ofuscado** no instalador (código-fonte não vai no `.exe`).
 
 ## Arquitetura
 
 ```
 sistemaPDV/
-├── electron/            # Processo principal (main), preload e impressao Jetway
-│   └── impressao/       # Layout do cupom 80mm e envio silencioso a impressora
-├── renderer/            # Front-end (interface do PDV)
-│   ├── index.html
-│   ├── styles.css
-│   ├── js/
-│   │   ├── config/      # Inicialização do Firebase
-│   │   ├── services/    # Regras de negócio (auth, produtos, vendas, busca)
-│   │   ├── ui/          # Componentes de interface (carrinho, notificações)
-│   │   ├── utils/       # Utilitários (segurança, formatação)
-│   │   └── app.js       # Orquestração da interface
-│   └── dist/            # Bundle gerado (não versionado)
-├── scripts/             # Script de build do renderer (esbuild)
-├── database.rules.json  # Regras do Realtime Database
-└── .env.example         # Modelo de variáveis de ambiente
+├── electron/            # Main, preload, impressão, licença criptografada
+├── renderer/            # Interface do PDV
+├── landing/             # Página de venda
+├── server/              # API Mercado Pago + emissão de licenças
+├── scripts/             # Build ofuscado, migração, testes
+├── database.rules.json  # Dados só em lojas/{lojaId}
+└── VENDER.md            # Guia para colocar à venda
 ```
 
-O código do renderer é **empacotado e minificado/ofuscado** com o esbuild antes
-do build do `.exe`. Apenas o bundle (`renderer/dist/bundle.js`) vai para o
-instalador; o código-fonte legível não é incluído.
+O renderer é **minificado e ofuscado** antes do `.exe`.
 
 ## Pré-requisitos
 
-- [Node.js](https://nodejs.org/) 18+ (testado com Node 24)
-- Um projeto no [Firebase](https://console.firebase.google.com/) com o
-  **Realtime Database** ativado.
+- [Node.js](https://nodejs.org/) 18+
+- Projeto [Firebase](https://console.firebase.google.com/) com **Realtime Database**
 
 ## Configuração
 
-1. Instale as dependências:
+1. `npm install` e `copy .env.example .env`
+2. Preencha o Firebase no `.env`
+3. Publique `database.rules.json`
+4. Dev multi-loja: `CYBHOR_MODO_DEV=1` e chave `DEV-LOCAL` na ativação
+5. (Opcional) Jetway: `IMPRESSORA_NOME`, dados `LOJA_*`
 
-   ```bash
-   npm install
-   ```
-
-2. Crie o arquivo `.env` a partir do modelo e preencha com as credenciais do seu
-   projeto Firebase (Console Firebase → Configurações do projeto → SDK):
-
-   ```bash
-   copy .env.example .env
-   ```
-
-3. No Console do Firebase, publique as regras do arquivo `database.rules.json`
-   no Realtime Database.
-
-4. (Opcional) Configure a impressora Jetway JP-800 no `.env`:
-   - `IMPRESSORA_NOME=Jetway JP-800` (nome criado pelo driver oficial)
-   - `LOJA_NOME`, `LOJA_CNPJ`, `LOJA_ENDERECO`, `LOJA_TELEFONE` — cabecalho do cupom
-   - Em desenvolvimento Linux: `IMPRESSORA_MODO=teste` (grava o ESC/POS em `/tmp`)
-
-Materiais oficiais em `vendor/jp800/` (Driver + Exemplo Delphi). No Windows,
-rode `scripts/instalar-driver-jp800-windows.bat` ou o
-`JetwayPrinterDriverJP-800.exe`. O PDV imprime em **ESC/POS RAW** (igual ao
-exemplo Delphi com `WritePrinter` / porta COM).
-
-Teste local do cupom (sem impressora):
+Migração de dados antigos (raiz → loja):
 
 ```bash
-npm run test:impressao
+node scripts/migrar-loja-legado.mjs --lojaId=auto --nome="Minha Loja"
 ```
 
 ## Executar em desenvolvimento
@@ -103,8 +67,13 @@ npm run test:impressao
 npm start
 ```
 
-No **primeiro acesso**, o sistema pede a criação do **administrador**. Depois,
-faça login para abrir o PDV.
+Ative com `DEV-LOCAL` (se `CYBHOR_MODO_DEV=1`), depois crie o admin.
+
+Landing + API local:
+
+```bash
+npm run start:vendas
+```
 
 ## Gerar o instalador `.exe`
 
@@ -112,48 +81,27 @@ faça login para abrir o PDV.
 npm run dist
 ```
 
-O instalador é gerado em `dist/CybhorPDV-Setup-<versão>.exe`. O arquivo `.env`
-é empacotado nos recursos do aplicativo.
+Para produção, use `CYBHOR_MODO_DEV=0` e `CYBHOR_API_URL` apontando para a API pública.
 
-## GitHub Releases (distribuicao do instalador)
+## GitHub Releases (distribuição do instalador)
 
-O instalador oficial e publicado automaticamente nas **Releases** do GitHub.
+O instalador oficial é publicado automaticamente nas **Releases** do GitHub.
 
-### Baixar a ultima versao
+### Baixar a última versão
 
 Acesse: [github.com/cybhortech/sistemaPDV/releases](https://github.com/cybhortech/sistemaPDV/releases)
 
-Baixe o arquivo `CybhorPDV-Setup-x.x.x.exe` e execute para instalar.
-
-### Publicar uma nova versao
+### Publicar uma nova versão
 
 1. Atualize a `version` no `package.json`.
-2. No GitHub, configure os **Secrets** do repositorio em  
-   `Settings → Secrets and variables → Actions` com as variaveis do Firebase:
-   - `FIREBASE_API_KEY`
-   - `FIREBASE_AUTH_DOMAIN`
-   - `FIREBASE_DATABASE_URL`
-   - `FIREBASE_PROJECT_ID`
-   - `FIREBASE_STORAGE_BUCKET`
-   - `FIREBASE_MESSAGING_SENDER_ID`
-   - `FIREBASE_APP_ID`
-   - `FIREBASE_MEASUREMENT_ID` (opcional)
-3. Crie e envie uma tag de versao:
-
-   ```bash
-   git tag v1.0.0
-   git push origin v1.0.0
-   ```
-
-   O workflow `.github/workflows/release.yml` gera o `.exe` e publica na Release.
-
-4. Ou dispare manualmente em **Actions → Release CybhorPDV → Run workflow**.
+2. Configure os **Secrets** do Firebase no GitHub Actions.
+3. `git tag vX.Y.Z && git push origin vX.Y.Z`
 
 ## Segurança
 
-- Senhas são armazenadas apenas como **hash PBKDF2 + salt** (nunca em texto
-  puro).
-- Nenhuma credencial fica no código-fonte — tudo vem do `.env`.
-- As regras em `database.rules.json` são **abertas para funcionamento imediato**.
-  Para produção, recomenda-se migrar a autenticação para o **Firebase
-  Authentication** e restringir as regras por usuário autenticado.
+- Senhas: **PBKDF2 + salt**
+- Licença local: **AES-256-GCM**
+- Bundle: **ofuscação** no build
+- Credenciais só no `.env` / service account do servidor
+- Dados por loja em `lojas/{uuid}/`; nós `licencas` e `pedidos` bloqueados nas rules
+- Para endurecer ainda mais: Firebase Authentication nas rules

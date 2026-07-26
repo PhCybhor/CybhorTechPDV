@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pagamento aprovado — CybhorPDV</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Manrope:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="noise" aria-hidden="true"></div>
+    <main class="pagina-simples">
+      <h1>Pagamento aprovado</h1>
+      <p id="msg">Estamos preparando a chave da sua loja…</p>
+      <div id="chave" class="chave-box" hidden></div>
+      <a class="btn btn-solido" href="/">Voltar à página</a>
+    </main>
+    <script>
+      const params = new URLSearchParams(location.search);
+      const paymentId = params.get("payment_id") || params.get("collection_id");
+      const msg = document.getElementById("msg");
+      const chaveEl = document.getElementById("chave");
+
+      async function buscar() {
+        if (!paymentId) {
+          msg.textContent =
+            "Pagamento ok, mas o ID não veio na URL. Fale com o suporte com o comprovante.";
+          return;
+        }
+        try {
+          const res = await fetch("/api/entrega?payment_id=" + encodeURIComponent(paymentId));
+          const dados = await res.json();
+          if (dados.ok && dados.chave) {
+            msg.textContent = dados.mensagem || "Guarde sua chave de ativação:";
+            chaveEl.hidden = false;
+            chaveEl.textContent = dados.chave;
+            return;
+          }
+          if (dados.pendente) {
+            msg.textContent = dados.mensagem;
+            setTimeout(buscar, 2500);
+            return;
+          }
+          msg.textContent =
+            dados.mensagem ||
+            "Licença registrada. Se a chave não aparecer, contate o suporte com o ID " +
+              paymentId;
+        } catch {
+          msg.textContent = "Falha ao consultar. Tente recarregar em instantes.";
+          setTimeout(buscar, 3000);
+        }
+      }
+      buscar();
+    </script>
+  </body>
+</html>

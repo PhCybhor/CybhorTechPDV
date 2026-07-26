@@ -1,0 +1,18 @@
+{
+  "provedor": "gemini",
+  "modelo": "gemini-2.5-flash-preview-tts",
+  "voz": "Aoede",
+  "estilo": "Fale em português brasileiro, de forma bem humana e natural, como quem conversa no Instagram — ritmo leve, sem tom de robô, com leve persuasão de venda. Texto:",
+  "padAntesMs": 220,
+  "padDepoisMs": 380,
+  "falas": [
+    "Você vende… mas só acha que sabe quanto lucrou. Isso é tiro no escuro.",
+    "Caderno. Calculadora. Achismo. No fim do dia, você só acha que deu certo.",
+    "Produto acaba na frente do cliente. E o dinheiro some sem você ver.",
+    "Chega de improviso. Tem um jeito mais fácil.",
+    "Cybhor PDV. Venda no balcão. Veja se a loja está no lucro de verdade.",
+    "Lucro. Estoque. Equipe. Inteligência artificial. Venda rápida, fechamento de caixa, no Windows.",
+    "Pague uma vez. Use para sempre. Nesta loja. Sem surpresa todo mês.",
+    "Quero minha licença. Link na bio. Pare de perder dinheiro no escuro."
+  ]
+}

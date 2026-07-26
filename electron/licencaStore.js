@@ -1,0 +1,115 @@
+"use strict";
+
+const crypto = require("crypto");
+const fs = require("fs");
+const path = require("path");
+const os = require("os");
+const { app } = require("electron");
+
+/**
+ * Licença da loja criptografada em disco (AES-256-GCM).
+ * A chave deriva da máquina + segredo do app, para dificultar cópia entre PCs.
+ */
+
+const VERSAO = 1;
+
+function caminhoArquivo() {
+  return path.join(app.getPath("userData"), "licenca.enc");
+}
+
+function derivarChave() {
+  const maquina = [
+    os.hostname(),
+    os.platform(),
+    os.arch(),
+    os.userInfo().username,
+    "cybhor-pdv-licenca-v1",
+  ].join("|");
+  return crypto.scryptSync(maquina, "cybhor-salt-pdv-2026", 32);
+}
+
+/**
+ * @param {object} payload
+ */
+function criptografar(payload) {
+  const chave = derivarChave();
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv("aes-256-gcm", chave, iv);
+  const texto = Buffer.from(JSON.stringify(payload), "utf8");
+  const criptografado = Buffer.concat([cipher.update(texto), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return Buffer.concat([
+    Buffer.from([VERSAO]),
+    iv,
+    tag,
+    criptografado,
+  ]).toString("base64");
+}
+
+/**
+ * @param {string} blob
+ * @returns {object | null}
+ */
+function descriptografar(blob) {
+  try {
+    const buf = Buffer.from(String(blob || ""), "base64");
+    if (buf.length < 30 || buf[0] !== VERSAO) return null;
+    const iv = buf.subarray(1, 13);
+    const tag = buf.subarray(13, 29);
+    const dados = buf.subarray(29);
+    const chave = derivarChave();
+    const decipher = crypto.createDecipheriv("aes-256-gcm", chave, iv);
+    decipher.setAuthTag(tag);
+    const plain = Buffer.concat([decipher.update(dados), decipher.final()]);
+    return JSON.parse(plain.toString("utf8"));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * @returns {object | null}
+ */
+function lerLicenca() {
+  try {
+    const arquivo = caminhoArquivo();
+    if (!fs.existsSync(arquivo)) return null;
+    const blob = fs.readFileSync(arquivo, "utf8");
+    const dados = descriptografar(blob);
+    if (!dados?.lojaId || !dados?.chave) return null;
+    return dados;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * @param {object} dados
+ */
+function salvarLicenca(dados) {
+  const payload = {
+    lojaId: dados.lojaId,
+    chave: dados.chave,
+    email: dados.email || "",
+    nomeLoja: dados.nomeLoja || "",
+    ativadoEm: Date.now(),
+  };
+  fs.mkdirSync(path.dirname(caminhoArquivo()), { recursive: true });
+  fs.writeFileSync(caminhoArquivo(), criptografar(payload), "utf8");
+  return payload;
+}
+
+function limparLicenca() {
+  try {
+    const arquivo = caminhoArquivo();
+    if (fs.existsSync(arquivo)) fs.unlinkSync(arquivo);
+  } catch {
+    /* ignore */
+  }
+}
+
+module.exports = {
+  lerLicenca,
+  salvarLicenca,
+  limparLicenca,
+};

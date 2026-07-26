@@ -78,7 +78,7 @@ const temTotal = buffer.toString("latin1").includes("TOTAL");
 console.log("=== Teste ESC/POS JP-800 (protocolo Exemplo Delphi / TP650) ===");
 console.log(`Bytes gerados: ${buffer.length}`);
 console.log(`Init ESC @:   ${temInit ? "OK" : "FALHOU"}`);
-console.log(`Corte ESC m:  ${temCorte ? "OK" : "FALHOU"}`);
+console.log(`Corte papel:   ${temCorte ? "OK" : "FALHOU"}`);
 console.log(`Texto TOTAL:  ${temTotal ? "OK" : "FALHOU"}`);
 console.log(`BIN:  ${arquivoBin}`);
 console.log(`TXT:  ${arquivoTxt}`);

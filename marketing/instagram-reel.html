@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <title>CybhorPDV — Reels</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Manrope:wght@500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --ink: #070b09;
+        --ink-2: #0f1612;
+        --mint: #5dff9f;
+        --mint-soft: rgba(93, 255, 159, 0.18);
+        --cream: #e8f5ec;
+        --muted: #8aa394;
+        --danger: #ff7a6e;
+        --font-display: "Syne", sans-serif;
+        --font-body: "Manrope", sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      html,
+      body {
+        width: 1080px;
+        height: 1920px;
+        overflow: hidden;
+        background: var(--ink);
+        color: var(--cream);
+        font-family: var(--font-body);
+      }
+
+      .stage {
+        position: relative;
+        width: 1080px;
+        height: 1920px;
+        background:
+          radial-gradient(ellipse 90% 55% at 50% -5%, rgba(93, 255, 159, 0.22), transparent 55%),
+          radial-gradient(ellipse 70% 40% at 100% 70%, rgba(47, 159, 98, 0.16), transparent 50%),
+          radial-gradient(ellipse 50% 35% at 0% 90%, rgba(93, 255, 159, 0.08), transparent 45%),
+          var(--ink);
+        overflow: hidden;
+      }
+
+      .noise {
+        pointer-events: none;
+        position: absolute;
+        inset: 0;
+        opacity: 0.05;
+        z-index: 2;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      }
+
+      .glow {
+        position: absolute;
+        width: 720px;
+        height: 720px;
+        left: 50%;
+        top: 38%;
+        transform: translate(-50%, -50%);
+        background: radial-gradient(circle, rgba(93, 255, 159, 0.2), transparent 68%);
+        filter: blur(8px);
+        animation: pulse 3.2s ease-in-out infinite;
+        z-index: 0;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 0.55;
+          transform: translate(-50%, -50%) scale(1);
+        }
+        50% {
+          opacity: 1;
+          transform: translate(-50%, -50%) scale(1.08);
+        }
+      }
+
+      .brand-bar {
+        position: absolute;
+        top: 96px;
+        left: 0;
+        right: 0;
+        text-align: center;
+        z-index: 5;
+        font-family: var(--font-display);
+        font-weight: 800;
+        font-size: 42px;
+        letter-spacing: -0.03em;
+        opacity: 0;
+        animation: brandIn 0.6s ease forwards 0.15s;
+      }
+
+      .brand-bar span {
+        color: var(--mint);
+      }
+
+      @keyframes brandIn {
+        to {
+          opacity: 1;
+        }
+      }
+
+      .slides {
+        position: absolute;
+        inset: 0;
+        z-index: 3;
+      }
+
+      .slide {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 220px 88px 200px;
+        text-align: center;
+        opacity: 0;
+        visibility: hidden;
+      }
+
+      .slide.ativo {
+        visibility: visible;
+        animation: slideIn 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+      }
+
+      .slide.saindo {
+        visibility: visible;
+        animation: slideOut 0.35s ease forwards;
+      }
+
+      @keyframes slideIn {
+        from {
+          opacity: 0;
+          transform: translateY(48px) scale(0.96);
+          filter: blur(8px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+          filter: blur(0);
+        }
+      }
+
+      @keyframes slideOut {
+        to {
+          opacity: 0;
+          transform: translateY(-36px) scale(0.98);
+          filter: blur(6px);
+        }
+      }
+
+      .eyebrow {
+        font-size: 28px;
+        font-weight: 700;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--mint);
+        margin-bottom: 28px;
+      }
+
+      .eyebrow.alerta {
+        color: var(--danger);
+      }
+
+      .linha {
+        font-family: var(--font-display);
+        font-weight: 800;
+        font-size: 86px;
+        line-height: 1.05;
+        letter-spacing: -0.04em;
+        max-width: 900px;
+      }
+
+      .linha.grande {
+        font-size: 104px;
+      }
+
+      .linha.cta {
+        font-size: 92px;
+        color: var(--mint);
+      }
+
+      .linha .destaque {
+        color: var(--mint);
+      }
+
+      .linha .risco {
+        color: var(--danger);
+      }
+
+      .sub {
+        margin-top: 36px;
+        font-size: 38px;
+        font-weight: 600;
+        color: var(--muted);
+        max-width: 820px;
+        line-height: 1.3;
+      }
+
+      .sub.forte {
+        color: var(--cream);
+        font-weight: 700;
+      }
+
+      .pill {
+        margin-top: 48px;
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        padding: 18px 34px;
+        border-radius: 999px;
+        border: 1px solid rgba(93, 255, 159, 0.45);
+        background: var(--mint-soft);
+        color: var(--mint);
+        font-size: 30px;
+        font-weight: 800;
+        letter-spacing: -0.01em;
+      }
+
+      .chips {
+        margin-top: 48px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+        justify-content: center;
+        max-width: 900px;
+      }
+
+      .chip {
+        padding: 14px 22px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(232, 245, 236, 0.12);
+        font-size: 26px;
+        font-weight: 700;
+        color: var(--cream);
+      }
+
+      .progresso {
+        position: absolute;
+        left: 88px;
+        right: 88px;
+        bottom: 120px;
+        height: 6px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.08);
+        overflow: hidden;
+        z-index: 6;
+      }
+
+      .progresso > i {
+        display: block;
+        height: 100%;
+        width: 0;
+        background: linear-gradient(90deg, var(--mint), #2f9f62);
+        border-radius: inherit;
+      }
+
+      .rodape-fix {
+        position: absolute;
+        bottom: 56px;
+        left: 0;
+        right: 0;
+        text-align: center;
+        z-index: 6;
+        font-size: 24px;
+        font-weight: 600;
+        color: var(--muted);
+        letter-spacing: 0.04em;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="stage" id="stage">
+      <div class="glow" aria-hidden="true"></div>
+      <div class="noise" aria-hidden="true"></div>
+      <div class="brand-bar">Cybhor<span>PDV</span></div>
+
+      <div class="slides">
+        <section class="slide" data-ms="2800">
+          <p class="eyebrow alerta">Seja honesto</p>
+          <h1 class="linha">Você vende…<br /><span class="risco">mas só acha</span><br />que sabe quanto lucrou.</h1>
+          <p class="sub forte">Isso é tiro no escuro.</p>
+        </section>
+
+        <section class="slide" data-ms="2400">
+          <p class="eyebrow alerta">Se isso é você</p>
+          <h1 class="linha">Caderno.<br />Calculadora.<br /><span class="risco">Achismo.</span></h1>
+          <p class="sub">No fim do dia você só “acha” que deu certo.</p>
+        </section>
+
+        <section class="slide" data-ms="2400">
+          <p class="eyebrow alerta">O custo invisível</p>
+          <h1 class="linha">Produto acaba<br /><span class="risco">na frente do cliente.</span></h1>
+          <p class="sub">E o dinheiro some sem você ver.</p>
+        </section>
+
+        <section class="slide" data-ms="2200">
+          <p class="eyebrow">Chega de improviso</p>
+          <h1 class="linha grande">Tem um jeito<br /><span class="destaque">mais fácil.</span></h1>
+        </section>
+
+        <section class="slide" data-ms="2600">
+          <p class="eyebrow">O caixa no computador</p>
+          <h1 class="linha cta">CybhorPDV</h1>
+          <p class="sub forte">Venda no balcão. Veja se a loja está no lucro de verdade.</p>
+        </section>
+
+        <section class="slide" data-ms="2800">
+          <p class="eyebrow">O que muda hoje</p>
+          <h1 class="linha">Lucro. Estoque.<br /><span class="destaque">Equipe. IA.</span></h1>
+          <div class="chips">
+            <span class="chip">Venda rápida</span>
+            <span class="chip">Fechamento de caixa</span>
+            <span class="chip">CybhorIA</span>
+            <span class="chip">Windows</span>
+          </div>
+        </section>
+
+        <section class="slide" data-ms="2400">
+          <p class="eyebrow">Oferta sem mensalidade</p>
+          <h1 class="linha">Pague <span class="destaque">uma vez.</span><br />Use <span class="destaque">para sempre.</span></h1>
+          <p class="sub">Nesta loja. Sem surpresa todo mês.</p>
+        </section>
+
+        <section class="slide" data-ms="3200">
+          <p class="eyebrow">Decisão agora</p>
+          <h1 class="linha cta">Quero minha<br />licença</h1>
+          <p class="pill">Link na bio · CybhorPDV</p>
+          <p class="sub">Pare de perder dinheiro no escuro.</p>
+        </section>
+      </div>
+
+      <div class="progresso" aria-hidden="true"><i id="barra"></i></div>
+      <p class="rodape-fix">PDV · Windows · pague 1x</p>
+    </div>
+
+    <script>
+      const slides = Array.from(document.querySelectorAll(".slide"));
+      const barra = document.getElementById("barra");
+      let indice = 0;
+      let iniciadoEm = 0;
+      let duracaoAtual = 0;
+      let totalMs = 0;
+      let decorrido = 0;
+      let animFrame = 0;
+      let rodando = false;
+
+      function recalcularTotal() {
+        totalMs = slides.reduce(
+          (acc, s) => acc + (Number(s.dataset.ms) || 2000),
+          0
+        );
+      }
+
+      function aplicarTempos(tempos) {
+        if (!Array.isArray(tempos)) return;
+        tempos.forEach((ms, i) => {
+          if (slides[i] && Number(ms) > 0) {
+            slides[i].dataset.ms = String(Math.round(Number(ms)));
+          }
+        });
+        recalcularTotal();
+      }
+
+      function mostrar(i) {
+        slides.forEach((s, n) => {
+          s.classList.remove("ativo", "saindo");
+          if (n === i) s.classList.add("ativo");
+        });
+        indice = i;
+        duracaoAtual = Number(slides[i].dataset.ms) || 2000;
+        iniciadoEm = performance.now();
+      }
+
+      function tick(agora) {
+        const local = agora - iniciadoEm;
+        const base = decorrido;
+        const pct = Math.min(100, ((base + local) / totalMs) * 100);
+        barra.style.width = pct + "%";
+
+        if (local >= duracaoAtual) {
+          decorrido += duracaoAtual;
+          const atual = indice;
+          const proximo = atual + 1;
+          if (proximo < slides.length) {
+            slides[atual].classList.remove("ativo");
+            slides[atual].classList.add("saindo");
+            mostrar(proximo);
+            setTimeout(() => slides[atual].classList.remove("saindo"), 360);
+          } else {
+            barra.style.width = "100%";
+            document.body.dataset.fim = "1";
+            return;
+          }
+        }
+        animFrame = requestAnimationFrame(tick);
+      }
+
+      function iniciar(tempos) {
+        if (rodando) return totalMs;
+        if (tempos) aplicarTempos(tempos);
+        else recalcularTotal();
+        rodando = true;
+        document.body.dataset.pronto = "1";
+        document.body.dataset.fim = "0";
+        decorrido = 0;
+        mostrar(0);
+        animFrame = requestAnimationFrame(tick);
+        return totalMs;
+      }
+
+      document.fonts.ready.then(() => {
+        document.body.dataset.fonts = "1";
+        // Preview manual no navegador: inicia sozinho sem timings externos
+        const params = new URLSearchParams(location.search);
+        if (params.get("auto") !== "0") {
+          requestAnimationFrame(() => iniciar());
+        }
+      });
+
+      window.__cybhorReel = {
+        iniciar,
+        aplicarTempos,
+        totalMs: () => totalMs + 450,
+        acabou: () => document.body.dataset.fim === "1",
+      };
+    </script>
+  </body>
+</html>

@@ -17,7 +17,7 @@ export async function obterDatabase() {
 
   if (!config || !config.databaseURL) {
     throw new Error(
-      "Configuracao do Firebase ausente. Verifique o arquivo .env (FIREBASE_DATABASE_URL)."
+      "Configuração do Firebase ausente. Verifique o arquivo .env (FIREBASE_DATABASE_URL)."
     );
   }
 

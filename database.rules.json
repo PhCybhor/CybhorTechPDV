@@ -1,19 +1,62 @@
 {
   "rules": {
+    "lojas": {
+      "$lojaId": {
+        ".read": true,
+        ".write": true,
+        "funcionarios": {
+          ".indexOn": ["usuario", "cargo"]
+        },
+        "produtos": {
+          ".indexOn": ["nome", "codigoBarras"]
+        },
+        "vendas": {
+          ".indexOn": ["criadoEm", "funcionarioId"]
+        },
+        "fechamentos": {
+          ".indexOn": ["criadoEm"]
+        },
+        "despesas": {
+          ".indexOn": ["competencia", "criadoEm"]
+        },
+        "sangrias": {
+          ".indexOn": ["criadoEm"]
+        },
+        "suprimentos": {
+          ".indexOn": ["criadoEm"]
+        },
+        "fornecedores": {
+          ".indexOn": ["tiposMercadoria", "nicho", "nome"]
+        },
+        "clientes": {
+          ".indexOn": ["nome", "whatsapp"]
+        },
+        "auditoria": {
+          ".indexOn": ["criadoEm", "tipo"]
+        }
+      }
+    },
+    "licencas": {
+      ".read": false,
+      ".write": false,
+      ".indexOn": ["pagamentoId", "status"]
+    },
+    "pedidos": {
+      ".read": false,
+      ".write": false,
+      ".indexOn": ["pagamentoId"]
+    },
     "funcionarios": {
-      ".read": true,
-      ".write": true,
-      ".indexOn": ["usuario", "cargo"]
+      ".read": false,
+      ".write": false
     },
     "produtos": {
-      ".read": true,
-      ".write": true,
-      ".indexOn": ["nome", "codigoBarras"]
+      ".read": false,
+      ".write": false
     },
     "vendas": {
-      ".read": true,
-      ".write": true,
-      ".indexOn": ["criadoEm", "funcionarioId"]
+      ".read": false,
+      ".write": false
     }
   }
 }

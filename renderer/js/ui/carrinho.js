@@ -17,6 +17,7 @@ export class Carrinho {
    * @param {HTMLElement} [opcoes.blocoTroco]
    * @param {HTMLInputElement} [opcoes.inputRecebido]
    * @param {HTMLElement} [opcoes.elementoTroco]
+   * @param {HTMLElement} [opcoes.elementoQtdItens]
    */
   constructor({
     containerItens,
@@ -28,6 +29,7 @@ export class Carrinho {
     blocoTroco = null,
     inputRecebido = null,
     elementoTroco = null,
+    elementoQtdItens = null,
   }) {
     this.containerItens = containerItens;
     this.elementoSubtotal = elementoSubtotal;
@@ -38,10 +40,15 @@ export class Carrinho {
     this.blocoTroco = blocoTroco;
     this.inputRecebido = inputRecebido;
     this.elementoTroco = elementoTroco;
+    this.elementoQtdItens = elementoQtdItens;
     /** @type {Map<string, object>} */
     this.itens = new Map();
     this.desconto = 0;
     this.valorRecebido = 0;
+    /** Pagamento dividido (ex.: parte dinheiro + PIX). */
+    this.dividirPagamento = false;
+    this.valorParteDinheiro = 0;
+    this.formaRestante = "pix";
     this._destruido = false;
     this._aoCliqueItens = (evento) => this._tratarCliqueItens(evento);
     this._aoDesconto = () => {
@@ -85,28 +92,57 @@ export class Carrinho {
 
   /**
    * @param {object} produto
+   * @param {number} [quantidade=1]
    * @returns {boolean}
    */
-  adicionar(produto) {
+  adicionar(produto, quantidade = 1) {
+    const porPeso = String(produto.unidade || "un").toLowerCase() === "kg";
+    const qtdPedida = porPeso
+      ? Math.max(0.001, Number(quantidade) || 0.001)
+      : Math.max(1, Math.floor(Number(quantidade) || 1));
     const existente = this.itens.get(produto.id);
     const estoque = Number(produto.estoque) || 0;
+    const qtdAtual = existente ? existente.quantidade : 0;
+
+    if (qtdAtual + qtdPedida > estoque + 0.0001) return false;
 
     if (existente) {
-      if (existente.quantidade + 1 > estoque) return false;
-      existente.quantidade += 1;
+      existente.quantidade = porPeso
+        ? Number((existente.quantidade + qtdPedida).toFixed(3))
+        : existente.quantidade + qtdPedida;
       existente.estoqueAtual = estoque;
+      existente.precoUnitario = Number(produto.preco) || existente.precoUnitario;
     } else {
-      if (estoque < 1) return false;
+      if (estoque < (porPeso ? 0.001 : 1)) return false;
+      const custoRaw = produto.custo;
+      const custoUnitario =
+        custoRaw === null || custoRaw === undefined || custoRaw === ""
+          ? null
+          : Number(custoRaw);
       this.itens.set(produto.id, {
         produtoId: produto.id,
         nome: produto.nome,
         precoUnitario: Number(produto.preco) || 0,
         estoqueAtual: estoque,
-        quantidade: 1,
+        quantidade: porPeso ? Number(qtdPedida.toFixed(3)) : qtdPedida,
+        unidade: porPeso ? "kg" : "un",
+        custoUnitario:
+          custoUnitario !== null && Number.isFinite(custoUnitario)
+            ? custoUnitario
+            : null,
       });
     }
     this.renderizar();
     return true;
+  }
+
+  /**
+   * Último item do carrinho (ordem de inserção Map).
+   * @returns {object | null}
+   */
+  obterUltimoItem() {
+    const itens = this.obterItens();
+    return itens.length ? itens[itens.length - 1] : null;
   }
 
   /**
@@ -117,10 +153,14 @@ export class Carrinho {
     const item = this.itens.get(produtoId);
     if (!item) return;
 
-    const novaQuantidade = item.quantidade + delta;
+    const passo = item.unidade === "kg" ? 0.1 * Math.sign(delta || 1) : delta;
+    const novaQuantidade =
+      item.unidade === "kg"
+        ? Number((item.quantidade + passo).toFixed(3))
+        : item.quantidade + delta;
     if (novaQuantidade <= 0) {
       this.itens.delete(produtoId);
-    } else if (novaQuantidade > item.estoqueAtual) {
+    } else if (novaQuantidade > item.estoqueAtual + 0.0001) {
       return;
     } else {
       item.quantidade = novaQuantidade;
@@ -138,9 +178,51 @@ export class Carrinho {
     this.itens.clear();
     this.desconto = 0;
     this.valorRecebido = 0;
+    this.dividirPagamento = false;
+    this.valorParteDinheiro = 0;
+    this.formaRestante = "pix";
     this.inputDesconto.value = "0";
     if (this.inputRecebido) this.inputRecebido.value = "0";
     this.renderizar();
+  }
+
+  /**
+   * @param {boolean} ativo
+   */
+  definirDividir(ativo) {
+    this.dividirPagamento = Boolean(ativo);
+    this._atualizarTotais();
+  }
+
+  /**
+   * @param {number} valor
+   */
+  definirParteDinheiro(valor) {
+    this.valorParteDinheiro = Math.max(0, Number(valor) || 0);
+    this._atualizarTotais();
+  }
+
+  /**
+   * @param {string} forma
+   */
+  definirFormaRestante(forma) {
+    this.formaRestante = forma || "pix";
+    this._atualizarTotais();
+  }
+
+  /**
+   * @returns {Array<{ tipo: string, valor: number }> | null}
+   */
+  obterFormasPagamento() {
+    if (!this.dividirPagamento) return null;
+    const total = this.obterTotal();
+    const dinheiro = Math.min(this.valorParteDinheiro, total);
+    const resto = Math.round((total - dinheiro) * 100) / 100;
+    if (dinheiro <= 0 || resto <= 0) return null;
+    return [
+      { tipo: "dinheiro", valor: dinheiro },
+      { tipo: this.formaRestante || "pix", valor: resto },
+    ];
   }
 
   /** @returns {Array<object>} */
@@ -174,23 +256,46 @@ export class Carrinho {
 
   /** @returns {number} */
   obterTroco() {
+    if (this.dividirPagamento) {
+      const parte = Math.min(this.valorParteDinheiro, this.obterTotal());
+      return Math.max(0, this.valorRecebido - parte);
+    }
     if (this.selectPagamento?.value !== "dinheiro") return 0;
     return Math.max(0, this.valorRecebido - this.obterTotal());
   }
 
   /** @returns {boolean} */
   pagamentoDinheiroOk() {
-    if (this.selectPagamento?.value !== "dinheiro") return true;
     if (this.obterTotal() <= 0) return true;
+    if (this.dividirPagamento) {
+      const formas = this.obterFormasPagamento();
+      if (!formas) return false;
+      const parteDinheiro = formas.find((f) => f.tipo === "dinheiro")?.valor || 0;
+      return this.valorRecebido + 0.001 >= parteDinheiro;
+    }
+    if (this.selectPagamento?.value !== "dinheiro") return true;
     return this.valorRecebido + 0.001 >= this.obterTotal();
   }
 
   renderizar() {
     const itens = this.obterItens();
+    const qtdTotal = itens.reduce((soma, item) => soma + item.quantidade, 0);
+
+    if (this.elementoQtdItens) {
+      this.elementoQtdItens.textContent =
+        qtdTotal === 1 ? "1 item" : `${qtdTotal} itens`;
+    }
 
     if (itens.length === 0) {
-      this.containerItens.innerHTML =
-        '<p class="carrinho-vazio">Nenhum item adicionado.</p>';
+      this.containerItens.innerHTML = `
+        <div class="estado-vazio">
+          <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5">
+            <circle cx="9" cy="20" r="1.5"/><circle cx="17" cy="20" r="1.5"/>
+            <path d="M3 4h2l2.4 11.2a2 2 0 0 0 2 1.6h7.8a2 2 0 0 0 2-1.5L21 8H7"/>
+          </svg>
+          <p>Nenhum item adicionado</p>
+          <span>Clique em um produto ou use a busca</span>
+        </div>`;
     } else {
       this.containerItens.innerHTML = itens
         .map(
@@ -201,7 +306,7 @@ export class Carrinho {
             item.precoUnitario * item.quantidade
           )}</span>
           <div class="item-controles">
-            <button class="item-qtd-btn" data-acao="diminuir" data-id="${escapeHtml(item.produtoId)}" aria-label="Diminuir">-</button>
+            <button class="item-qtd-btn" data-acao="diminuir" data-id="${escapeHtml(item.produtoId)}" aria-label="Diminuir">−</button>
             <span class="item-qtd">${item.quantidade}</span>
             <button class="item-qtd-btn" data-acao="aumentar" data-id="${escapeHtml(item.produtoId)}" aria-label="Aumentar">+</button>
             <button class="item-remover" data-acao="remover" data-id="${escapeHtml(item.produtoId)}">Remover</button>
@@ -219,7 +324,8 @@ export class Carrinho {
     this.elementoSubtotal.textContent = formatarMoeda(this.obterSubtotal());
     this.elementoTotal.textContent = formatarMoeda(total);
 
-    const ehDinheiro = this.selectPagamento?.value === "dinheiro";
+    const ehDinheiro =
+      this.dividirPagamento || this.selectPagamento?.value === "dinheiro";
     this.blocoTroco?.classList.toggle("oculto", !ehDinheiro);
 
     if (this.elementoTroco) {
@@ -228,5 +334,16 @@ export class Carrinho {
 
     const temItens = this.itens.size > 0;
     this.botaoFinalizar.disabled = !temItens || !this.pagamentoDinheiroOk();
+
+    document.getElementById("bloco-dividir-pagamento")?.classList.toggle(
+      "oculto",
+      !this.dividirPagamento
+    );
+    const restoEl = document.getElementById("dividir-resto-valor");
+    if (restoEl && this.dividirPagamento) {
+      const dinheiro = Math.min(this.valorParteDinheiro, total);
+      const resto = Math.max(0, Math.round((total - dinheiro) * 100) / 100);
+      restoEl.textContent = formatarMoeda(resto);
+    }
   }
 }

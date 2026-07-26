@@ -1,4 +1,4 @@
-# RawPrinterHelper — mesmo fluxo do Exemplo_JP800_Delphi (OpenPrinter + datatype RAW).
+# RawPrinterHelper — OpenPrinterW + datatype RAW (compativel com JP-800 no Windows 10/11).
 # Uso: powershell -ExecutionPolicy Bypass -File RawPrint.ps1 -PrinterName "Jetway JP-800" -FilePath cupom.bin
 
 param(
@@ -8,6 +8,8 @@ param(
   [Parameter(Mandatory = $true)]
   [string]$FilePath
 )
+
+$ErrorActionPreference = "Stop"
 
 if (-not (Test-Path -LiteralPath $FilePath)) {
   Write-Error "Arquivo nao encontrado: $FilePath"
@@ -25,21 +27,21 @@ using System;
 using System.Runtime.InteropServices;
 
 public class RawPrinterHelper {
-  [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
-  public class DOCINFOA {
-    [MarshalAs(UnmanagedType.LPStr)] public string pDocName;
-    [MarshalAs(UnmanagedType.LPStr)] public string pOutputFile;
-    [MarshalAs(UnmanagedType.LPStr)] public string pDataType;
+  [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+  public class DOCINFOW {
+    [MarshalAs(UnmanagedType.LPWStr)] public string pDocName;
+    [MarshalAs(UnmanagedType.LPWStr)] public string pOutputFile;
+    [MarshalAs(UnmanagedType.LPWStr)] public string pDataType;
   }
 
-  [DllImport("winspool.Drv", EntryPoint = "OpenPrinterA", SetLastError = true, CharSet = CharSet.Ansi, ExactSpelling = true, CallingConvention = CallingConvention.StdCall)]
-  public static extern bool OpenPrinter([MarshalAs(UnmanagedType.LPStr)] string szPrinter, out IntPtr hPrinter, IntPtr pd);
+  [DllImport("winspool.Drv", EntryPoint = "OpenPrinterW", SetLastError = true, CharSet = CharSet.Unicode, ExactSpelling = true, CallingConvention = CallingConvention.StdCall)]
+  public static extern bool OpenPrinter([MarshalAs(UnmanagedType.LPWStr)] string szPrinter, out IntPtr hPrinter, IntPtr pd);
 
   [DllImport("winspool.Drv", EntryPoint = "ClosePrinter", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.StdCall)]
   public static extern bool ClosePrinter(IntPtr hPrinter);
 
-  [DllImport("winspool.Drv", EntryPoint = "StartDocPrinterA", SetLastError = true, CharSet = CharSet.Ansi, ExactSpelling = true, CallingConvention = CallingConvention.StdCall)]
-  public static extern bool StartDocPrinter(IntPtr hPrinter, Int32 level, [In, MarshalAs(UnmanagedType.LPStruct)] DOCINFOA di);
+  [DllImport("winspool.Drv", EntryPoint = "StartDocPrinterW", SetLastError = true, CharSet = CharSet.Unicode, ExactSpelling = true, CallingConvention = CallingConvention.StdCall)]
+  public static extern bool StartDocPrinter(IntPtr hPrinter, Int32 level, [In, MarshalAs(UnmanagedType.LPStruct)] DOCINFOW di);
 
   [DllImport("winspool.Drv", EntryPoint = "EndDocPrinter", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.StdCall)]
   public static extern bool EndDocPrinter(IntPtr hPrinter);
@@ -57,13 +59,17 @@ public class RawPrinterHelper {
 
 Add-Type -TypeDefinition $assinatura -ErrorAction Stop
 
+function CodigoWin32 {
+  return [Runtime.InteropServices.Marshal]::GetLastWin32Error()
+}
+
 $handle = [IntPtr]::Zero
 if (-not [RawPrinterHelper]::OpenPrinter($PrinterName, [ref]$handle, [IntPtr]::Zero)) {
-  Write-Error "Impressora nao encontrada: $PrinterName"
+  Write-Error "Impressora nao encontrada: $PrinterName (win32=$(CodigoWin32))"
   exit 2
 }
 
-$doc = New-Object RawPrinterHelper+DOCINFOA
+$doc = New-Object RawPrinterHelper+DOCINFOW
 $doc.pDocName = "CybhorPDV Cupom"
 $doc.pOutputFile = $null
 $doc.pDataType = "RAW"
@@ -71,15 +77,19 @@ $doc.pDataType = "RAW"
 $ok = $false
 $ptr = [IntPtr]::Zero
 try {
-  if (-not [RawPrinterHelper]::StartDocPrinter($handle, 1, $doc)) { throw "StartDocPrinter falhou" }
-  if (-not [RawPrinterHelper]::StartPagePrinter($handle)) { throw "StartPagePrinter falhou" }
+  if (-not [RawPrinterHelper]::StartDocPrinter($handle, 1, $doc)) {
+    throw "StartDocPrinter falhou (win32=$(CodigoWin32))"
+  }
+  if (-not [RawPrinterHelper]::StartPagePrinter($handle)) {
+    throw "StartPagePrinter falhou (win32=$(CodigoWin32))"
+  }
 
   $ptr = [System.Runtime.InteropServices.Marshal]::AllocHGlobal($bytes.Length)
   [System.Runtime.InteropServices.Marshal]::Copy($bytes, 0, $ptr, $bytes.Length)
 
   $written = 0
   if (-not [RawPrinterHelper]::WritePrinter($handle, $ptr, $bytes.Length, [ref]$written)) {
-    throw "WritePrinter falhou"
+    throw "WritePrinter falhou (win32=$(CodigoWin32))"
   }
   if ($written -ne $bytes.Length) {
     throw "Escrita incompleta ($written de $($bytes.Length) bytes)"
@@ -91,6 +101,8 @@ try {
   Write-Output "OK:$written"
 }
 catch {
+  try { [void][RawPrinterHelper]::EndPagePrinter($handle) } catch {}
+  try { [void][RawPrinterHelper]::EndDocPrinter($handle) } catch {}
   Write-Error $_.Exception.Message
   exit 3
 }

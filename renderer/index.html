@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com wss://*.firebaseio.com; img-src 'self' data:;"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https: http://127.0.0.1:* http://localhost:* https://*.firebaseio.com https://*.googleapis.com wss://*.firebaseio.com; img-src 'self' data:;"
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>CybhorPDV 2.0</title>
@@ -14,24 +14,52 @@
     <!-- Carregamento -->
     <section id="tela-carregando" class="tela tela-central">
       <img src="assets/logo.png" class="logo-loading" alt="CybhorPDV" />
-      <div class="spinner"></div>
+      <div class="spinner" aria-hidden="true"></div>
       <p>Conectando ao sistema...</p>
+    </section>
+
+    <!-- Ativação de licença (multi-loja) -->
+    <section id="tela-ativacao" class="tela tela-central oculto">
+      <div class="cartao cartao-form">
+        <img src="assets/logo.png" class="logo-login" alt="CybhorPDV" />
+        <h1 class="titulo">Ativar licença</h1>
+        <p class="subtitulo">
+          Cada loja usa uma chave exclusiva. Os dados ficam isolados — nada se mistura com outra instalação.
+        </p>
+        <form id="form-ativacao" class="form">
+          <label>Chave da licença
+            <input
+              type="text"
+              id="ativacao-chave"
+              autocomplete="off"
+              required
+              placeholder="CYB-XXXX-XXXX-XXXX"
+              spellcheck="false"
+            />
+          </label>
+          <button type="submit" class="btn btn-primario">Ativar esta loja</button>
+          <p class="mensagem-erro oculto" id="ativacao-erro"></p>
+        </form>
+        <p class="subtitulo" style="margin-top: 12px; margin-bottom: 0">
+          Comprou agora? Use a chave da página de sucesso do Mercado Pago.
+        </p>
+      </div>
     </section>
 
     <!-- Setup inicial -->
     <section id="tela-setup" class="tela tela-central oculto">
       <div class="cartao cartao-form">
         <img src="assets/logo.png" class="logo-login" alt="CybhorPDV" />
-        <h1 class="titulo">Configuracao inicial</h1>
+        <h1 class="titulo">Configuração inicial</h1>
         <p class="subtitulo">
           Nenhum administrador encontrado. Crie a conta de administrador para
-          comecar.
+          começar.
         </p>
         <form id="form-setup" class="form">
           <label>Nome completo
             <input type="text" id="setup-nome" autocomplete="off" required />
           </label>
-          <label>Usuario
+          <label>Usuário
             <input type="text" id="setup-usuario" autocomplete="off" required />
           </label>
           <label>Senha
@@ -48,13 +76,14 @@
       <div class="cartao cartao-form">
         <img src="assets/logo.png" class="logo-login" alt="CybhorPDV" />
         <h1 class="titulo">CybhorPDV 2.0</h1>
-        <p class="subtitulo">Acesse com seu usuario e senha.</p>
+        <p class="subtitulo">Acesse com seu usuário e senha.</p>
+        <p class="subtitulo" id="login-loja-nome" style="margin-top:-12px;color:var(--cor-acento)"></p>
         <form id="form-login" class="form">
-          <label>Usuario
-            <input type="text" id="login-usuario" autocomplete="off" required />
+          <label>Usuário
+            <input type="text" id="login-usuario" autocomplete="username" required />
           </label>
           <label>Senha
-            <input type="password" id="login-senha" required />
+            <input type="password" id="login-senha" autocomplete="current-password" required />
           </label>
           <button type="submit" class="btn btn-primario">Entrar</button>
           <p class="mensagem-erro oculto" id="login-erro"></p>
@@ -62,7 +91,7 @@
       </div>
     </section>
 
-    <!-- Shell autenticado: sidebar + area de conteudo -->
+    <!-- Shell autenticado: sidebar + área de conteúdo -->
     <section id="tela-app" class="tela oculto">
       <aside class="sidebar" id="sidebar">
         <div class="sidebar-marca">
@@ -74,21 +103,80 @@
         </div>
 
         <nav class="sidebar-nav" aria-label="Menu principal">
-          <button type="button" class="nav-item ativo" data-rota="pdv" id="nav-pdv">
-            <span class="nav-icone" aria-hidden="true">▣</span>
+          <button type="button" class="nav-item ativo" data-rota="pdv" id="nav-pdv" title="Caixa">
+            <svg class="nav-icone" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="4" width="18" height="16" rx="2"/>
+              <path d="M3 10h18M8 4v6M16 4v6"/>
+            </svg>
             <span>Caixa</span>
           </button>
-          <button type="button" class="nav-item oculto" data-rota="produtos" id="nav-produtos">
-            <span class="nav-icone" aria-hidden="true">◫</span>
+          <button type="button" class="nav-item oculto" data-rota="produtos" id="nav-produtos" title="Produtos">
+            <svg class="nav-icone" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+              <path d="M3.3 7 12 12l8.7-5M12 22V12"/>
+            </svg>
             <span>Produtos</span>
           </button>
-          <button type="button" class="nav-item oculto" data-rota="relatorios" id="nav-relatorios">
-            <span class="nav-icone" aria-hidden="true">▤</span>
-            <span>Relatorios</span>
+          <button type="button" class="nav-item oculto" data-rota="fornecedores" id="nav-fornecedores" title="Fornecedores">
+            <svg class="nav-icone" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <path d="M22 11h-6M19 8v6"/>
+            </svg>
+            <span>Fornecedores</span>
           </button>
-          <button type="button" class="nav-item oculto" data-rota="funcionarios" id="nav-funcionarios">
-            <span class="nav-icone" aria-hidden="true">☺</span>
+          <button type="button" class="nav-item oculto" data-rota="clientes" id="nav-clientes" title="Clientes">
+            <svg class="nav-icone" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+              <circle cx="12" cy="7" r="4"/>
+            </svg>
+            <span>Clientes</span>
+          </button>
+          <button type="button" class="nav-item oculto" data-rota="gestao" id="nav-gestao" title="Gestão avançada">
+            <svg class="nav-icone" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 20V10M18 20V4M6 20v-4"/>
+            </svg>
+            <span>Gestão+</span>
+          </button>
+          <button type="button" class="nav-item oculto" data-rota="relatorios" id="nav-relatorios" title="Números da loja">
+            <svg class="nav-icone" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 19V5M4 19h16"/>
+              <path d="M8 16V10M13 16V7M18 16v-4"/>
+            </svg>
+            <span>Números</span>
+          </button>
+          <button type="button" class="nav-item oculto" data-rota="assistente" id="nav-assistente" title="Assistente IA">
+            <svg class="nav-icone" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 3a4 4 0 0 1 4 4v1h1a3 3 0 0 1 0 6h-.5"/>
+              <path d="M8 8V7a4 4 0 0 1 7.5-1.9"/>
+              <path d="M7 14H6a3 3 0 0 1 0-6h1"/>
+              <path d="M8 14v2a4 4 0 0 0 8 0v-2"/>
+              <circle cx="9" cy="11" r="1"/>
+              <circle cx="15" cy="11" r="1"/>
+            </svg>
+            <span>CybhorIA</span>
+          </button>
+          <button type="button" class="nav-item oculto" data-rota="funcionarios" id="nav-funcionarios" title="Equipe">
+            <svg class="nav-icone" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
             <span>Equipe</span>
+          </button>
+          <button type="button" class="nav-item" data-rota="historico" id="nav-historico" title="Histórico">
+            <svg class="nav-icone" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="9"/>
+              <path d="M12 7v5l3 2"/>
+            </svg>
+            <span>Histórico</span>
+          </button>
+          <button type="button" class="nav-item oculto" data-rota="configuracoes" id="nav-configuracoes" title="Configurações">
+            <svg class="nav-icone" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V19a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H5a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V5a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9c.3.6.9 1 1.5 1H19a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>
+            </svg>
+            <span>Configurações</span>
           </button>
         </nav>
 
@@ -101,15 +189,45 @@
       <div class="app-principal">
         <!-- PDV / Caixa -->
         <div id="rota-pdv" class="rota">
+          <div class="venda-rapida-barra" aria-label="Modo venda rápida">
+            <strong>Venda rápida</strong>
+            <button type="button" id="btn-sair-venda-rapida" class="btn btn-secundario btn-sm">
+              Sair (Esc)
+            </button>
+          </div>
           <header class="rota-cabecalho">
             <div>
               <h1 class="rota-titulo">Caixa</h1>
-              <p class="rota-sub">Busque, adicione itens e finalize a venda</p>
+              <p class="rota-sub">Busque, adicione itens e finalize · Ctrl+K comandos</p>
             </div>
-            <button type="button" id="btn-novo-produto-pdv" class="btn btn-secundario">
-              + Novo produto
-            </button>
+            <div class="rota-acoes">
+              <button type="button" id="btn-modo-venda-rapida" class="btn btn-secundario" title="Modo tablet / fullscreen">
+                Venda rápida
+              </button>
+              <button type="button" id="btn-repetir-ultima-cesta" class="btn btn-secundario" title="Repete itens da última venda">
+                Última cesta
+              </button>
+              <button type="button" id="btn-sangria-pdv" class="btn btn-secundario" title="Retirar dinheiro do caixa">
+                Sangria
+              </button>
+              <button type="button" id="btn-ajuda-caixa" class="btn btn-secundario" title="Atalhos do caixa (F1)">
+                Ajuda F1
+              </button>
+              <button type="button" id="btn-novo-produto-pdv" class="btn btn-secundario">
+                + Novo produto
+              </button>
+            </div>
           </header>
+          <div id="onboarding-box" class="onboarding-box oculto"></div>
+          <div id="meta-caixa-barra" class="meta-caixa-barra oculto" aria-live="polite">
+            <div class="meta-caixa-topo">
+              <span>Meta do dia</span>
+              <strong id="meta-caixa-texto">R$ 0 / R$ 0</strong>
+            </div>
+            <div class="meta-caixa-track">
+              <div id="meta-caixa-preenchimento" class="meta-caixa-preenchimento"></div>
+            </div>
+          </div>
 
           <div class="pdv-conteudo">
             <div class="pdv-catalogo">
@@ -118,20 +236,70 @@
                   type="text"
                   id="busca-produto"
                   class="busca-input"
-                  placeholder="Nome, codigo de barras ou categoria (Enter = adicionar)"
+                  placeholder="Nome, código ou categoria · use *qtd (ex.: água*3) · Enter adiciona"
                   autocomplete="off"
                 />
                 <div id="busca-sugestoes" class="sugestoes oculto" role="listbox"></div>
+              </div>
+              <p class="busca-dica">
+                F1 ajuda · F2 busca · F5–F8 pagamento · F9 repetir · F12 finalizar · Esc limpa busca · *3 quantidade
+              </p>
+
+              <div id="atalhos-rapidos" class="atalhos-rapidos" aria-label="Produtos rápidos"></div>
+              <div id="filtros-categoria" class="filtros-categoria" aria-label="Categorias"></div>
+
+              <div class="pdv-alertas">
+                <div id="alerta-estoque" class="alerta-estoque oculto" role="status"></div>
+                <div id="alerta-fornecedores" class="alerta-fornecedores oculto" role="status"></div>
               </div>
               <div id="lista-produtos" class="grade-produtos"></div>
             </div>
 
             <aside class="pdv-carrinho">
-              <h2 class="carrinho-titulo">Venda atual</h2>
-              <div id="carrinho-itens" class="carrinho-itens">
-                <p class="carrinho-vazio">Nenhum item adicionado.</p>
+              <div class="carrinho-cabecalho">
+                <h2 class="carrinho-titulo">Venda atual</h2>
+                <span id="carrinho-qtd-itens" class="carrinho-badge">0 itens</span>
               </div>
+              <div id="carrinho-itens" class="carrinho-itens">
+                <div class="estado-vazio">
+                  <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <circle cx="9" cy="20" r="1.5"/><circle cx="17" cy="20" r="1.5"/>
+                    <path d="M3 4h2l2.4 11.2a2 2 0 0 0 2 1.6h7.8a2 2 0 0 0 2-1.5L21 8H7"/>
+                  </svg>
+                  <p>Nenhum item adicionado</p>
+                  <span>Use a busca, favoritos ou a grade</span>
+                </div>
+              </div>
+              <div id="upsell-carrinho" class="upsell-carrinho oculto" aria-label="Leva junto"></div>
               <div class="carrinho-rodape">
+                <div class="campo-bloco">
+                  <label class="campo-inline">Cliente
+                    <select id="pdv-cliente"></select>
+                  </label>
+                  <span id="pdv-cliente-chip" class="carrinho-badge oculto"></span>
+                  <label class="checkbox checkbox-dividir">
+                    <input type="checkbox" id="check-venda-fiado" />
+                    Venda fiado (pagar depois)
+                  </label>
+                  <label class="checkbox checkbox-dividir">
+                    <input type="checkbox" id="check-enviar-wa-cupom" />
+                    Enviar resumo no WhatsApp
+                  </label>
+                  <label class="campo-inline">Cupom
+                    <input type="text" id="pdv-cupom" placeholder="Código" autocomplete="off" />
+                  </label>
+                  <label class="campo-inline">Nota atendimento
+                    <select id="pdv-avaliacao">
+                      <option value="0">—</option>
+                      <option value="5">5</option>
+                      <option value="4">4</option>
+                      <option value="3">3</option>
+                      <option value="2">2</option>
+                      <option value="1">1</option>
+                    </select>
+                  </label>
+                  <button type="button" id="btn-limpar-cliente-pdv" class="btn btn-texto btn-sm">Limpar cliente</button>
+                </div>
                 <div class="carrinho-linha">
                   <span>Subtotal</span>
                   <span id="carrinho-subtotal-valor">R$ 0,00</span>
@@ -149,14 +317,38 @@
                   <span>Total</span>
                   <strong id="carrinho-total-valor">R$ 0,00</strong>
                 </div>
-                <label class="campo-bloco">Forma de pagamento
-                  <select id="forma-pagamento">
+                <div class="campo-bloco">
+                  <span class="campo-rotulo">Forma de pagamento</span>
+                  <div class="atalhos-pagamento" id="atalhos-pagamento" role="group" aria-label="Formas de pagamento">
+                    <button type="button" class="btn btn-secundario btn-sm ativo" data-pagamento="dinheiro" title="F5">Dinheiro <kbd>F5</kbd></button>
+                    <button type="button" class="btn btn-secundario btn-sm" data-pagamento="pix" title="F6">PIX <kbd>F6</kbd></button>
+                    <button type="button" class="btn btn-secundario btn-sm" data-pagamento="debito" title="F7">Débito <kbd>F7</kbd></button>
+                    <button type="button" class="btn btn-secundario btn-sm" data-pagamento="credito" title="F8">Crédito <kbd>F8</kbd></button>
+                  </div>
+                  <label class="checkbox checkbox-dividir">
+                    <input type="checkbox" id="check-dividir-pagamento" />
+                    Dividir pagamento (dinheiro + outra forma)
+                  </label>
+                  <div id="bloco-dividir-pagamento" class="bloco-dividir oculto">
+                    <label class="campo-inline">Parte em dinheiro (R$)
+                      <input type="number" id="dividir-dinheiro" min="0" step="0.01" value="0" />
+                    </label>
+                    <label class="campo-inline">Resto em
+                      <select id="dividir-resto-forma">
+                        <option value="pix">PIX</option>
+                        <option value="debito">Débito</option>
+                        <option value="credito">Crédito</option>
+                      </select>
+                    </label>
+                    <p class="busca-dica">Resto: <strong id="dividir-resto-valor">R$ 0,00</strong></p>
+                  </div>
+                  <select id="forma-pagamento" class="oculto" aria-hidden="true" tabindex="-1">
                     <option value="dinheiro">Dinheiro</option>
                     <option value="pix">PIX</option>
-                    <option value="debito">Cartao de debito</option>
-                    <option value="credito">Cartao de credito</option>
+                    <option value="debito">Cartão de débito</option>
+                    <option value="credito">Cartão de crédito</option>
                   </select>
-                </label>
+                </div>
                 <div id="bloco-troco" class="bloco-troco oculto">
                   <label class="campo-inline">Valor recebido (R$)
                     <input
@@ -167,13 +359,20 @@
                       value="0"
                     />
                   </label>
+                  <div class="atalhos-troco" id="atalhos-troco">
+                    <button type="button" class="btn btn-secundario btn-sm" data-troco-extra="0">Exato</button>
+                    <button type="button" class="btn btn-secundario btn-sm" data-troco-extra="10">+10</button>
+                    <button type="button" class="btn btn-secundario btn-sm" data-troco-extra="20">+20</button>
+                    <button type="button" class="btn btn-secundario btn-sm" data-troco-extra="50">+50</button>
+                    <button type="button" class="btn btn-secundario btn-sm" data-troco-extra="100">+100</button>
+                  </div>
                   <div class="carrinho-linha">
                     <span>Troco</span>
                     <strong id="carrinho-troco-valor" class="troco-valor">R$ 0,00</strong>
                   </div>
                 </div>
-                <button id="btn-finalizar" class="btn btn-primario btn-bloco" disabled>
-                  Finalizar venda
+                <button id="btn-finalizar" class="btn btn-primario btn-bloco btn-destaque" disabled>
+                  Finalizar venda (F12)
                 </button>
                 <button id="btn-limpar" class="btn btn-texto btn-bloco">Limpar carrinho</button>
               </div>
@@ -188,9 +387,18 @@
               <h1 class="rota-titulo">Produtos</h1>
               <p class="rota-sub">Cadastre, edite, ajuste estoque e remova itens</p>
             </div>
-            <button type="button" id="btn-novo-produto" class="btn btn-primario">
-              + Novo produto
-            </button>
+            <div class="rota-acoes">
+              <button type="button" id="btn-corrigir-nomes-ia" class="btn btn-secundario" title="A IA sugere nomes mais claros para o cadastro">
+                Corrigir nomes com IA
+              </button>
+              <label class="btn btn-secundario btn-arquivo">
+                Importar CSV
+                <input type="file" id="input-csv-produtos" accept=".csv,text/csv" hidden />
+              </label>
+              <button type="button" id="btn-novo-produto" class="btn btn-primario">
+                + Novo produto
+              </button>
+            </div>
           </header>
 
           <div class="painel-conteudo">
@@ -199,7 +407,7 @@
                 type="text"
                 id="filtro-produtos"
                 class="busca-input"
-                placeholder="Filtrar produtos..."
+                placeholder="Filtrar por nome, categoria ou código..."
                 autocomplete="off"
               />
             </div>
@@ -207,98 +415,779 @@
           </div>
         </div>
 
-        <!-- Relatorios (admin) -->
+        <!-- Fornecedores (admin) -->
+        <div id="rota-fornecedores" class="rota oculto">
+          <header class="rota-cabecalho">
+            <div>
+              <h1 class="rota-titulo">Fornecedores</h1>
+              <p class="rota-sub">Contatos pelo que vendem — para repor mercadoria sem perder telefone</p>
+            </div>
+          </header>
+
+          <div class="painel-conteudo">
+            <div class="painel-grafico painel-solto">
+              <form id="form-fornecedor" class="form form-fornecedor">
+                <div class="form-linha">
+                  <label>Nome do fornecedor
+                    <input type="text" id="forn-nome" required placeholder="Ex.: Distribuidora Silva" autocomplete="off" />
+                  </label>
+                  <label>O que vende <span class="campo-obrigatorio">(obrigatório)</span>
+                    <input type="text" id="forn-tipos-mercadoria" required placeholder="Ex.: Bebidas, Água, Refrigerante" list="lista-tipos-mercadoria" autocomplete="off" />
+                  </label>
+                </div>
+                <p class="form-ajuda">Separe vários tipos com vírgula. Use os mesmos nomes das categorias dos produtos para a reposição achar o fornecedor certo.</p>
+                <datalist id="lista-tipos-mercadoria">
+                  <option value="Bebidas"></option>
+                  <option value="Água"></option>
+                  <option value="Refrigerante"></option>
+                  <option value="Padaria"></option>
+                  <option value="Limpeza"></option>
+                  <option value="Hortifruti"></option>
+                  <option value="Mercearia"></option>
+                  <option value="Frios e laticínios"></option>
+                  <option value="Higiene"></option>
+                  <option value="Pet"></option>
+                </datalist>
+                <div class="form-linha">
+                  <label>Telefone
+                    <input type="text" id="forn-telefone" placeholder="(11) 3333-0000" autocomplete="off" />
+                  </label>
+                  <label>WhatsApp
+                    <input type="text" id="forn-whatsapp" placeholder="11999990000" autocomplete="off" />
+                  </label>
+                </div>
+                <div class="form-linha">
+                  <label>E-mail
+                    <input type="email" id="forn-email" placeholder="contato@fornecedor.com" autocomplete="off" />
+                  </label>
+                  <label>Cidade
+                    <input type="text" id="forn-cidade" autocomplete="off" />
+                  </label>
+                </div>
+                <label>Observação
+                  <input type="text" id="forn-observacao" placeholder="Prazo, pedido mínimo, marcas…" autocomplete="off" />
+                </label>
+                <label class="checkbox">
+                  <input type="checkbox" id="forn-ativo" checked />
+                  Fornecedor ativo (entra nas sugestões de reposição)
+                </label>
+                <div class="modal-acoes">
+                  <button type="button" id="btn-limpar-fornecedor" class="btn btn-texto">Limpar</button>
+                  <button type="submit" id="btn-salvar-fornecedor" class="btn btn-primario">Adicionar fornecedor</button>
+                </div>
+              </form>
+            </div>
+
+            <div class="painel-grafico painel-solto">
+              <div class="barra-filtro">
+                <input
+                  type="text"
+                  id="filtro-fornecedores"
+                  class="busca-input"
+                  placeholder="Buscar por nome, o que vende, telefone ou cidade…"
+                  autocomplete="off"
+                />
+              </div>
+              <div id="lista-fornecedores" class="lista-fornecedores"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Clientes (admin) -->
+        <div id="rota-clientes" class="rota oculto">
+          <header class="rota-cabecalho">
+            <div>
+              <h1 class="rota-titulo">Clientes</h1>
+              <p class="rota-sub">Fiado, fidelidade, aniversário e WhatsApp</p>
+            </div>
+          </header>
+          <div class="painel-conteudo">
+            <div class="painel-grafico painel-solto">
+              <form id="form-cliente" class="form form-fornecedor">
+                <div class="form-linha">
+                  <label>Nome
+                    <input type="text" id="cli-nome" required autocomplete="off" />
+                  </label>
+                  <label>WhatsApp
+                    <input type="text" id="cli-whatsapp" placeholder="11999999999" autocomplete="off" />
+                  </label>
+                </div>
+                <div class="form-linha">
+                  <label>Telefone
+                    <input type="text" id="cli-telefone" autocomplete="off" />
+                  </label>
+                  <label>Aniversário (MM-DD)
+                    <input type="text" id="cli-aniversario" placeholder="07-26" autocomplete="off" />
+                  </label>
+                </div>
+                <div class="form-linha">
+                  <label>Limite fiado (R$)
+                    <input type="number" id="cli-limite" min="0" step="0.01" value="0" />
+                  </label>
+                  <label>Observação
+                    <input type="text" id="cli-obs" autocomplete="off" />
+                  </label>
+                </div>
+                <div class="modal-acoes">
+                  <button type="button" id="btn-limpar-cliente" class="btn btn-texto">Limpar</button>
+                  <button type="submit" id="btn-salvar-cliente" class="btn btn-primario">Salvar cliente</button>
+                </div>
+              </form>
+              <div id="lista-clientes" class="lista-fornecedores"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Gestão avançada (admin) -->
+        <div id="rota-gestao" class="rota oculto">
+          <header class="rota-cabecalho">
+            <div>
+              <h1 class="rota-titulo">Gestão+</h1>
+              <p class="rota-sub">Pedido, DRE, inventário, combos, cupons, turnos e auditoria</p>
+            </div>
+          </header>
+          <div class="painel-conteudo">
+            <div id="painel-gestao-root"></div>
+          </div>
+        </div>
+
+        <!-- Relatórios (admin) -->
         <div id="rota-relatorios" class="rota oculto">
           <header class="rota-cabecalho">
             <div>
-              <h1 class="rota-titulo">Relatorios</h1>
-              <p class="rota-sub">Vendas, descontos e desempenho da loja</p>
+              <h1 class="rota-titulo">Números da loja</h1>
+              <p class="rota-sub">Veja o que entrou, o que saiu e se sobrou lucro — em português simples</p>
             </div>
           </header>
 
           <div class="painel-conteudo relatorios-conteudo">
-            <div class="relatorios-cartoes">
-              <div class="cartao-metrica cartao-metrica--sucesso">
-                <span class="metrica-titulo">Vendido hoje</span>
-                <strong id="card-total-hoje" class="metrica-valor sucesso">R$ 0,00</strong>
-                <span id="card-qtd-hoje" class="metrica-sub">0 venda(s)</span>
+            <p class="relatorios-guia">
+              <strong>Como ler:</strong>
+              comece por <em>Vendas</em> (o que entrou) → depois <em>Contas</em> (aluguel, luz…) →
+              o cartão <em>Sobrou no mês</em> já desconta as contas.
+              <em>Gaveta</em> é só o dinheiro físico do caixa.
+            </p>
+
+            <div class="relatorios-abas" role="tablist" aria-label="Seções dos relatórios">
+              <button type="button" class="relatorios-aba ativo" role="tab" aria-selected="true" data-aba-relatorio="receita">
+                <span class="relatorios-aba-titulo">Vendas</span>
+                <span class="relatorios-aba-dica">o que entrou</span>
+              </button>
+              <button type="button" class="relatorios-aba" role="tab" aria-selected="false" data-aba-relatorio="gastos">
+                <span class="relatorios-aba-titulo">Contas</span>
+                <span class="relatorios-aba-dica">aluguel, luz…</span>
+              </button>
+              <button type="button" class="relatorios-aba" role="tab" aria-selected="false" data-aba-relatorio="sangria">
+                <span class="relatorios-aba-titulo">Tirei do caixa</span>
+                <span class="relatorios-aba-dica">sangria</span>
+              </button>
+              <button type="button" class="relatorios-aba" role="tab" aria-selected="false" data-aba-relatorio="pulso">
+                <span class="relatorios-aba-titulo">Dicas do dia</span>
+                <span class="relatorios-aba-dica">o que fazer</span>
+              </button>
+              <button type="button" class="relatorios-aba" role="tab" aria-selected="false" data-aba-relatorio="caixa">
+                <span class="relatorios-aba-titulo">Gaveta</span>
+                <span class="relatorios-aba-dica">dinheiro físico</span>
+              </button>
+            </div>
+
+            <!-- Aba Receita / Vendas -->
+            <div class="relatorios-painel ativo" data-painel-relatorio="receita">
+              <div class="relatorios-secao-cabecalho">
+                <h2 class="relatorios-secao-titulo">Vendas e lucro</h2>
+                <p class="relatorios-secao-sub">Primeiro o dia de hoje. Depois o mês. Por último o que sobrou de verdade.</p>
               </div>
-              <div class="cartao-metrica">
-                <span class="metrica-titulo">Total do mes</span>
-                <strong id="card-total-mes" class="metrica-valor">R$ 0,00</strong>
-                <span class="metrica-sub">Acumulado do mes atual</span>
+
+              <p class="relatorios-grupo-titulo">Hoje</p>
+              <div class="relatorios-cartoes relatorios-cartoes--hoje">
+                <div class="cartao-metrica cartao-metrica--sucesso cartao-metrica--destaque">
+                  <span class="metrica-titulo">Entrou hoje</span>
+                  <strong id="card-total-hoje" class="metrica-valor sucesso">R$ 0,00</strong>
+                  <span id="card-qtd-hoje" class="metrica-sub">0 venda(s)</span>
+                </div>
               </div>
-              <div class="cartao-metrica cartao-metrica--alerta">
-                <span class="metrica-titulo">Descontos (mes)</span>
-                <strong id="card-total-descontos" class="metrica-valor alerta">R$ 0,00</strong>
-                <span class="metrica-sub">Somatorio dos descontos</span>
+
+              <p class="relatorios-grupo-titulo">Neste mês</p>
+              <div class="relatorios-cartoes">
+                <div class="cartao-metrica">
+                  <span class="metrica-titulo">Total vendido</span>
+                  <strong id="card-total-mes" class="metrica-valor">R$ 0,00</strong>
+                  <span class="metrica-sub">Soma de todas as vendas do mês</span>
+                </div>
+                <div class="cartao-metrica cartao-metrica--alerta">
+                  <span class="metrica-titulo">Descontos dados</span>
+                  <strong id="card-total-descontos" class="metrica-valor alerta">R$ 0,00</strong>
+                  <span class="metrica-sub">Quanto você abriu mão no preço</span>
+                </div>
+                <div class="cartao-metrica cartao-metrica--sucesso">
+                  <span class="metrica-titulo">Lucro da mercadoria</span>
+                  <strong id="card-lucro-bruto" class="metrica-valor sucesso">R$ 0,00</strong>
+                  <span id="card-cmv-mes" class="metrica-sub">Vendas − o que você pagou nos produtos</span>
+                </div>
+                <div class="cartao-metrica cartao-metrica--sucesso cartao-metrica--destaque">
+                  <span class="metrica-titulo">Sobrou no mês</span>
+                  <strong id="card-lucro-liquido" class="metrica-valor sucesso">R$ 0,00</strong>
+                  <span id="card-despesas-no-lucro" class="metrica-sub">Já tirou aluguel, luz e outras contas</span>
+                  <span id="card-ponto-equilibrio" class="metrica-sub">Meta mínima do mês: —</span>
+                </div>
+              </div>
+
+              <p id="alerta-lucro-custo" class="alerta-inline oculto"></p>
+
+              <div class="relatorios-grade">
+                <div class="painel-grafico painel-largo">
+                  <div class="painel-cabecalho">
+                    <div>
+                      <h3 class="painel-titulo">Vendas de um dia</h3>
+                      <p class="painel-sub">Escolha a data e veja o resumo — ou baixe em PDF</p>
+                    </div>
+                    <div class="painel-controles">
+                      <input type="date" id="relatorio-data" class="input-data" />
+                      <button type="button" id="btn-gerar-pdf" class="btn btn-primario">
+                        Baixar PDF do dia
+                      </button>
+                    </div>
+                  </div>
+                  <div id="resumo-dia" class="resumo-dia"></div>
+                  <div id="tabela-dia" class="tabela-dados"></div>
+                </div>
+
+                <div class="painel-grafico">
+                  <h3 class="painel-titulo">O que mais sai</h3>
+                  <p class="painel-sub">Produtos campeões deste mês</p>
+                  <p id="mais-vendidos-vazio" class="ranking-vazio oculto">
+                    Ainda não há vendas neste mês.
+                  </p>
+                  <div class="grafico-area">
+                    <canvas id="grafico-mais-vendidos"></canvas>
+                  </div>
+                </div>
+
+                <aside class="painel-ranking">
+                  <h3 class="painel-titulo">Em alta na semana</h3>
+                  <p class="painel-sub">Últimos 7 dias</p>
+                  <div id="lista-em-alta" class="ranking-lista"></div>
+                </aside>
+
+                <div class="painel-grafico painel-largo">
+                  <h3 class="painel-titulo">Quanto entrou por dia</h3>
+                  <p class="painel-sub">Últimos 7 dias — para ver se a semana está boa</p>
+                  <div class="grafico-area">
+                    <canvas id="grafico-receita-diaria"></canvas>
+                  </div>
+                </div>
+
+                <div class="painel-grafico painel-largo">
+                  <div class="painel-cabecalho">
+                    <div>
+                      <h3 class="painel-titulo">Fechar o caixa de hoje</h3>
+                      <p class="painel-sub">Conferência rápida antes de ir embora</p>
+                    </div>
+                    <button type="button" id="btn-fechar-caixa" class="btn btn-secundario">
+                      Salvar fechamento
+                    </button>
+                  </div>
+                  <div id="fechamento-resumo" class="resumo-dia"></div>
+                  <div id="fechamento-detalhe" class="tabela-dados"></div>
+                </div>
+
+                <div class="painel-grafico painel-largo">
+                  <h3 class="painel-titulo">Vendas com desconto</h3>
+                  <p class="painel-sub">Quem ganhou abatimento e quanto</p>
+                  <div id="tabela-descontos" class="tabela-dados"></div>
+                </div>
               </div>
             </div>
 
-            <div class="relatorios-grade">
-              <div class="painel-grafico painel-largo">
+            <!-- Aba Gastos / Despesas -->
+            <div class="relatorios-painel oculto" data-painel-relatorio="gastos">
+              <div class="relatorios-secao-cabecalho">
+                <h2 class="relatorios-secao-titulo">Contas da loja</h2>
+                <p class="relatorios-secao-sub">Aluguel, luz, água, internet… o que você paga todo mês (não é venda)</p>
+              </div>
+
+              <div class="relatorios-cartoes relatorios-cartoes--compacto">
+                <div class="cartao-metrica">
+                  <span class="metrica-titulo">Contas deste mês</span>
+                  <strong id="card-despesas-mes" class="metrica-valor">R$ 0,00</strong>
+                  <span class="metrica-sub">Entram no cálculo do “Sobrou no mês”</span>
+                </div>
+              </div>
+
+              <div class="painel-grafico painel-largo painel-solto">
                 <div class="painel-cabecalho">
-                  <h3 class="painel-titulo">Vendas por dia</h3>
-                  <div class="painel-controles">
-                    <input type="date" id="relatorio-data" class="input-data" />
-                    <button type="button" id="btn-gerar-pdf" class="btn btn-primario">
-                      Gerar PDF
-                    </button>
+                  <div>
+                    <h3 class="painel-titulo">Anotar uma conta</h3>
+                    <p class="painel-sub">Quanto mais contas você cadastrar, mais real fica o lucro</p>
                   </div>
+                  <select id="filtro-despesa-competencia" class="select-periodo" aria-label="Mês das despesas"></select>
                 </div>
-                <div id="resumo-dia" class="resumo-dia"></div>
-                <div id="tabela-dia" class="tabela-dados"></div>
+                <form id="form-despesa" class="form form-despesa">
+                  <div class="form-linha">
+                    <label>Tipo de conta
+                      <select id="despesa-tipo"></select>
+                    </label>
+                    <label>Valor (R$)
+                      <input type="number" id="despesa-valor" step="0.01" min="0" required />
+                    </label>
+                  </div>
+                  <div class="form-linha">
+                    <label>Mês da conta
+                      <select id="despesa-competencia"></select>
+                    </label>
+                    <label>Descrição
+                      <input type="text" id="despesa-descricao" placeholder="Ex.: Aluguel da sala" autocomplete="off" />
+                    </label>
+                  </div>
+                  <label class="checkbox">
+                    <input type="checkbox" id="despesa-recorrente" />
+                    Repetir todo mês (ex.: aluguel)
+                  </label>
+                  <div class="modal-acoes">
+                    <button type="button" id="btn-limpar-despesa" class="btn btn-texto">Limpar</button>
+                    <button type="submit" id="btn-salvar-despesa" class="btn btn-primario">Salvar conta</button>
+                  </div>
+                </form>
+                <div id="lista-despesas" class="lista-despesas"></div>
+              </div>
+            </div>
+
+            <!-- Aba Sangria -->
+            <div class="relatorios-painel oculto" data-painel-relatorio="sangria">
+              <div class="relatorios-secao-cabecalho">
+                <h2 class="relatorios-secao-titulo">Dinheiro que saiu da gaveta</h2>
+                <p class="relatorios-secao-sub">Quando você tira dinheiro do caixa (pagar alguém, reforçar troco em outro lugar, etc.)</p>
               </div>
 
-              <div class="painel-grafico">
-                <h3 class="painel-titulo">Mais vendidos no mes</h3>
-                <p id="mais-vendidos-vazio" class="ranking-vazio oculto">
-                  Ainda nao ha vendas neste mes.
-                </p>
-                <div class="grafico-area">
-                  <canvas id="grafico-mais-vendidos"></canvas>
+              <div class="relatorios-cartoes relatorios-cartoes--compacto">
+                <div class="cartao-metrica cartao-metrica--alerta">
+                  <span class="metrica-titulo">Tirei hoje</span>
+                  <strong id="card-sangrias-hoje" class="metrica-valor alerta">R$ 0,00</strong>
+                  <span class="metrica-sub">Soma das sangrias de hoje</span>
                 </div>
               </div>
 
-              <aside class="painel-ranking">
-                <h3 class="painel-titulo">Em alta (7 dias)</h3>
-                <div id="lista-em-alta" class="ranking-lista"></div>
-              </aside>
+              <div id="sangria-resumo" class="resumo-dia"></div>
 
-              <div class="painel-grafico painel-largo">
-                <h3 class="painel-titulo">Receita por dia (ultimos 7 dias)</h3>
-                <div class="grafico-area">
-                  <canvas id="grafico-receita-diaria"></canvas>
+              <div class="painel-grafico painel-largo painel-solto">
+                <div class="painel-cabecalho">
+                  <div>
+                    <h3 class="painel-titulo">Anotar retirada</h3>
+                    <p class="painel-sub">Isso não é despesa da loja — só tira dinheiro da gaveta</p>
+                  </div>
+                  <select id="filtro-sangria-periodo" class="select-periodo" aria-label="Período das sangrias"></select>
+                </div>
+                <form id="form-sangria" class="form form-despesa">
+                  <div class="form-linha">
+                    <label>Valor (R$)
+                      <input type="number" id="sangria-valor" step="0.01" min="0.01" required placeholder="0,00" />
+                    </label>
+                    <label>Por quê?
+                      <input type="text" id="sangria-motivo" required placeholder="Ex.: Paguei o fornecedor com o dinheiro do caixa" autocomplete="off" />
+                    </label>
+                  </div>
+                  <div class="modal-acoes">
+                    <button type="button" id="btn-limpar-sangria" class="btn btn-texto">Limpar</button>
+                    <button type="submit" id="btn-salvar-sangria" class="btn btn-primario">Salvar retirada</button>
+                  </div>
+                </form>
+                <div id="lista-sangrias" class="lista-despesas"></div>
+              </div>
+            </div>
+
+            <!-- Aba Pulso -->
+            <div class="relatorios-painel oculto" data-painel-relatorio="pulso">
+              <div class="relatorios-secao-cabecalho">
+                <h2 class="relatorios-secao-titulo">Dicas do dia</h2>
+                <p class="relatorios-secao-sub">O que merece atenção agora — estoque, vendas e ideias de campanha</p>
+              </div>
+              <div id="painel-pulso-root" class="painel-pulso-root"></div>
+            </div>
+
+            <!-- Aba Caixa físico -->
+            <div class="relatorios-painel oculto" data-painel-relatorio="caixa">
+              <div class="relatorios-secao-cabecalho">
+                <h2 class="relatorios-secao-titulo">Gaveta (dinheiro físico)</h2>
+                <p class="relatorios-secao-sub">Quanto tem que ter na gaveta agora — e se bate com o que você contou</p>
+              </div>
+
+              <p class="relatorios-guia relatorios-guia--curto">
+                <strong>Continha rápida:</strong>
+                troco do início + vendas em dinheiro + dinheiro que você colocou − o que tirou = o que deveria ter na gaveta.
+              </p>
+
+              <div class="relatorios-cartoes">
+                <div class="cartao-metrica">
+                  <span class="metrica-titulo">Troco do início</span>
+                  <strong id="card-fundo-caixa" class="metrica-valor">R$ 0,00</strong>
+                  <span class="metrica-sub">Dinheiro que já estava na gaveta ao abrir</span>
+                </div>
+                <div class="cartao-metrica cartao-metrica--sucesso">
+                  <span class="metrica-titulo">Coloquei hoje</span>
+                  <strong id="card-suprimentos-hoje" class="metrica-valor sucesso">R$ 0,00</strong>
+                  <span class="metrica-sub">Troco extra que entrou na gaveta</span>
+                </div>
+                <div class="cartao-metrica cartao-metrica--alerta cartao-metrica--destaque">
+                  <span class="metrica-titulo">Deveria ter na gaveta</span>
+                  <strong id="card-dinheiro-esperado" class="metrica-valor alerta">R$ 0,00</strong>
+                  <span class="metrica-sub">Conte o dinheiro e compare com este valor</span>
                 </div>
               </div>
 
-              <div class="painel-grafico painel-largo">
-                <h3 class="painel-titulo">Vendas com desconto</h3>
-                <div id="tabela-descontos" class="tabela-dados"></div>
+              <div class="relatorios-grade">
+                <div class="painel-grafico painel-solto">
+                  <h3 class="painel-titulo">Definir troco do início</h3>
+                  <p class="painel-sub">Quanto tinha na gaveta quando abriu o dia</p>
+                  <form id="form-fundo-caixa" class="form form-despesa">
+                    <label>Valor (R$)
+                      <input type="number" id="fundo-caixa-valor" min="0" step="0.01" required placeholder="Ex.: 100" />
+                    </label>
+                    <div class="modal-acoes">
+                      <button type="submit" class="btn btn-primario">Salvar troco inicial</button>
+                    </div>
+                  </form>
+                </div>
+                <div class="painel-grafico painel-solto">
+                  <h3 class="painel-titulo">Colocar dinheiro na gaveta</h3>
+                  <p class="painel-sub">Quando você reforça o troco no meio do dia</p>
+                  <form id="form-suprimento" class="form form-despesa">
+                    <div class="form-linha">
+                      <label>Valor (R$)
+                        <input type="number" id="suprimento-valor" min="0.01" step="0.01" required />
+                      </label>
+                      <label>Motivo
+                        <input type="text" id="suprimento-motivo" placeholder="Ex.: Troco extra" autocomplete="off" />
+                      </label>
+                    </div>
+                    <div class="modal-acoes">
+                      <button type="submit" class="btn btn-primario">Registrar</button>
+                    </div>
+                  </form>
+                  <div id="lista-suprimentos" class="lista-despesas"></div>
+                </div>
+                <div class="painel-grafico painel-largo">
+                  <h3 class="painel-titulo">Contar a gaveta</h3>
+                  <p class="painel-sub">Digite quanto você contou — o sistema mostra se falta ou sobra</p>
+                  <form id="form-conferencia-gaveta" class="form form-despesa">
+                    <label>Valor que você contou (R$)
+                      <input type="number" id="gaveta-contado" min="0" step="0.01" required />
+                    </label>
+                    <p id="gaveta-diferenca" class="form-ajuda">A diferença aparece aqui</p>
+                    <button type="submit" class="btn btn-primario">Conferir</button>
+                  </form>
+                </div>
+                <div class="painel-grafico painel-largo">
+                  <h3 class="painel-titulo">Fechamentos salvos</h3>
+                  <p class="painel-sub">Últimos 30 dias</p>
+                  <div id="lista-fechamentos" class="lista-despesas"></div>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Funcionarios (admin) -->
+        <!-- Assistente IA (admin) -->
+        <div id="rota-assistente" class="rota oculto">
+          <header class="rota-cabecalho">
+            <div>
+              <h1 class="rota-titulo">CybhorIA</h1>
+              <p class="rota-sub">Criativos, organização, precificação, pesquisa de área e copy thief</p>
+            </div>
+          </header>
+
+          <div class="painel-conteudo">
+            <div class="painel-grafico painel-solto assistente-painel">
+              <div id="assistente-modos" class="assistente-modos" role="tablist" aria-label="Modos do assistente"></div>
+              <p id="assistente-dica" class="subtitulo painel-sub">Escolha um modo e faça sua pergunta</p>
+              <label class="assistente-label">Sua pergunta
+                <textarea
+                  id="assistente-mensagem"
+                  rows="4"
+                  maxlength="4000"
+                  placeholder="Descreva o que precisa…"
+                ></textarea>
+              </label>
+              <div class="modal-acoes">
+                <span class="assistente-atalho">Ctrl+Enter para enviar</span>
+                <button type="button" id="btn-assistente-enviar" class="btn btn-primario">Perguntar à IA</button>
+              </div>
+              <div id="assistente-resposta" class="assistente-resposta">
+                <p class="assistente-status">
+                  A IA usa o contexto da sua loja (vendas, estoque e lucro) quando disponível.
+                  Configure GEMINI_API_KEY no .env da raiz (Google AI Studio).
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Funcionários (admin) -->
         <div id="rota-funcionarios" class="rota oculto">
           <header class="rota-cabecalho">
             <div>
               <h1 class="rota-titulo">Equipe</h1>
-              <p class="rota-sub">Gerencie caixas e administradores</p>
+              <p class="rota-sub">Áreas (Caixa, RH, Marketing), vínculos e pagamentos</p>
             </div>
             <button type="button" id="btn-novo-funcionario" class="btn btn-primario">
-              + Novo funcionario
+              + Novo funcionário
             </button>
           </header>
 
           <div class="painel-conteudo">
             <div class="painel-grafico painel-solto">
+              <h3 class="painel-titulo">Funcionários</h3>
               <p class="subtitulo painel-sub">
-                Altere o cargo de cada funcionario. A confirmacao exige senha de administrador.
+                Cada pessoa pode atuar em <strong>várias áreas</strong> ao mesmo tempo (ex.: Caixa + Marketing).
+                Altere cargo e áreas abaixo; mudança de cargo exige senha de administrador.
               </p>
               <div id="lista-funcionarios" class="lista-funcionarios"></div>
             </div>
+
+            <div class="painel-grafico painel-solto">
+              <h3 class="painel-titulo">Auxiliares por área</h3>
+              <p class="subtitulo painel-sub">
+                Guias práticos de Caixa, RH e Marketing — use os botões para perguntar à CybhorIA.
+              </p>
+              <div id="guias-areas-equipe" class="guias-areas-equipe"></div>
+            </div>
+
+            <div class="painel-grafico painel-solto" id="painel-folha-root">
+              <h3 class="painel-titulo">Auxiliar de pagamento (CLT · PJ · MEI)</h3>
+              <p class="subtitulo painel-sub">
+                Estimativa com tabelas <strong>2026</strong> (INSS, IRRF, FGTS e provisões).
+                Não substitui contador nem advogado trabalhista — use para planejar e conferir.
+              </p>
+
+              <form id="form-folha" class="form form-folha">
+                <div class="form-linha">
+                  <label>Funcionário
+                    <select id="folha-funcionario"></select>
+                  </label>
+                  <label>Tipo de vínculo
+                    <select id="folha-tipo">
+                      <option value="clt">CLT (carteira assinada)</option>
+                      <option value="pj">PJ (nota fiscal)</option>
+                      <option value="mei">MEI</option>
+                    </select>
+                  </label>
+                </div>
+
+                <div id="folha-campos-clt">
+                  <div class="form-linha">
+                    <label>Salário bruto (R$)
+                      <input type="number" id="folha-salario" min="0" step="0.01" placeholder="Ex.: 2500" />
+                    </label>
+                    <label>Dependentes (IR)
+                      <input type="number" id="folha-dependentes" min="0" step="1" value="0" />
+                    </label>
+                  </div>
+                  <div class="form-linha">
+                    <label>Vale-transporte total (R$)
+                      <input type="number" id="folha-vt" min="0" step="0.01" value="0" placeholder="Custo dos passes" />
+                    </label>
+                    <label>Outros descontos (R$)
+                      <input type="number" id="folha-outros" min="0" step="0.01" value="0" />
+                    </label>
+                  </div>
+                  <label>Encargos patronais estimados (%)
+                    <input type="number" id="folha-encargos" min="0" max="100" step="1" value="28" />
+                  </label>
+                  <p class="busca-dica">
+                    Use 28 para ~28% (média INSS patronal + RAT/terceiros). Seu contador pode calibrar.
+                    FGTS 8%, 13º e férias+1/3 entram à parte no custo da loja.
+                  </p>
+                </div>
+
+                <div id="folha-campos-pj" class="oculto">
+                  <div class="form-linha">
+                    <label>Valor da nota fiscal (R$)
+                      <input type="number" id="folha-valor-nota" min="0" step="0.01" placeholder="Ex.: 4000" />
+                    </label>
+                    <label>Alíquota de impostos do prestador (%)
+                      <input type="number" id="folha-aliq-pj" min="0" max="100" step="0.1" value="15" />
+                    </label>
+                  </div>
+                  <label>Líquido CLT desejado (para sugerir NF)
+                    <input type="number" id="folha-liquido-desejado" min="0" step="0.01" placeholder="Opcional" />
+                  </label>
+                </div>
+
+                <div class="modal-acoes folha-acoes">
+                  <button type="submit" class="btn btn-primario">Calcular</button>
+                  <button type="button" id="btn-folha-sugerir-pj" class="btn btn-secundario">
+                    Sugerir NF a partir do CLT
+                  </button>
+                  <button type="button" id="btn-folha-salvar-vinculo" class="btn btn-secundario">
+                    Salvar no cadastro
+                  </button>
+                  <button type="button" id="btn-folha-registrar-despesa" class="btn btn-secundario">
+                    Lançar como despesa do mês
+                  </button>
+                </div>
+              </form>
+
+              <div id="folha-resultado" class="folha-resultado"></div>
+
+              <div class="folha-checklist-wrap">
+                <h4 class="painel-titulo">Checklist legal (orientação)</h4>
+                <ul id="folha-checklist" class="folha-checklist"></ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Histórico de vendas -->
+        <div id="rota-historico" class="rota oculto">
+          <header class="rota-cabecalho">
+            <div>
+              <h1 class="rota-titulo">Histórico</h1>
+              <p class="rota-sub">Consulte vendas, reimprima cupons e cancele com autorização</p>
+            </div>
+          </header>
+
+          <div class="painel-conteudo">
+            <div class="barra-filtro barra-filtro--dupla">
+              <input
+                type="text"
+                id="filtro-historico"
+                class="busca-input"
+                placeholder="Filtrar por produto, operador ou forma de pagamento..."
+                autocomplete="off"
+              />
+              <select id="periodo-historico" class="select-periodo">
+                <option value="1">Hoje / 24h</option>
+                <option value="7" selected>Últimos 7 dias</option>
+                <option value="30">Últimos 30 dias</option>
+                <option value="90">Últimos 90 dias</option>
+              </select>
+            </div>
+            <div id="lista-historico" class="lista-historico"></div>
+          </div>
+        </div>
+
+        <!-- Configurações (admin) -->
+        <div id="rota-configuracoes" class="rota oculto">
+          <header class="rota-cabecalho">
+            <div>
+              <h1 class="rota-titulo">Configurações</h1>
+              <p class="rota-sub">Dados da loja, impressora e alertas de estoque</p>
+            </div>
+          </header>
+
+          <div class="painel-conteudo">
+            <form id="form-configuracoes" class="painel-grafico painel-solto form form-config">
+              <fieldset class="bloco">
+                <legend>Dados da loja (cupom)</legend>
+                <label>Nome da loja
+                  <input type="text" id="cfg-loja-nome" autocomplete="off" required />
+                </label>
+                <div class="form-linha">
+                  <label>CNPJ
+                    <input type="text" id="cfg-loja-cnpj" autocomplete="off" />
+                  </label>
+                  <label>Telefone
+                    <input type="text" id="cfg-loja-telefone" autocomplete="off" />
+                  </label>
+                </div>
+                <label>Endereço
+                  <input type="text" id="cfg-loja-endereco" autocomplete="off" />
+                </label>
+              </fieldset>
+
+              <fieldset class="bloco">
+                <legend>Impressora térmica</legend>
+                <label>Impressora
+                  <div class="campo-com-acao">
+                    <select id="cfg-impressora-select"></select>
+                    <button type="button" id="btn-atualizar-impressoras" class="btn btn-secundario btn-sm">
+                      Atualizar
+                    </button>
+                  </div>
+                </label>
+                <div class="form-linha">
+                  <label>Modo
+                    <select id="cfg-impressora-modo">
+                      <option value="">Windows RAW (recomendado)</option>
+                      <option value="html">HTML silencioso</option>
+                      <option value="teste">Teste (grava arquivo)</option>
+                    </select>
+                  </label>
+                  <label>Porta COM (opcional)
+                    <input type="text" id="cfg-impressora-porta" placeholder="Ex: COM3" autocomplete="off" />
+                  </label>
+                </div>
+              </fieldset>
+
+              <fieldset class="bloco">
+                <legend>Estoque</legend>
+                <label>Alerta quando estoque ≤
+                  <input type="number" id="cfg-estoque-minimo" min="0" step="1" value="5" />
+                </label>
+                <label class="checkbox">
+                  <input type="checkbox" id="cfg-aviso-fornecedores-ia" checked />
+                  Avisar fornecedores no estoque baixo (sugestão por tipos de mercadoria + IA)
+                </label>
+              </fieldset>
+
+              <fieldset class="bloco">
+                <legend>Caixa & segurança</legend>
+                <label>Desconto máximo sem alerta (%)
+                  <input type="number" id="cfg-desconto-max" min="0" max="100" step="1" value="15" />
+                </label>
+                <label>Cashback por compra (%)
+                  <input type="number" id="cfg-cashback" min="0" max="50" step="0.1" value="0" />
+                </label>
+                <label>Som ao adicionar item
+                  <select id="cfg-beep-modo">
+                    <option value="curto">Curto</option>
+                    <option value="longo">Longo</option>
+                    <option value="off">Desligado</option>
+                  </select>
+                </label>
+                <label class="checkbox">
+                  <input type="checkbox" id="cfg-abrir-caixa-obrigatorio" checked />
+                  Exigir abertura de caixa antes da 1ª venda do dia
+                </label>
+                <label class="checkbox">
+                  <input type="checkbox" id="cfg-modo-barras-continuo" checked />
+                  Modo leitor contínuo (após bip, limpa busca e foca de novo)
+                </label>
+                <label class="checkbox">
+                  <input type="checkbox" id="cfg-abrir-gaveta" />
+                  Abrir gaveta de dinheiro ao imprimir cupom
+                </label>
+              </fieldset>
+
+              <fieldset class="bloco">
+                <legend>Meta do caixa (hoje)</legend>
+                <label>Meta de vendas do dia (R$)
+                  <input type="number" id="cfg-meta-dia" min="0" step="1" value="0" placeholder="Ex.: 1500" />
+                </label>
+                <p class="form-ajuda">Aparece no Caixa como barra de progresso para motivar o operador.</p>
+              </fieldset>
+
+              <fieldset class="bloco">
+                <legend>Backup da loja</legend>
+                <p class="form-ajuda">Baixa um JSON com produtos, vendas, despesas, sangrias e fornecedores (sem senhas).</p>
+                <button type="button" id="btn-backup-loja" class="btn btn-secundario">
+                  Exportar backup JSON
+                </button>
+              </fieldset>
+
+              <fieldset class="bloco">
+                <legend>Licença desta instalação</legend>
+                <p class="subtitulo painel-sub" id="cfg-licenca-resumo">
+                  Carregando…
+                </p>
+              </fieldset>
+
+              <div class="modal-acoes">
+                <button type="submit" id="btn-salvar-config" class="btn btn-primario">
+                  Salvar configurações
+                </button>
+              </div>
+              <p class="mensagem-erro oculto" id="config-erro"></p>
+            </form>
           </div>
         </div>
       </div>
@@ -307,10 +1196,10 @@
     <!-- Modal: alterar cargo -->
     <div id="modal-alterar-cargo" class="modal oculto">
       <div class="modal-caixa" role="dialog" aria-modal="true">
-        <h2 class="titulo">Confirmar alteracao de cargo</h2>
+        <h2 class="titulo">Confirmar alteração de cargo</h2>
         <p id="alterar-cargo-resumo" class="subtitulo"></p>
         <form id="form-alterar-cargo" class="form">
-          <label>Usuario admin
+          <label>Usuário admin
             <input type="text" id="auth-admin-usuario" autocomplete="off" required />
           </label>
           <label>Senha admin
@@ -337,7 +1226,7 @@
             <input type="text" id="produto-nome" required />
           </label>
           <div class="form-linha">
-            <label>Preco (R$)
+            <label>Preço de venda (R$)
               <input type="number" id="produto-preco" step="0.01" min="0" required />
             </label>
             <label>Estoque
@@ -345,16 +1234,62 @@
             </label>
           </div>
           <div class="form-linha">
-            <label>Codigo de barras
+            <label>Quanto pagou / custo (R$) <span class="campo-opcional">opcional</span>
+              <input
+                type="number"
+                id="produto-custo"
+                step="0.01"
+                min="0"
+                placeholder="Só se quiser ver lucro"
+              />
+            </label>
+            <label class="label-com-acao">Margem
+              <div class="campo-com-acao">
+                <input type="text" id="produto-margem" readonly placeholder="—" />
+                <button type="button" id="btn-sugerir-preco" class="btn btn-secundario btn-sm" title="Sugere preço com 40% sobre o custo">
+                  +40%
+                </button>
+              </div>
+            </label>
+          </div>
+          <div class="form-linha">
+            <label>Código de barras (EAN)
               <input type="text" id="produto-codigo" autocomplete="off" />
             </label>
+            <label>Código interno
+              <input type="text" id="produto-codigo-interno" autocomplete="off" />
+            </label>
+          </div>
+          <div class="form-linha">
             <label>Categoria
               <input type="text" id="produto-categoria" autocomplete="off" />
+            </label>
+            <label>Unidade
+              <select id="produto-unidade">
+                <option value="un">Unidade</option>
+                <option value="kg">Quilo (peso)</option>
+              </select>
+            </label>
+          </div>
+          <div class="form-linha">
+            <label>Unidades por caixa
+              <input type="number" id="produto-unidades-caixa" min="0" step="1" placeholder="Ex.: 12" />
+            </label>
+            <label>Validade
+              <input type="date" id="produto-validade" />
+            </label>
+          </div>
+          <div class="form-linha">
+            <label>Preço promoção
+              <input type="number" id="produto-preco-promo" min="0" step="0.01" />
+            </label>
+            <label>Promo até
+              <input type="date" id="produto-promo-fim" />
             </label>
           </div>
           <label class="checkbox" id="wrap-adicionar-venda">
             <input type="checkbox" id="produto-adicionar-venda" checked />
-            Adicionar a venda atual apos salvar
+            Adicionar à venda atual após salvar
           </label>
           <div class="modal-acoes">
             <button type="button" class="btn btn-texto" data-fechar-modal="modal-produto">
@@ -369,7 +1304,7 @@
       </div>
     </div>
 
-    <!-- Modal: confirmar exclusao de produto -->
+    <!-- Modal: confirmar exclusão de produto -->
     <div id="modal-excluir-produto" class="modal oculto">
       <div class="modal-caixa modal-caixa--sm" role="dialog" aria-modal="true">
         <h2 class="titulo">Excluir produto</h2>
@@ -385,17 +1320,37 @@
       </div>
     </div>
 
-    <!-- Modal: funcionario -->
-    <div id="modal-funcionario" class="modal oculto">
-      <div class="modal-caixa" role="dialog" aria-modal="true">
-        <h2 class="titulo">Novo funcionario</h2>
+    <!-- Modal: corrigir nomes com IA -->
+    <div id="modal-corrigir-nomes" class="modal oculto">
+      <div class="modal-caixa modal-caixa--lg" role="dialog" aria-modal="true" aria-labelledby="corrigir-nomes-titulo">
+        <h2 class="titulo" id="corrigir-nomes-titulo">Corrigir nomes com IA</h2>
         <p class="subtitulo">
-          Confirme com usuario e senha de administrador para autorizar.
+          Revise cada sugestão. Aceite só o que fizer sentido — o resto do cadastro (preço, estoque) não muda.
+        </p>
+        <p id="corrigir-nomes-status" class="assistente-status">Aguardando…</p>
+        <div id="lista-corrigir-nomes" class="lista-corrigir-nomes"></div>
+        <div class="modal-acoes">
+          <button type="button" class="btn btn-texto" data-fechar-modal="modal-corrigir-nomes">
+            Fechar
+          </button>
+          <button type="button" id="btn-aplicar-nomes-aceitos" class="btn btn-primario" disabled>
+            Aplicar aceitos
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: funcionário -->
+    <div id="modal-funcionario" class="modal oculto">
+      <div class="modal-caixa modal-caixa--lg" role="dialog" aria-modal="true">
+        <h2 class="titulo">Novo funcionário</h2>
+        <p class="subtitulo">
+          Confirme com usuário e senha de administrador para autorizar.
         </p>
         <form id="form-funcionario" class="form">
           <fieldset class="bloco">
-            <legend>Autorizacao do administrador</legend>
-            <label>Usuario admin
+            <legend>Autorização do administrador</legend>
+            <label>Usuário admin
               <input type="text" id="func-admin-usuario" autocomplete="off" required />
             </label>
             <label>Senha admin
@@ -403,38 +1358,192 @@
             </label>
           </fieldset>
           <fieldset class="bloco">
-            <legend>Dados do novo funcionario</legend>
+            <legend>Dados do novo funcionário</legend>
             <label>Nome completo
               <input type="text" id="func-nome" autocomplete="off" required />
             </label>
-            <label>Usuario
+            <label>Usuário
               <input type="text" id="func-usuario" autocomplete="off" required />
             </label>
             <label>Senha
               <input type="password" id="func-senha" required />
             </label>
-            <label>Cargo
+            <label>Cargo no sistema
               <select id="func-cargo">
                 <option value="operador">Operador de caixa</option>
                 <option value="admin">Administrador</option>
               </select>
             </label>
+            <fieldset class="bloco bloco-areas">
+              <legend>Áreas de atuação (pode marcar várias)</legend>
+              <p class="busca-dica">Ex.: alguém do caixa que também faz posts = Caixa + Marketing</p>
+              <div id="func-areas" class="areas-grid">
+                <label class="area-chip ativo">
+                  <input type="checkbox" name="func-areas" value="caixa" checked />
+                  <span class="area-chip-titulo">Caixa</span>
+                  <span class="area-chip-desc">PDV, troco, atendimento e fechamento</span>
+                </label>
+                <label class="area-chip">
+                  <input type="checkbox" name="func-areas" value="rh" />
+                  <span class="area-chip-titulo">RH</span>
+                  <span class="area-chip-desc">Admissão, folha, CLT/PJ e clima da equipe</span>
+                </label>
+                <label class="area-chip">
+                  <input type="checkbox" name="func-areas" value="marketing" />
+                  <span class="area-chip-titulo">Marketing</span>
+                  <span class="area-chip-desc">Criativos, promoções, redes e vitrine</span>
+                </label>
+              </div>
+            </fieldset>
           </fieldset>
           <div class="modal-acoes">
             <button type="button" class="btn btn-texto" data-fechar-modal="modal-funcionario">
               Cancelar
             </button>
-            <button type="submit" class="btn btn-primario">Criar funcionario</button>
+            <button type="submit" class="btn btn-primario">Criar funcionário</button>
           </div>
           <p class="mensagem-erro oculto" id="func-erro"></p>
         </form>
       </div>
     </div>
 
+    <!-- Modal: alterar senha funcionário -->
+    <div id="modal-alterar-senha" class="modal oculto">
+      <div class="modal-caixa" role="dialog" aria-modal="true">
+        <h2 class="titulo">Alterar senha</h2>
+        <p id="alterar-senha-resumo" class="subtitulo"></p>
+        <form id="form-alterar-senha" class="form">
+          <label>Usuário admin
+            <input type="text" id="senha-admin-usuario" autocomplete="off" required />
+          </label>
+          <label>Senha admin
+            <input type="password" id="senha-admin-senha" required />
+          </label>
+          <label>Nova senha do funcionário
+            <input type="password" id="senha-nova" required minlength="4" />
+          </label>
+          <div class="modal-acoes">
+            <button type="button" class="btn btn-texto" data-fechar-modal="modal-alterar-senha">
+              Cancelar
+            </button>
+            <button type="submit" class="btn btn-primario">Salvar senha</button>
+          </div>
+          <p class="mensagem-erro oculto" id="alterar-senha-erro"></p>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal: sangria rápida no PDV -->
+    <div id="modal-sangria-pdv" class="modal oculto">
+      <div class="modal-caixa" role="dialog" aria-modal="true">
+        <h2 class="titulo">Sangria rápida</h2>
+        <p class="subtitulo">Retire dinheiro do gaveteiro sem sair do caixa.</p>
+        <form id="form-sangria-pdv" class="form">
+          <label>Valor (R$)
+            <input type="number" id="sangria-pdv-valor" min="0.01" step="0.01" required />
+          </label>
+          <label>Motivo
+            <input type="text" id="sangria-pdv-motivo" required placeholder="Ex.: Pagamento fornecedor" autocomplete="off" />
+          </label>
+          <div class="modal-acoes">
+            <button type="button" class="btn btn-texto" data-fechar-modal="modal-sangria-pdv">Cancelar</button>
+            <button type="submit" class="btn btn-primario">Registrar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal: cancelar venda -->
+    <div id="modal-cancelar-venda" class="modal oculto">
+      <div class="modal-caixa" role="dialog" aria-modal="true">
+        <h2 class="titulo">Cancelar venda</h2>
+        <p id="cancelar-venda-resumo" class="subtitulo"></p>
+        <form id="form-cancelar-venda" class="form">
+          <label>Usuário admin
+            <input type="text" id="cancelar-admin-usuario" autocomplete="off" required />
+          </label>
+          <label>Senha admin
+            <input type="password" id="cancelar-admin-senha" required />
+          </label>
+          <label>Motivo (opcional)
+            <input type="text" id="cancelar-motivo" autocomplete="off" />
+          </label>
+          <div class="modal-acoes">
+            <button type="button" class="btn btn-texto" data-fechar-modal="modal-cancelar-venda">
+              Voltar
+            </button>
+            <button type="submit" class="btn btn-perigo">Confirmar cancelamento</button>
+          </div>
+          <p class="mensagem-erro oculto" id="cancelar-venda-erro"></p>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal: ajuda do caixa (funcionários) -->
+    <div id="modal-ajuda-caixa" class="modal oculto">
+      <div class="modal-caixa modal-caixa--lg" role="dialog" aria-modal="true" aria-labelledby="ajuda-caixa-titulo">
+        <h2 class="titulo" id="ajuda-caixa-titulo">Guia rápido do caixa</h2>
+        <p class="subtitulo">Atalhos e truques para vender mais rápido no turno.</p>
+        <div class="ajuda-caixa-grade">
+          <div class="ajuda-bloco">
+            <h3>Teclado</h3>
+            <ul>
+              <li><kbd>F1</kbd> Abre esta ajuda</li>
+              <li><kbd>F2</kbd> Foca a busca</li>
+              <li><kbd>Enter</kbd> Adiciona o produto da busca</li>
+              <li><kbd>Esc</kbd> Limpa a busca (mantém o carrinho)</li>
+              <li><kbd>F5</kbd>–<kbd>F8</kbd> Dinheiro / PIX / Débito / Crédito</li>
+              <li><kbd>F9</kbd> Repete o último produto</li>
+              <li><kbd>F12</kbd> Finaliza a venda</li>
+              <li><kbd>Ctrl</kbd>+<kbd>L</kbd> Limpa o carrinho (pede confirmação)</li>
+            </ul>
+          </div>
+          <div class="ajuda-bloco">
+            <h3>Quantidade rápida</h3>
+            <ul>
+              <li>Digite <strong>água*3</strong> e Enter → adiciona 3</li>
+              <li>Ou <strong>789123*2</strong> com o código de barras</li>
+              <li>No carrinho use <strong>+ / −</strong> para ajustar</li>
+            </ul>
+          </div>
+          <div class="ajuda-bloco">
+            <h3>Favoritos e atalhos</h3>
+            <ul>
+              <li>Clique na ⭐ do produto para fixar no topo</li>
+              <li>Os mais usados no seu login sobem sozinhos</li>
+              <li>Filtre por categoria nos chips acima da grade</li>
+              <li>No dinheiro: Exato, +10, +50 calculam o troco</li>
+            </ul>
+          </div>
+          <div class="ajuda-bloco">
+            <h3>Boas práticas</h3>
+            <ul>
+              <li>Sempre confira o troco na tela antes de entregar</li>
+              <li>Se o estoque acabar, avise o administrador</li>
+              <li>Reimprima cupom pelo Histórico se precisar</li>
+              <li>Não compartilhe sua senha com outros caixas</li>
+            </ul>
+          </div>
+        </div>
+        <div class="modal-acoes">
+          <button type="button" class="btn btn-primario" data-fechar-modal="modal-ajuda-caixa">
+            Entendi, voltar ao caixa
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: venda finalizada -->
     <div id="modal-venda-sucesso" class="modal oculto">
-      <div class="modal-caixa modal-caixa--sm" role="dialog" aria-modal="true" aria-labelledby="venda-sucesso-titulo">
+      <div class="modal-caixa modal-caixa--sm modal-sucesso" role="dialog" aria-modal="true" aria-labelledby="venda-sucesso-titulo">
+        <div class="modal-sucesso-icone" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 6 9 17l-5-5"/>
+          </svg>
+        </div>
         <h2 class="titulo" id="venda-sucesso-titulo">Venda finalizada</h2>
         <p class="rota-sub" id="venda-sucesso-resumo">A venda foi registrada com sucesso.</p>
+        <p class="venda-sucesso-dica" id="venda-sucesso-dica"></p>
         <p class="venda-impressao-status oculto" id="venda-sucesso-impressao-status"></p>
         <div class="modal-acoes modal-acoes--coluna">
           <button type="button" id="btn-imprimir-cupom" class="btn btn-primario btn-bloco">

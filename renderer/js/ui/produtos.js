@@ -2,7 +2,22 @@ import { formatarMoeda } from "../utils/formato.js";
 import { escapeHtml } from "../utils/escape.js";
 
 /**
- * Lista de gestao de produtos (editar / estoque rapido / excluir).
+ * Iniciais do nome para avatar.
+ * @param {string} nome
+ * @returns {string}
+ */
+function iniciais(nome) {
+  const partes = String(nome || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (partes.length === 0) return "?";
+  if (partes.length === 1) return partes[0].slice(0, 2).toUpperCase();
+  return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase();
+}
+
+/**
+ * Lista de gestão de produtos (editar / estoque rápido / excluir).
  */
 export class PainelProdutos {
   /**
@@ -14,12 +29,20 @@ export class PainelProdutos {
    *   onAjustarEstoque: (produto: object, delta: number) => void
    * }} opcoes
    */
-  constructor({ container, inputFiltro, onEditar, onExcluir, onAjustarEstoque }) {
+  constructor({
+    container,
+    inputFiltro,
+    onEditar,
+    onExcluir,
+    onAjustarEstoque,
+    estoqueMinimo = 5,
+  }) {
     this.container = container;
     this.inputFiltro = inputFiltro;
     this.onEditar = onEditar;
     this.onExcluir = onExcluir;
     this.onAjustarEstoque = onAjustarEstoque;
+    this.estoqueMinimo = estoqueMinimo;
     this.produtos = [];
     this._assinatura = "";
 
@@ -59,23 +82,27 @@ export class PainelProdutos {
     const assinatura =
       filtro +
       "|" +
-      lista.map((p) => `${p.id}:${p.estoque}:${p.preco}:${p.nome}`).join("|");
+      lista.map((p) => `${p.id}:${p.estoque}:${p.preco}:${p.custo ?? ""}:${p.nome}`).join("|");
 
     if (!forcar && assinatura === this._assinatura) return;
     this._assinatura = assinatura;
 
     if (lista.length === 0) {
-      this.container.innerHTML =
-        '<p class="ranking-vazio">Nenhum produto encontrado.</p>';
+      this.container.innerHTML = `
+        <div class="estado-vazio">
+          <p>Nenhum produto encontrado</p>
+          <span>Ajuste o filtro ou cadastre um novo item</span>
+        </div>`;
       return;
     }
 
     this.container.innerHTML = lista
       .map((produto) => {
         const estoque = Number(produto.estoque) || 0;
-        const baixo = estoque <= 5;
+        const baixo = estoque <= this.estoqueMinimo;
         return `
         <div class="gestao-linha" data-id="${escapeHtml(produto.id)}">
+          <span class="gestao-avatar" aria-hidden="true">${escapeHtml(iniciais(produto.nome))}</span>
           <div class="gestao-info">
             <div class="gestao-nome" title="${escapeHtml(produto.nome)}">${escapeHtml(produto.nome)}</div>
             <div class="gestao-meta">
@@ -83,7 +110,17 @@ export class PainelProdutos {
               ${produto.codigoBarras ? ` · ${escapeHtml(produto.codigoBarras)}` : ""}
             </div>
           </div>
-          <span class="gestao-preco">${formatarMoeda(produto.preco)}</span>
+          <span class="gestao-preco">${formatarMoeda(produto.preco)}${
+            (() => {
+              const custo = produto.custo;
+              if (custo === null || custo === undefined || custo === "") return "";
+              const c = Number(custo);
+              const p = Number(produto.preco);
+              if (!Number.isFinite(c) || !Number.isFinite(p) || p <= 0) return "";
+              const m = (((p - c) / p) * 100).toFixed(0);
+              return `<small class="gestao-margem"> · ${m}%</small>`;
+            })()
+          }</span>
           <span class="gestao-estoque ${baixo ? "baixo" : ""}">Est. ${estoque}</span>
           <div class="gestao-acoes">
             <button type="button" class="btn btn-secundario btn-sm" data-acao="estoque-menos" data-id="${escapeHtml(produto.id)}" title="Remover 1 do estoque">−1</button>

@@ -7,12 +7,16 @@
   "main": "electron/main.js",
   "scripts": {
     "build:renderer": "node scripts/build-renderer.mjs",
+    "build:renderer:prod": "node scripts/build-renderer.mjs --ofuscar",
     "start": "npm run build:renderer && electron .",
+    "start:vendas": "npm --prefix server start",
+    "migrar:legado": "node scripts/migrar-loja-legado.mjs",
     "test:impressao": "node scripts/testar-impressao-jp800.js",
     "dist": "npm run dist:win10",
-    "dist:win10": "npm run build:renderer && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win zip nsis --x64 -c.win.signAndEditExecutable=false",
-    "dist:win7": "npm run build:renderer && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win zip --x64 --ia32 -c.win.signAndEditExecutable=false -c.electronVersion=22.3.27",
-    "dist:nsis": "npm run build:renderer && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win nsis --x64 -c.win.signAndEditExecutable=false"
+    "dist:win10": "npm run build:renderer:prod && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win zip nsis --x64 -c.win.signAndEditExecutable=false",
+    "dist:prod": "npm run build:renderer:prod && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win nsis zip --x64 -c.win.signAndEditExecutable=false",
+    "dist:win7": "npm run build:renderer:prod && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win zip --x64 --ia32 -c.win.signAndEditExecutable=false -c.electronVersion=22.3.27",
+    "dist:nsis": "npm run build:renderer:prod && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win nsis --x64 -c.win.signAndEditExecutable=false"
   },
   "dependencies": {
     "chart.js": "^4.5.1",
@@ -25,7 +29,8 @@
   "devDependencies": {
     "electron": "^31.7.7",
     "electron-builder": "^24.13.3",
-    "esbuild": "^0.23.0"
+    "esbuild": "^0.23.0",
+    "javascript-obfuscator": "^4.1.1"
   },
   "build": {
     "appId": "com.cybhor.pdv",
