@@ -53,7 +53,7 @@ function criarJanela() {
     minWidth: 1024,
     minHeight: 700,
     show: false,
-    backgroundColor: "#0c1a2e",
+    backgroundColor: "#07111f",
     icon: path.join(__dirname, "..", "build", "icon.png"),
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),

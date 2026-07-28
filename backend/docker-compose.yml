@@ -1,0 +1,17 @@
+# Desenvolvimento local: sobe apenas o PostgreSQL.
+# docker compose up -d
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: cybhorpdv-postgres
+    environment:
+      POSTGRES_USER: cybhor
+      POSTGRES_PASSWORD: cybhor-dev
+      POSTGRES_DB: cybhorpdv
+    ports:
+      - "5432:5432"
+    volumes:
+      - cybhorpdv_pgdata:/var/lib/postgresql/data
+
+volumes:
+  cybhorpdv_pgdata:

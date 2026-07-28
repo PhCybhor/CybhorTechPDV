@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CybhorPDV — Painel do Administrador</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="painel.css" />
+</head>
+<body>
+  <!-- Login do administrador do sistema -->
+  <section id="tela-login" class="tela-central">
+    <div class="cartao">
+      <p class="eyebrow">CybhorPDV · Controle central</p>
+      <h1>Painel do Administrador</h1>
+      <p class="subtitulo">Acesso exclusivo do dono do sistema.</p>
+      <form id="form-login">
+        <label>E-mail
+          <input type="email" id="login-email" required autocomplete="username" />
+        </label>
+        <label>Senha
+          <input type="password" id="login-senha" required autocomplete="current-password" />
+        </label>
+        <button type="submit" class="btn-destaque">Entrar</button>
+        <p id="login-erro" class="erro oculto"></p>
+      </form>
+    </div>
+  </section>
+
+  <!-- Painel -->
+  <section id="tela-painel" class="oculto">
+    <header class="topo">
+      <div>
+        <p class="eyebrow">CybhorPDV · Controle central</p>
+        <h1>Lojas do sistema</h1>
+      </div>
+      <div class="topo-acoes">
+        <button id="btn-atualizar" class="btn-suave">Atualizar</button>
+        <button id="btn-sair" class="btn-suave">Sair</button>
+      </div>
+    </header>
+
+    <div class="resumo" id="resumo-cards"></div>
+
+    <div class="tabela-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Loja</th>
+            <th>Codigo</th>
+            <th>Assinatura</th>
+            <th>Funcionarios</th>
+            <th>Produtos</th>
+            <th>Vendas</th>
+            <th>Faturamento</th>
+            <th>Uso de dados</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="tabela-lojas"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <script src="painel.js"></script>
+</body>
+</html>

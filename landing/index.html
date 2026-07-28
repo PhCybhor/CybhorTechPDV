@@ -1,321 +1,146 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>CybhorPDV — O caixa da sua loja no computador</title>
-    <meta
-      name="description"
-      content="CybhorPDV: venda no balcão, controle lucro, estoque, fornecedores e equipe. Com assistente de IA. Pague uma vez, use para sempre no Windows."
-    />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Manrope:wght@400;500;600;700&display=swap"
-      rel="stylesheet"
-    />
-    <link rel="stylesheet" href="styles.css" />
-  </head>
-  <body>
-    <div class="noise" aria-hidden="true"></div>
-
-    <header class="topo">
-      <a class="marca" href="#topo">Cybhor<span>PDV</span></a>
-      <nav class="nav">
-        <a href="#porque">Por quê</a>
-        <a href="#recursos">O que faz</a>
-        <a href="#como">Como usar</a>
-        <a href="#faq">Dúvidas</a>
-        <a href="#comprar" class="nav-cta">Quero o meu</a>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CybhorPDV — Sistema de PDV completo para sua loja</title>
+  <meta name="description" content="PDV com controle de estoque, vendas, equipe e impressao de cupom. Multi-loja, rapido e seguro. Assine com Mercado Pago." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="landing.css" />
+</head>
+<body>
+  <header class="topo">
+    <div class="container topo-conteudo">
+      <span class="marca">Cybhor<strong>PDV</strong></span>
+      <nav class="menu">
+        <a href="#recursos">Recursos</a>
+        <a href="#planos">Planos</a>
+        <a href="#faq">Duvidas</a>
+        <a href="#contato" class="btn-suave">Falar com a gente</a>
       </nav>
-    </header>
+    </div>
+  </header>
 
-    <main id="topo">
-      <section class="hero">
-        <p class="hero-eyebrow">Para quem vende no balcão · Windows</p>
-        <h1 class="hero-marca">CybhorPDV</h1>
-        <p class="hero-linha">
-          Pare de anotar venda em papel. Comece a vender pelo computador — e saiba
-          se a loja está no lucro de verdade.
+  <main>
+    <!-- Hero -->
+    <section class="hero">
+      <div class="container hero-conteudo">
+        <p class="eyebrow">PDV completo · Multi-loja · Impressao de cupom</p>
+        <h1>Seu caixa rapido, seu estoque sob controle, <span class="destaque">sua loja no comando.</span></h1>
+        <p class="hero-sub">
+          O CybhorPDV registra vendas em segundos, baixa o estoque automaticamente,
+          imprime o cupom na hora e mostra o desempenho da sua loja em tempo real.
+          Funciona em varios caixas e varias lojas ao mesmo tempo.
         </p>
         <div class="hero-acoes">
-          <a class="btn btn-solido" href="#comprar">Quero minha licença</a>
-          <a class="btn btn-linha" href="#como">Ver como é fácil</a>
+          <a href="cadastro.html" class="btn-destaque">Quero assinar</a>
+          <a href="#recursos" class="btn-suave">Ver recursos</a>
         </div>
-        <p class="hero-prova">
-          Pague <strong>uma vez</strong> · use <strong>para sempre</strong> nesta loja
-        </p>
-        <div class="hero-palco" aria-hidden="true">
-          <div class="hero-glow"></div>
-          <div class="hero-tela">
-            <div class="hero-tela-barra"></div>
-            <div class="hero-tela-grid">
-              <span></span><span></span><span></span><span></span>
-              <span></span><span></span><span></span><span></span>
-            </div>
-            <div class="hero-tela-total">R$ 128,90</div>
-          </div>
+        <p class="hero-nota">Pagamento seguro via Mercado Pago · Sem fidelidade</p>
+      </div>
+    </section>
+
+    <!-- Recursos -->
+    <section id="recursos" class="secao">
+      <div class="container">
+        <p class="eyebrow">Por que o CybhorPDV</p>
+        <h2>Tudo que o dia a dia do caixa precisa</h2>
+        <div class="grade-recursos">
+          <article class="recurso">
+            <h3>Venda em segundos</h3>
+            <p>Busque por nome ou bipe o codigo de barras. Desconto, forma de pagamento e troco calculados na hora.</p>
+          </article>
+          <article class="recurso">
+            <h3>Cupom impresso na hora</h3>
+            <p>Impressao termica direta (compativel com Jetway JP-800 e impressoras ESC/POS) assim que a venda fecha.</p>
+          </article>
+          <article class="recurso">
+            <h3>Estoque sempre certo</h3>
+            <p>Cada venda baixa o estoque automaticamente. Alerta de estoque baixo antes de faltar produto.</p>
+          </article>
+          <article class="recurso">
+            <h3>Varias lojas e caixas</h3>
+            <p>Crie sua loja e conecte novos caixas com um codigo. Os dados de cada loja ficam separados e seguros.</p>
+          </article>
+          <article class="recurso">
+            <h3>Equipe com permissoes</h3>
+            <p>Administrador gerencia produtos e equipe; operador vende. Cada um com seu proprio login.</p>
+          </article>
+          <article class="recurso">
+            <h3>Relatorios claros</h3>
+            <p>Faturamento do dia, produtos mais vendidos e historico completo de vendas por funcionario.</p>
+          </article>
         </div>
-      </section>
+      </div>
+    </section>
 
-      <section id="porque" class="secao secao-escura secao-dor">
-        <h2>Você trabalha o dia todo… e no fim não sabe se sobrou dinheiro?</h2>
-        <p class="secao-sub">
-          Muita loja vende bem e ainda assim aperta o mês. O problema quase nunca é
-          “falta de cliente” — é não enxergar o que entra, o que sai e o que falta
-          no estoque.
-        </p>
-        <ul class="lista-dor">
-          <li>Caderno rasgado, calculadora e “acho que deu certo”</li>
-          <li>Produto acabou e você só descobre na frente do cliente</li>
-          <li>Funcionário no caixa sem atalho, sem ajuda e sem padrão</li>
-          <li>Fornecedor bom… e o telefone perdido no WhatsApp antigo</li>
-        </ul>
-        <p class="dor-fecho">
-          O CybhorPDV junta isso num só lugar — <strong>simples o bastante</strong>
-          para quem nunca usou sistema de caixa.
-        </p>
-      </section>
-
-      <section id="recursos" class="secao">
-        <h2>O que o sistema faz por você</h2>
-        <p class="secao-sub">
-          Sem jargão. Sem planilha complicada. Só o que a loja precisa no dia a dia.
-        </p>
-        <ul class="lista-recursos">
-          <li>
-            <strong>Vender no caixa, rápido</strong>
-            <span>
-              Busca pelo nome, código de barras, troco automático, PIX/cartão/dinheiro
-              e cupom na impressora térmica. Atalhos de teclado para quem atende fila.
-            </span>
-          </li>
-          <li>
-            <strong>Saber se está no lucro</strong>
-            <span>
-              Informe (se quiser) quanto pagou no produto. Cadastre aluguel, luz e
-              outras contas. Veja lucro bruto, despesas e o que sobrou no mês.
-            </span>
-          </li>
-          <li>
-            <strong>Estoque que avisa</strong>
-            <span>
-              Cada venda baixa sozinha. Quando está acabando, o sistema mostra o alerta —
-              e pode indicar qual fornecedor ligar (pelos tipos de mercadoria que vende).
-            </span>
-          </li>
-          <li>
-            <strong>Fornecedores guardados</strong>
-            <span>
-              Nome, o que vende (Bebidas, Padaria…), WhatsApp e telefone. Nunca mais perder
-              contato na hora de repor mercadoria.
-            </span>
-          </li>
-          <li>
-            <strong>Equipe organizada</strong>
-            <span>
-              Marque se a pessoa atua no Caixa, RH, Marketing — ou em várias áreas ao
-              mesmo tempo. Auxiliar de pagamento CLT e PJ para planejar o custo.
-            </span>
-          </li>
-          <li>
-            <strong>Pulso + Copy thief</strong>
-            <span>
-              Insights do dia, meta no caixa, “leva junto”, pagamento dividido,
-              WhatsApp de reposição e campanhas salvas da IA — o que PDV caro cobra à parte.
-            </span>
-          </li>
-          <li>
-            <strong>CybhorIA — sua ajudante</strong>
-            <span>
-              Ideias de posts, promoção, organização da loja, pesquisa do bairro,
-              mensagem para fornecedor e orientação de folha. Você pergunta em português;
-              ela responde na prática.
-            </span>
-          </li>
-          <li>
-            <strong>Relatórios do dia</strong>
-            <span>
-              Quanto vendeu hoje, o que mais saiu, fechamento de caixa e PDF quando precisar.
-            </span>
-          </li>
-        </ul>
-      </section>
-
-      <section id="como" class="secao secao-escura">
-        <h2>3 passos. Sem curso.</h2>
-        <p class="secao-sub">
-          Se você sabe usar WhatsApp, consegue usar o CybhorPDV.
-        </p>
-        <ol class="lista-passos">
-          <li>
-            <span class="passo-num">1</span>
-            <div>
-              <strong>Compre a licença</strong>
-              <span>Pague no Mercado Pago. Em poucos minutos você recebe a chave.</span>
-            </div>
-          </li>
-          <li>
-            <span class="passo-num">2</span>
-            <div>
-              <strong>Instale no PC do caixa</strong>
-              <span>Baixe o app para Windows, abra e cole a chave. Pronto.</span>
-            </div>
-          </li>
-          <li>
-            <span class="passo-num">3</span>
-            <div>
-              <strong>Cadastre e venda</strong>
-              <span>Coloque os produtos (ou importe a planilha) e comece a passar venda.</span>
-            </div>
-          </li>
-        </ol>
-        <div class="hero-acoes">
-          <a class="btn btn-solido" href="#comprar">Começar agora</a>
-          <a
-            class="btn btn-linha"
-            id="link-download"
-            href="https://github.com/cybhortech/sistemaPDV/releases"
-            target="_blank"
-            rel="noopener"
-          >
-            Baixar o app
-          </a>
+    <!-- Planos -->
+    <section id="planos" class="secao secao-planos">
+      <div class="container">
+        <p class="eyebrow">Planos</p>
+        <h2>Um preco simples, tudo incluso</h2>
+        <div class="cartao-plano">
+          <p class="plano-nome">Plano Mensal</p>
+          <p class="plano-preco"><span>R$</span>99,90<small>/mes por loja</small></p>
+          <ul class="plano-lista">
+            <li>Caixas ilimitados na mesma loja</li>
+            <li>Produtos e vendas ilimitados</li>
+            <li>Impressao de cupom inclusa</li>
+            <li>Relatorios em tempo real</li>
+            <li>Codigo individual liberado apos o pagamento</li>
+          </ul>
+          <a href="cadastro.html" class="btn-destaque btn-largo">Assinar agora</a>
+          <p class="plano-nota">Cadastro rapido · Pagamento seguro via Mercado Pago · Sem fidelidade</p>
         </div>
-      </section>
+      </div>
+    </section>
 
-      <section class="secao secao-gatilho">
-        <h2>Pague uma vez. Sem mensalidade te cobrando todo mês.</h2>
-        <p class="secao-sub">
-          Enquanto outros sistemas pedem assinatura para sempre, aqui a licença é
-          <strong>vitalícia para esta loja</strong>. Você investe hoje e o caixa
-          continua seu.
-        </p>
-        <ul class="lista-gatilhos">
-          <li>
-            <strong>Segurança de bolso</strong>
-            <span>Sem surpresa de fatura no cartão no fim do mês.</span>
-          </li>
-          <li>
-            <strong>Decisão fácil</strong>
-            <span>Teste o fluxo: comprar → ativar → vender. Sem enrolação.</span>
-          </li>
-          <li>
-            <strong>Feito para leigo</strong>
-            <span>Telas claras, textos em português e ajuda com IA quando travar.</span>
-          </li>
-        </ul>
-      </section>
+    <!-- FAQ -->
+    <section id="faq" class="secao">
+      <div class="container">
+        <p class="eyebrow">Duvidas frequentes</p>
+        <h2>Perguntas e respostas</h2>
+        <div class="faq-lista">
+          <details>
+            <summary>Preciso de internet para usar?</summary>
+            <p>Sim, o sistema sincroniza suas vendas e estoque na nuvem para voce acompanhar de qualquer lugar.</p>
+          </details>
+          <details>
+            <summary>Funciona com minha impressora?</summary>
+            <p>Funciona com impressoras termicas ESC/POS, incluindo a Jetway JP-800. Tambem imprime em impressoras comuns.</p>
+          </details>
+          <details>
+            <summary>Posso usar em mais de um caixa?</summary>
+            <p>Sim. Cada loja tem um codigo de conexao — basta instalar o CybhorPDV no novo computador e digitar o codigo.</p>
+          </details>
+          <details>
+            <summary>Como recebo meu codigo?</summary>
+            <p>Assim que o Mercado Pago confirmar o pagamento, voce vera na tela o codigo individual da sua loja. Use esse codigo no CybhorPDV para conectar o caixa.</p>
+          </details>
+          <details>
+            <summary>Como funciona o pagamento?</summary>
+            <p>Escolha o plano, faca o cadastro da loja e pague via Mercado Pago (Pix, cartao ou boleto). Sem fidelidade.</p>
+          </details>
+        </div>
+      </div>
+    </section>
 
-      <section id="faq" class="secao">
-        <h2>Dúvidas de quem nunca usou sistema</h2>
-        <ul class="lista-recursos">
-          <li>
-            <strong>Preciso ser “bom de computador”?</strong>
-            <span>
-              Não. Se você digita o nome do produto e aperta Enter, já consegue vender.
-              Tem botões grandes e atalhos prontos.
-            </span>
-          </li>
-          <li>
-            <strong>A licença é mensal?</strong>
-            <span>
-              Não. É vitalícia por loja. Você paga uma vez e usa no PC do caixa dessa loja.
-            </span>
-          </li>
-          <li>
-            <strong>E se eu tiver duas lojas?</strong>
-            <span>
-              Cada loja precisa da própria licença — assim o estoque e as vendas de uma
-              não se misturam com a outra.
-            </span>
-          </li>
-          <li>
-            <strong>Perdi a chave. E agora?</strong>
-            <span>
-              Na página de sucesso do pagamento ela pode aparecer de novo pelo ID do
-              Mercado Pago. Guarde o e-mail e o comprovante.
-            </span>
-          </li>
-          <li>
-            <strong>Como cadastro muitos produtos de uma vez?</strong>
-            <span>
-              Pode importar uma planilha CSV.
-              <a href="/modelo-produtos.csv" download>Baixe o modelo pronto</a>
-              e preencha nome, preço, estoque e (se quiser) o custo.
-            </span>
-          </li>
-          <li>
-            <strong>Precisa de internet?</strong>
-            <span>
-              Sim, para ativar e sincronizar vendas e estoque. Assim o admin vê o que
-              aconteceu no caixa mesmo de outro lugar (quando estiver logado).
-            </span>
-          </li>
-          <li>
-            <strong>Funciona com impressora de cupom?</strong>
-            <span>
-              Sim. Foi pensado para térmica (incluindo Jetway JP-800) e cupom do dia a dia.
-            </span>
-          </li>
-        </ul>
-      </section>
+    <!-- Contato / CTA final -->
+    <section id="contato" class="secao secao-cta">
+      <div class="container">
+        <h2>Pronto para acelerar o seu caixa?</h2>
+        <p>Assine agora e receba seu codigo individual apos o pagamento.</p>
+        <a class="btn-destaque" href="cadastro.html">Assinar CybhorPDV</a>
+      </div>
+    </section>
+  </main>
 
-      <section id="comprar" class="secao secao-compra">
-        <h2>Garanta o caixa da sua loja hoje</h2>
-        <p class="secao-sub">
-          Preencha abaixo, pague com Mercado Pago e receba a chave na hora.
-          Quanto antes ativar, antes para de perder venda e controle no papel.
-        </p>
-
-        <form id="form-compra" class="form-compra">
-          <div class="preco-bloco">
-            <span class="preco-rotulo">Licença vitalícia · 1 loja</span>
-            <strong id="preco-valor">R$ —</strong>
-            <span class="preco-nota">Sem mensalidade. Pague uma vez.</span>
-            <span class="preco-nota">Garantia de 30 dias: se não servir para a sua loja, falamos sobre devolução.</span>
-          </div>
-
-          <label>
-            Nome da sua loja
-            <input
-              id="nome-loja"
-              name="nomeLoja"
-              type="text"
-              required
-              autocomplete="organization"
-              placeholder="Ex.: Mercadinho da Praça"
-            />
-          </label>
-          <label>
-            Seu e-mail (para a chave)
-            <input
-              id="email"
-              name="email"
-              type="email"
-              required
-              autocomplete="email"
-              placeholder="voce@email.com"
-            />
-          </label>
-
-          <button type="submit" class="btn btn-solido btn-largo" id="btn-pagar">
-            Pagar agora com Mercado Pago
-          </button>
-          <p id="compra-status" class="compra-status" role="status"></p>
-          <p class="compra-aviso">
-            Depois do pagamento aprovado, a chave aparece na tela de sucesso.
-            Guarde-a: é ela que liga o CybhorPDV na sua loja.
-          </p>
-        </form>
-      </section>
-    </main>
-
-    <footer class="rodape">
-      <strong>CybhorPDV</strong>
-      <span>Caixa no Windows · lucro · estoque · IA · licença por loja</span>
-    </footer>
-
-    <script src="landing.js"></script>
-  </body>
+  <footer class="rodape">
+    <div class="container">
+      <span class="marca">Cybhor<strong>PDV</strong></span>
+      <p>© 2026 CybhorPDV. Todos os direitos reservados.</p>
+    </div>
+  </footer>
+</body>
 </html>

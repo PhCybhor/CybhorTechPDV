@@ -23,7 +23,20 @@ const PALAVRAS_JETWAY = [
   "tanca",
 ];
 
-function obterDadosLoja() {
+/**
+ * Dados da loja para o cabecalho do cupom.
+ * Prioridade: perfil da loja enviado com a venda (multi-loja) > .env (legado).
+ * @param {object} [lojaDaVenda]
+ */
+function obterDadosLoja(lojaDaVenda) {
+  if (lojaDaVenda && typeof lojaDaVenda === "object" && lojaDaVenda.nome) {
+    return {
+      nome: String(lojaDaVenda.nome),
+      cnpj: String(lojaDaVenda.cnpj || ""),
+      endereco: String(lojaDaVenda.endereco || ""),
+      telefone: String(lojaDaVenda.telefone || ""),
+    };
+  }
   return {
     nome: process.env.LOJA_NOME || "CybhorPDV",
     cnpj: process.env.LOJA_CNPJ || "",
@@ -210,7 +223,7 @@ async function enviarViaCopyBinario(nomeImpressora, caminhoArquivo) {
  * @param {string} deviceName
  */
 async function imprimirViaHtml(dadosVenda, deviceName) {
-  const html = gerarHtmlCupom(dadosVenda, obterDadosLoja());
+  const html = gerarHtmlCupom(dadosVenda, obterDadosLoja(dadosVenda.loja));
   const janela = new BrowserWindow({
     show: false,
     width: 302,
@@ -339,7 +352,7 @@ async function diagnosticarImpressoraWindows(nomeImpressora) {
  * @returns {Promise<{ok: boolean, impressora?: string, mensagem?: string, modo?: string}>}
  */
 async function imprimirCupomVenda(dadosVenda) {
-  const loja = obterDadosLoja();
+  const loja = obterDadosLoja(dadosVenda.loja);
   const buffer = gerarBufferEscPos(dadosVenda, loja);
   const modoForcado = (process.env.IMPRESSORA_MODO || "").trim().toLowerCase();
 

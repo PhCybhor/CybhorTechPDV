@@ -1,0 +1,199 @@
+"use strict";
+
+const API_BASE = window.location.origin;
+const params = new URLSearchParams(window.location.search);
+const token = params.get("token");
+
+const erroEl = document.getElementById("pagamento-erro");
+const carregandoEl = document.getElementById("pagamento-carregando");
+const brickEl = document.getElementById("paymentBrick_container");
+const listaMetodosEl = document.getElementById("lista-metodos-mp");
+
+let brickController = null;
+let dadosPagamento = null;
+
+function mostrarErro(mensagem) {
+  erroEl.textContent = mensagem;
+  erroEl.classList.remove("oculto");
+  carregandoEl.classList.add("oculto");
+}
+
+function renderizarMetodos(metodosHabilitados, metodosDisponiveis) {
+  if (!listaMetodosEl) return;
+
+  const idsMp = new Set((metodosDisponiveis || []).map((m) => m.id));
+  const linhas = (metodosHabilitados || []).map((m) => {
+    const ativo =
+      m.chave === "creditCard" ||
+      m.chave === "debitCard" ||
+      m.chave === "prepaidCard" ||
+      (m.chave === "ticket" && idsMp.has("bolbradesco")) ||
+      (m.chave === "bankTransfer" && idsMp.has("pix")) ||
+      m.chave === "mercadoPago";
+    return `<li class="${ativo ? "" : "metodo-indisponivel"}">${m.rotulo}</li>`;
+  });
+
+  listaMetodosEl.innerHTML = linhas.join("");
+}
+
+function aguardarSdkMercadoPago(timeoutMs = 15000) {
+  return new Promise((resolve, reject) => {
+    if (window.MercadoPago) {
+      resolve();
+      return;
+    }
+    const inicio = Date.now();
+    const intervalo = setInterval(() => {
+      if (window.MercadoPago) {
+        clearInterval(intervalo);
+        resolve();
+      } else if (Date.now() - inicio > timeoutMs) {
+        clearInterval(intervalo);
+        reject(new Error("SDK do Mercado Pago nao carregou. Verifique sua conexao."));
+      }
+    }, 100);
+  });
+}
+
+async function desmontarBrick() {
+  if (brickController?.unmount) {
+    try {
+      await brickController.unmount();
+    } catch {
+      /* brick ja removido */
+    }
+    brickController = null;
+  }
+}
+
+/** Status Screen Brick — exibe QR Pix, boleto ou status do pagamento pendente. */
+async function exibirStatusPagamento(paymentId, publicKey) {
+  await desmontarBrick();
+  carregandoEl.classList.add("oculto");
+  brickEl.classList.remove("oculto");
+
+  const mp = new MercadoPago(publicKey, { locale: "pt-BR" });
+  brickController = await mp.bricks().create("statusScreen", "paymentBrick_container", {
+    initialization: { paymentId: String(paymentId) },
+    callbacks: {
+      onReady: () => {},
+      onError: (erro) => {
+        console.error("Status Screen MP:", erro);
+      },
+    },
+  });
+
+  // Quando Pix/boleto for pago, redireciona para pagina do codigo
+  const intervalo = setInterval(async () => {
+    try {
+      const r = await fetch(`${API_BASE}/api/site/ativacao?token=${encodeURIComponent(token)}`);
+      const json = await r.json();
+      if (json.status === "ativa") {
+        clearInterval(intervalo);
+        window.location.href = `/sucesso.html?token=${encodeURIComponent(token)}`;
+      }
+    } catch {
+      /* continua polling */
+    }
+  }, 5000);
+}
+
+async function montarPaymentBrick(dados) {
+  await desmontarBrick();
+
+  const mp = new MercadoPago(dados.publicKey, { locale: "pt-BR" });
+  const customization = dados.customization || {};
+
+  brickController = await mp.bricks().create("payment", "paymentBrick_container", {
+    initialization: {
+      amount: Number(dados.valorMensal),
+      payer: {
+        email: dados.email,
+        firstName: dados.primeiroNome,
+        lastName: dados.sobrenome,
+      },
+    },
+    customization,
+    callbacks: {
+      onReady: () => {
+        carregandoEl.classList.add("oculto");
+        brickEl.classList.remove("oculto");
+      },
+      onSubmit: ({ formData }) =>
+        new Promise((resolve, reject) => {
+          erroEl.classList.add("oculto");
+          fetch(`${API_BASE}/api/site/pagar`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ tokenAtivacao: token, formData }),
+          })
+            .then(async (r) => {
+              const json = await r.json();
+              if (!r.ok) throw new Error(json.erro || "Pagamento recusado.");
+
+              if (json.status === "approved") {
+                window.location.href = json.redirectUrl;
+                resolve();
+                return;
+              }
+
+              if (json.exibirStatus && json.paymentId) {
+                await exibirStatusPagamento(json.paymentId, dados.publicKey);
+                resolve();
+                return;
+              }
+
+              if (json.redirectUrl) {
+                window.location.href = json.redirectUrl;
+              }
+              resolve();
+            })
+            .catch((erro) => {
+              mostrarErro(erro.message);
+              reject();
+            });
+        }),
+      onError: (erro) => {
+        console.error("Payment Brick MP:", erro);
+        mostrarErro(
+          erro?.message || "Erro ao carregar formas de pagamento. Recarregue a pagina."
+        );
+      },
+    },
+  });
+}
+
+async function iniciar() {
+  if (!token) {
+    mostrarErro("Sessao invalida. Faca o cadastro novamente.");
+    return;
+  }
+
+  try {
+    const resposta = await fetch(
+      `${API_BASE}/api/site/pagamento?token=${encodeURIComponent(token)}`
+    );
+    const dados = await resposta.json();
+    if (!resposta.ok) throw new Error(dados.erro || "Falha ao carregar pagamento.");
+
+    if (dados.jaAtiva) {
+      window.location.href = `/sucesso.html?token=${encodeURIComponent(token)}`;
+      return;
+    }
+
+    dadosPagamento = dados;
+    document.getElementById("nome-loja-resumo").textContent = dados.nomeLoja;
+    document.querySelector(".cadastro-preco").innerHTML =
+      `<span>R$</span>${Number(dados.valorMensal).toFixed(2).replace(".", ",")}<small>/mes</small>`;
+
+    renderizarMetodos(dados.metodosHabilitados, dados.metodosDisponiveis);
+
+    await aguardarSdkMercadoPago();
+    await montarPaymentBrick(dados);
+  } catch (erro) {
+    mostrarErro(erro.message);
+  }
+}
+
+brickEl.classList.add("oculto");
+iniciar();

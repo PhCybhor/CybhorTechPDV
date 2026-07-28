@@ -1,0 +1,25 @@
+{
+  "name": "cybhor-pdv-api",
+  "version": "1.0.0",
+  "description": "API do CybhorPDV — multi-loja com PostgreSQL, painel do administrador do sistema e pagamentos Mercado Pago.",
+  "main": "src/server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "db:schema": "psql \"$DATABASE_URL\" -f db/schema.sql",
+    "admin:criar": "node scripts/criar-admin-sistema.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.4.0",
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.12.0"
+  }
+}
