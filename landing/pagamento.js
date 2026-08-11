@@ -186,6 +186,14 @@ async function iniciar() {
     document.querySelector(".cadastro-preco").innerHTML =
       `<span>R$</span>${Number(dados.valorMensal).toFixed(2).replace(".", ",")}<small>/mes</small>`;
 
+    if (!dados.publicKey) {
+      if (!dados.checkoutUrl) {
+        throw new Error("Pagamento indisponivel no momento.");
+      }
+      window.location.href = dados.checkoutUrl;
+      return;
+    }
+
     renderizarMetodos(dados.metodosHabilitados, dados.metodosDisponiveis);
 
     await aguardarSdkMercadoPago();

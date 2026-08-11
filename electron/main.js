@@ -31,21 +31,6 @@ function carregarVariaveisDeAmbiente() {
   }
 }
 
-/**
- * @returns {Record<string, string>}
- */
-function obterConfiguracaoFirebase() {
-  return {
-    apiKey: process.env.FIREBASE_API_KEY || "",
-    authDomain: process.env.FIREBASE_AUTH_DOMAIN || "",
-    databaseURL: process.env.FIREBASE_DATABASE_URL || "",
-    projectId: process.env.FIREBASE_PROJECT_ID || "",
-    storageBucket: process.env.FIREBASE_STORAGE_BUCKET || "",
-    messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || "",
-    appId: process.env.FIREBASE_APP_ID || "",
-  };
-}
-
 function criarJanela() {
   const janela = new BrowserWindow({
     width: 1280,
@@ -72,7 +57,7 @@ function criarJanela() {
 
 carregarVariaveisDeAmbiente();
 
-ipcMain.handle("obter-config-firebase", () => obterConfiguracaoFirebase());
+ipcMain.handle("obter-api-url", () => obterUrlApi());
 
 ipcMain.handle("obter-config-app", () => {
   try {
@@ -134,11 +119,24 @@ ipcMain.handle("imprimir-cupom", async (_evento, dadosVenda) => {
 });
 
 ipcMain.handle("obter-licenca", async () => {
-  const local = lerLicenca();
+  let local = lerLicenca();
+  if (!local && process.env.CYBHOR_MODO_DEV === "1") {
+    const dev = await validarLicencaRemota("DEV-LOCAL");
+    if (dev.ok) {
+      salvarLicenca({
+        lojaId: dev.lojaId,
+        chave: "DEV-LOCAL",
+        email: dev.email,
+        nomeLoja: dev.nomeLoja,
+      });
+      local = lerLicenca();
+    }
+  }
   if (!local) return { ok: false, ativada: false };
 
-  // Revalida online quando possível (licença suspensa bloqueia)
-  if (local.chave && process.env.CYBHOR_MODO_DEV !== "1") {
+  // Revalida na FastAPI. Em desenvolvimento também migra licenças antigas
+  // que usavam um hash local em vez do UUID real do PostgreSQL.
+  if (local.chave) {
     const remota = await validarLicencaRemota(local.chave);
     if (!remota.ok) {
       return {
@@ -147,7 +145,21 @@ ipcMain.handle("obter-licenca", async () => {
         mensagem: remota.mensagem || "Licença inválida ou suspensa.",
       };
     }
-    if (remota.lojaId && remota.lojaId !== local.lojaId) {
+    if (
+      remota.lojaId &&
+      remota.lojaId !== local.lojaId &&
+      process.env.CYBHOR_MODO_DEV === "1"
+    ) {
+      salvarLicenca({
+        lojaId: remota.lojaId,
+        chave: local.chave,
+        email: remota.email || local.email,
+        nomeLoja: remota.nomeLoja || local.nomeLoja,
+      });
+      local.lojaId = remota.lojaId;
+      local.email = remota.email || local.email;
+      local.nomeLoja = remota.nomeLoja || local.nomeLoja;
+    } else if (remota.lojaId && remota.lojaId !== local.lojaId) {
       return {
         ok: false,
         ativada: false,
@@ -162,6 +174,7 @@ ipcMain.handle("obter-licenca", async () => {
     lojaId: local.lojaId,
     email: local.email || "",
     nomeLoja: local.nomeLoja || "",
+    chave: local.chave || "",
     apiUrl: obterUrlApi(),
   };
 });
@@ -183,6 +196,7 @@ ipcMain.handle("ativar-licenca", async (_evento, chave) => {
     lojaId: salva.lojaId,
     email: salva.email,
     nomeLoja: salva.nomeLoja,
+    chave: salva.chave,
   };
 });
 

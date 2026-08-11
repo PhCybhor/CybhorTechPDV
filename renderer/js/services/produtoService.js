@@ -1,5 +1,5 @@
-import { ref, get, push, update, remove, onValue } from "firebase/database";
-import { obterDatabase } from "../config/firebaseClient.js";
+import { ref, get, push, update, remove, onValue } from "../config/databaseClient.js";
+import { obterDatabase } from "../config/databaseClient.js";
 import { caminhoLoja } from "./tenantContext.js";
 
 function caminhoProdutos() {
@@ -100,7 +100,7 @@ function normalizarProduto({
     preco: precoNumero,
     estoque: estoqueNumero,
     categoria: (categoria || "").trim(),
-    // null limpa o campo no Firebase ao atualizar; omitir esconderia o lucro antigo
+    // null limpa o campo no PostgreSQL ao atualizar; omitir manteria o lucro antigo
     custo: custoNumero,
     unidade: un,
     unidadesPorCaixa:
@@ -139,7 +139,7 @@ export async function listarProdutos() {
 /**
  * Observa a lista de produtos em tempo real.
  * @param {(produtos: Array<object>) => void} callback
- * @returns {Promise<import("firebase/database").Unsubscribe>}
+ * @returns {Promise<() => void>}
  */
 export async function observarProdutos(callback) {
   const db = await obterDatabase();

@@ -1,7 +1,7 @@
 {
   "name": "cybhor-pdv",
   "version": "2.0.0",
-  "description": "CybhorPDV 2.0 - PDV completo com caixa, gestao de produtos, relatorios, equipe, troco e Firebase Realtime Database.",
+  "description": "CybhorPDV 2.0 - PDV desktop com FastAPI e PostgreSQL.",
   "author": "Loja",
   "license": "MIT",
   "main": "electron/main.js",
@@ -9,8 +9,6 @@
     "build:renderer": "node scripts/build-renderer.mjs",
     "build:renderer:prod": "node scripts/build-renderer.mjs --ofuscar",
     "start": "npm run build:renderer && electron .",
-    "start:vendas": "npm --prefix server start",
-    "migrar:legado": "node scripts/migrar-loja-legado.mjs",
     "test:impressao": "node scripts/testar-impressao-jp800.js",
     "dist": "npm run dist:win10",
     "dist:win10": "npm run build:renderer:prod && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win zip nsis --x64 -c.win.signAndEditExecutable=false",
@@ -21,7 +19,6 @@
   "dependencies": {
     "chart.js": "^4.5.1",
     "dotenv": "^16.4.5",
-    "firebase": "^10.12.2",
     "fuse.js": "^7.0.0",
     "jspdf": "^2.5.2",
     "jspdf-autotable": "^3.8.4"

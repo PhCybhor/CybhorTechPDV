@@ -28,11 +28,14 @@ CREATE TABLE IF NOT EXISTS funcionarios (
   salt TEXT NOT NULL,
   senha_hash TEXT NOT NULL,
   cargo TEXT NOT NULL CHECK (cargo IN ('admin', 'operador')),
+  dados JSONB NOT NULL DEFAULT '{}'::jsonb,
   criado_em TIMESTAMPTZ NOT NULL DEFAULT now(),
   atualizado_em TIMESTAMPTZ,
   UNIQUE (loja_id, usuario)
 );
 CREATE INDEX IF NOT EXISTS idx_funcionarios_loja ON funcionarios (loja_id);
+ALTER TABLE funcionarios
+  ADD COLUMN IF NOT EXISTS dados JSONB NOT NULL DEFAULT '{}'::jsonb;
 
 -- Produtos por loja
 CREATE TABLE IF NOT EXISTS produtos (
@@ -109,3 +112,16 @@ CREATE TABLE IF NOT EXISTS pagamentos (
   criado_em TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_pagamentos_loja ON pagamentos (loja_id);
+
+-- Dados flexiveis dos modulos avancados do desktop (clientes, despesas,
+-- fornecedores, caixa, auditoria etc.). Cada recurso fica isolado por loja
+-- e todas as alteracoes passam pela API autenticada.
+CREATE TABLE IF NOT EXISTS documentos_loja (
+  loja_id UUID NOT NULL REFERENCES lojas(id) ON DELETE CASCADE,
+  recurso TEXT NOT NULL,
+  dados JSONB NOT NULL DEFAULT '{}'::jsonb,
+  atualizado_em TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (loja_id, recurso)
+);
+CREATE INDEX IF NOT EXISTS idx_documentos_loja_recurso
+  ON documentos_loja (loja_id, recurso);

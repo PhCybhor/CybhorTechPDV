@@ -98,7 +98,7 @@ input:focus { outline: 2px solid var(--acento-forte); border-color: transparent;
 .erro { color: var(--erro); font-size: 0.85rem; margin-top: 0.8rem; }
 
 /* Painel */
-#tela-painel { max-width: 1200px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+#tela-painel { max-width: 1280px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
 
 .topo {
   display: flex;
@@ -157,3 +157,74 @@ tbody tr:hover { background: rgba(56, 189, 248, 0.05); }
 .selo-erro { background: rgba(248, 113, 113, 0.15); color: var(--erro); }
 
 .codigo { font-family: monospace; letter-spacing: 0.1em; color: var(--acento); }
+
+.bloco-provisionar {
+  background: linear-gradient(160deg, var(--painel), #0a1626);
+  border: 1px solid var(--borda);
+  border-radius: 16px;
+  padding: 1.4rem 1.5rem 1.6rem;
+  margin-bottom: 1.5rem;
+}
+.bloco-cabecalho h2 { font-size: 1.15rem; margin-bottom: 0.25rem; }
+.subtitulo-bloco { color: var(--texto-suave); font-size: 0.88rem; margin-bottom: 1.1rem; }
+
+.form-criar-conta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem 1rem;
+}
+.form-criar-conta .form-acoes {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  align-items: flex-start;
+}
+.form-criar-conta .btn-destaque { width: auto; padding: 0.75rem 1.4rem; }
+.opcional { color: var(--texto-suave); font-weight: 400; font-size: 0.75rem; }
+
+.conta-criada {
+  border: 1px dashed var(--acento-forte);
+  background: rgba(56, 189, 248, 0.08);
+  border-radius: 12px;
+  padding: 1rem 1.1rem;
+  margin-bottom: 1.1rem;
+}
+.conta-criada p { margin: 0.35rem 0; color: var(--texto-suave); font-size: 0.9rem; }
+.chave-destaque {
+  margin: 0.8rem 0 0.4rem;
+}
+.chave-rotulo {
+  display: block;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--texto-suave);
+}
+.chave-destaque strong {
+  display: block;
+  font-family: "Sora", monospace;
+  letter-spacing: 0.16em;
+  font-size: 1.6rem;
+  color: var(--acento);
+  margin: 0.3rem 0 0.7rem;
+}
+.dica { font-size: 0.8rem !important; }
+
+.acoes-loja { display: flex; gap: 0.4rem; }
+.btn-icone {
+  margin-left: 0.45rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 6px;
+  border: 1px solid var(--borda);
+  background: transparent;
+  color: var(--texto-suave);
+  cursor: pointer;
+  font-size: 0.7rem;
+}
+.btn-icone:hover { color: var(--texto); border-color: var(--acento); }
+
+@media (max-width: 720px) {
+  .form-criar-conta { grid-template-columns: 1fr; }
+  .acoes-loja { flex-direction: column; }
+}

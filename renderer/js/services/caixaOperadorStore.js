@@ -1,6 +1,6 @@
 /**
  * Preferências locais do caixa por funcionário (favoritos e mais usados).
- * Não sobe ao Firebase — só facilita o dia a dia no terminal.
+ * Não sobe ao PostgreSQL — só facilita o dia a dia neste terminal.
  */
 
 const PREFIXO = "cybhor_caixa_";

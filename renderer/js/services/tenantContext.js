@@ -1,5 +1,5 @@
 /**
- * Contexto multi-loja: cada instalação opera só em lojas/{lojaId}/...
+ * Contexto multi-loja: o JWT da FastAPI limita cada instalação ao seu lojaId.
  * Assim o estoque/vendas de uma loja nunca mistura com outra.
  */
 
@@ -34,7 +34,7 @@ export function obterMetaLoja() {
 }
 
 /**
- * Caminho RTDB isolado por loja.
+ * Caminho lógico isolado por loja, persistido como JSONB no PostgreSQL.
  * @param {string} recurso ex: "produtos", "vendas", "funcionarios"
  * @returns {string}
  */

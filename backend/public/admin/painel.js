@@ -97,13 +97,32 @@
       .join("");
   }
 
+  async function copiarTexto(texto) {
+    try {
+      await navigator.clipboard.writeText(texto);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  function mostrarContaCriada(conta) {
+    $("conta-criada").classList.remove("oculto");
+    $("criada-nome").textContent = conta.nomeLoja;
+    $("criada-usuario").textContent = conta.usuario;
+    $("criada-codigo").textContent = conta.codigo;
+  }
+
   function renderizarTabela(lojas) {
     $("tabela-lojas").innerHTML = lojas
       .map(
         (loja) => `
         <tr>
           <td><strong>${escapeHtml(loja.nome)}</strong></td>
-          <td class="codigo">${escapeHtml(loja.codigo)}</td>
+          <td class="codigo">
+            <span>${escapeHtml(loja.codigo)}</span>
+            <button type="button" class="btn-icone" data-copiar="${escapeHtml(loja.codigo)}" title="Copiar chave">Copiar</button>
+          </td>
           <td>${seloAssinatura(loja.assinaturaStatus)}</td>
           <td>${loja.totalFuncionarios}</td>
           <td>${loja.totalProdutos}</td>
@@ -111,9 +130,14 @@
           <td>${formatarReal(loja.faturamentoTotal)}</td>
           <td>${formatarGB(loja.usoBytes)}</td>
           <td>${loja.ativa ? '<span class="selo selo-ok">Ativa</span>' : '<span class="selo selo-erro">Bloqueada</span>'}</td>
-          <td><button class="btn-suave" data-loja="${loja.id}" data-ativa="${!loja.ativa}">
-            ${loja.ativa ? "Bloquear" : "Liberar"}
-          </button></td>
+          <td class="acoes-loja">
+            <button class="btn-suave" data-loja="${loja.id}" data-ativa="${!loja.ativa}">
+              ${loja.ativa ? "Bloquear" : "Liberar"}
+            </button>
+            <button class="btn-suave" data-regenerar="${loja.id}" data-nome="${escapeHtml(loja.nome)}">
+              Nova chave
+            </button>
+          </td>
         </tr>`
       )
       .join("");
@@ -131,6 +155,36 @@
           alert(erro.message);
           botao.disabled = false;
         }
+      });
+    });
+
+    document.querySelectorAll("#tabela-lojas button[data-regenerar]").forEach((botao) => {
+      botao.addEventListener("click", async () => {
+        const nome = botao.dataset.nome;
+        if (!confirm(`Gerar uma nova chave para "${nome}"? A chave atual deixa de funcionar.`)) {
+          return;
+        }
+        botao.disabled = true;
+        try {
+          const resultado = await chamarApi(`/admin/lojas/${botao.dataset.regenerar}/regenerar-chave`, {
+            method: "POST",
+          });
+          await carregarLojas();
+          alert(`Nova chave: ${resultado.codigo}`);
+        } catch (erro) {
+          alert(erro.message);
+          botao.disabled = false;
+        }
+      });
+    });
+
+    document.querySelectorAll("#tabela-lojas button[data-copiar]").forEach((botao) => {
+      botao.addEventListener("click", async () => {
+        const ok = await copiarTexto(botao.dataset.copiar);
+        botao.textContent = ok ? "Copiado" : "Falhou";
+        setTimeout(() => {
+          botao.textContent = "Copiar";
+        }, 1600);
       });
     });
   }
@@ -160,6 +214,52 @@
       erroEl.textContent = erro.message;
       erroEl.classList.remove("oculto");
     }
+  });
+
+  $("form-criar-conta").addEventListener("submit", async (evento) => {
+    evento.preventDefault();
+    const erroEl = $("criar-erro");
+    const botao = $("btn-criar-conta");
+    erroEl.classList.add("oculto");
+    botao.disabled = true;
+    botao.textContent = "Criando...";
+    try {
+      const conta = await chamarApi("/admin/lojas", {
+        method: "POST",
+        body: JSON.stringify({
+          loja: {
+            nome: $("nova-nome-loja").value,
+            email: $("nova-email").value,
+            telefone: $("nova-telefone").value,
+          },
+          admin: {
+            nome: $("nova-nome").value,
+            sobrenome: $("nova-sobrenome").value,
+            usuario: $("nova-usuario").value.toLowerCase(),
+            senha: $("nova-senha").value,
+            email: $("nova-email").value,
+          },
+        }),
+      });
+      mostrarContaCriada(conta);
+      $("form-criar-conta").reset();
+      await carregarLojas();
+    } catch (erro) {
+      erroEl.textContent = erro.message;
+      erroEl.classList.remove("oculto");
+    } finally {
+      botao.disabled = false;
+      botao.textContent = "Criar conta e gerar chave";
+    }
+  });
+
+  $("btn-copiar-criada").addEventListener("click", async () => {
+    const codigo = $("criada-codigo").textContent;
+    const ok = await copiarTexto(codigo);
+    $("btn-copiar-criada").textContent = ok ? "Copiado!" : "Nao foi possivel copiar";
+    setTimeout(() => {
+      $("btn-copiar-criada").textContent = "Copiar chave";
+    }, 1800);
   });
 
   $("btn-atualizar").addEventListener("click", () => carregarLojas().catch(() => {}));

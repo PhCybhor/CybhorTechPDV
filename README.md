@@ -1,7 +1,7 @@
 # CybhorPDV
 
 Sistema de ponto de venda (PDV) para loja, em desktop (Windows), construído com
-**Electron** e **Firebase Realtime Database**.
+**Electron**, **FastAPI (Python)** e **PostgreSQL**.
 
 ## Baixar e instalar (usuarios da loja)
 
@@ -44,14 +44,14 @@ sistemaPDV/
 │   ├── index.html
 │   ├── styles.css
 │   ├── js/
-│   │   ├── config/      # Inicialização do Firebase
+│   │   ├── config/      # Cliente HTTP da FastAPI
 │   │   ├── services/    # Regras de negócio (auth, produtos, vendas, busca)
 │   │   ├── ui/          # Componentes de interface (carrinho, notificações)
 │   │   ├── utils/       # Utilitários (segurança, formatação)
 │   │   └── app.js       # Orquestração da interface
 │   └── dist/            # Bundle gerado (não versionado)
 ├── scripts/             # Script de build do renderer (esbuild)
-├── database.rules.json  # Regras do Realtime Database
+├── backend/             # FastAPI, PostgreSQL e painel administrativo
 └── .env.example         # Modelo de variáveis de ambiente
 ```
 
@@ -62,8 +62,7 @@ instalador; o código-fonte legível não é incluído.
 ## Pré-requisitos
 
 - [Node.js](https://nodejs.org/) 18+ (testado com Node 24)
-- Um projeto no [Firebase](https://console.firebase.google.com/) com o
-  **Realtime Database** ativado.
+- Python 3.8+ e PostgreSQL 16 (Docker disponível para desenvolvimento).
 
 ## Configuração
 
@@ -73,15 +72,14 @@ instalador; o código-fonte legível não é incluído.
    npm install
    ```
 
-2. Crie o arquivo `.env` a partir do modelo e preencha com as credenciais do seu
-   projeto Firebase (Console Firebase → Configurações do projeto → SDK):
+2. Crie o arquivo `.env` a partir do modelo. Em desenvolvimento, a API usa
+   `http://localhost:3333`:
 
    ```bash
    copy .env.example .env
    ```
 
-3. No Console do Firebase, publique as regras do arquivo `database.rules.json`
-   no Realtime Database.
+3. Suba o PostgreSQL e a FastAPI conforme `backend/README.md`.
 
 4. (Opcional) Configure a impressora Jetway JP-800 no `.env`:
    - `IMPRESSORA_NOME=Jetway JP-800` (nome criado pelo driver oficial)
@@ -101,21 +99,15 @@ npm run test:impressao
 
 ## Vender para várias lojas (multi-loja)
 
-O banco é compartilhado, mas cada loja vive isolada em `lojas/{lojaId}`:
+O banco é compartilhado, mas cada registro/documento possui isolamento por
+`loja_id`, obtido exclusivamente do JWT:
 
 1. **Primeira instalação da loja**: abra o app → aba **Criar loja** → preencha
    nome/CNPJ/endereço/telefone. O app gera um **código de loja** (ex.: `7KQ2MD`).
 2. **Caixas adicionais**: no novo PC, aba **Já tenho código** → digite o código.
    O código fica visível para o admin na tela **Equipe**.
 3. O cabeçalho do cupom impresso usa o **perfil da loja** (não mais o `.env`).
-4. Publique as regras de `database.rules.json` no Console do Firebase
-   (Realtime Database → Regras) antes do primeiro uso.
-
-Migração de dados antigos (raiz → multi-loja), uma única vez por banco:
-
-```bash
-node scripts/migrar-para-loja.js "Nome da Loja"
-```
+4. A FastAPI valida o JWT e nunca aceita `loja_id` arbitrário nas operações.
 
 ## Executar em desenvolvimento
 
@@ -148,16 +140,7 @@ Baixe o arquivo `CybhorPDV-Setup-x.x.x.exe` e execute para instalar.
 ### Publicar uma nova versao
 
 1. Atualize a `version` no `package.json`.
-2. No GitHub, configure os **Secrets** do repositorio em  
-   `Settings → Secrets and variables → Actions` com as variaveis do Firebase:
-   - `FIREBASE_API_KEY`
-   - `FIREBASE_AUTH_DOMAIN`
-   - `FIREBASE_DATABASE_URL`
-   - `FIREBASE_PROJECT_ID`
-   - `FIREBASE_STORAGE_BUCKET`
-   - `FIREBASE_MESSAGING_SENDER_ID`
-   - `FIREBASE_APP_ID`
-   - `FIREBASE_MEASUREMENT_ID` (opcional)
+2. Configure a URL pública da FastAPI no `.env` usado pelo instalador.
 3. Crie e envie uma tag de versao:
 
    ```bash
@@ -174,6 +157,5 @@ Baixe o arquivo `CybhorPDV-Setup-x.x.x.exe` e execute para instalar.
 - Senhas são armazenadas apenas como **hash PBKDF2 + salt** (nunca em texto
   puro).
 - Nenhuma credencial fica no código-fonte — tudo vem do `.env`.
-- As regras em `database.rules.json` são **abertas para funcionamento imediato**.
-  Para produção, recomenda-se migrar a autenticação para o **Firebase
-  Authentication** e restringir as regras por usuário autenticado.
+- A FastAPI usa JWT com escopo de loja, SQL parametrizado e transações para
+  impedir acesso entre lojas e inconsistências de estoque.

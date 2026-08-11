@@ -8,7 +8,7 @@
  * @returns {string}
  */
 function obterUrlApi() {
-  return (process.env.CYBHOR_API_URL || "http://localhost:8787").replace(
+  return (process.env.CYBHOR_API_URL || "http://localhost:3333").replace(
     /\/+$/,
     ""
   );
@@ -24,26 +24,8 @@ async function validarLicencaRemota(chave) {
     .toUpperCase()
     .replace(/\s+/g, "");
 
-  if (!limpa || limpa.length < 8) {
+  if (!limpa || limpa.length < 6) {
     return { ok: false, mensagem: "Informe uma chave de licença válida." };
-  }
-
-  // Desenvolvimento local sem API / Mercado Pago
-  if (
-    process.env.CYBHOR_MODO_DEV === "1" &&
-    (limpa === "DEV-LOCAL" || limpa.startsWith("DEV-"))
-  ) {
-    const crypto = require("crypto");
-    const lojaId =
-      process.env.CYBHOR_DEV_LOJA_ID ||
-      crypto.createHash("sha256").update(`dev-${limpa}`).digest("hex").slice(0, 32);
-    return {
-      ok: true,
-      lojaId,
-      email: "dev@cybhor.local",
-      nomeLoja: "Loja desenvolvimento",
-      chave: limpa,
-    };
   }
 
   const url = `${obterUrlApi()}/api/ativar`;
@@ -59,6 +41,7 @@ async function validarLicencaRemota(chave) {
         ok: false,
         mensagem:
           dados.mensagem ||
+          dados.erro ||
           "Licença inválida ou inativa. Verifique a chave da compra.",
       };
     }

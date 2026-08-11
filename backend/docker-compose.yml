@@ -1,5 +1,6 @@
 # Desenvolvimento local: sobe apenas o PostgreSQL.
-# docker compose up -d
+# docker-compose up -d
+version: "3.3"
 services:
   postgres:
     image: postgres:16-alpine

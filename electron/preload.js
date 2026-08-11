@@ -6,7 +6,7 @@ const { contextBridge, ipcRenderer } = require("electron");
  * Ponte segura entre o processo principal e o renderer.
  */
 contextBridge.exposeInMainWorld("pdvAPI", {
-  obterConfigFirebase: () => ipcRenderer.invoke("obter-config-firebase"),
+  obterApiUrl: () => ipcRenderer.invoke("obter-api-url"),
   obterConfigApp: () => ipcRenderer.invoke("obter-config-app"),
   salvarConfigApp: (config) => ipcRenderer.invoke("salvar-config-app", config),
   listarImpressoras: () => ipcRenderer.invoke("listar-impressoras"),

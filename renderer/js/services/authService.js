@@ -1,26 +1,19 @@
 import {
-  ref,
-  get,
-  push,
-  update,
-  onValue,
-  query,
-  orderByChild,
-  equalTo,
-} from "firebase/database";
-import { obterDatabase } from "../config/firebaseClient.js";
-import { gerarSalt, gerarHashSenha, verificarSenha } from "../utils/seguranca.js";
-import { caminhoLoja } from "./tenantContext.js";
+  apiRequest,
+  definirTokenSessao,
+  limparTokenSessao,
+} from "../config/apiClient.js";
+import { obterLojaId, obterMetaLoja } from "./tenantContext.js";
 import { normalizarAreas } from "./areasEquipe.js";
-
-function caminhoFuncionarios() {
-  return caminhoLoja("funcionarios");
-}
 
 export const CARGOS = Object.freeze({
   ADMIN: "admin",
   OPERADOR: "operador",
 });
+
+export function encerrarSessao() {
+  limparTokenSessao();
+}
 
 /**
  * Indica se ja existe pelo menos um administrador cadastrado.
@@ -28,34 +21,10 @@ export const CARGOS = Object.freeze({
  * @returns {Promise<boolean>}
  */
 export async function existeAdministrador() {
-  const db = await obterDatabase();
-  const consulta = query(
-    ref(db, caminhoFuncionarios()),
-    orderByChild("cargo"),
-    equalTo(CARGOS.ADMIN)
-  );
-  const snapshot = await get(consulta);
-  return snapshot.exists();
-}
-
-/**
- * Busca um funcionario pelo nome de usuario.
- * @param {string} usuario
- * @returns {Promise<{id: string, dados: object} | null>}
- */
-async function buscarPorUsuario(usuario) {
-  const db = await obterDatabase();
-  const consulta = query(
-    ref(db, caminhoFuncionarios()),
-    orderByChild("usuario"),
-    equalTo(usuario.trim().toLowerCase())
-  );
-  const snapshot = await get(consulta);
-  if (!snapshot.exists()) return null;
-
-  const registros = snapshot.val();
-  const id = Object.keys(registros)[0];
-  return { id, dados: registros[id] };
+  const lojaId = obterLojaId();
+  if (!lojaId) return false;
+  const resposta = await apiRequest(`/api/lojas/${lojaId}/bootstrap`);
+  return Boolean(resposta?.temAdmin);
 }
 
 /**
@@ -77,32 +46,40 @@ export async function criarFuncionario({ nome, usuario, senha, cargo, areas }) {
   if (nomeLimpo.length < 2) throw new Error("Informe o nome do funcionário.");
   if (usuarioLimpo.length < 3)
     throw new Error("O usuário deve ter ao menos 3 caracteres.");
-  if ((senha || "").length < 4)
-    throw new Error("A senha deve ter ao menos 4 caracteres.");
+  if ((senha || "").length < 8)
+    throw new Error("A senha deve ter ao menos 8 caracteres.");
   if (![CARGOS.ADMIN, CARGOS.OPERADOR].includes(cargo))
     throw new Error("Cargo inválido.");
   if (areasNorm.length === 0) {
     throw new Error("Selecione ao menos uma área: Caixa, RH ou Marketing.");
   }
 
-  const jaExiste = await buscarPorUsuario(usuarioLimpo);
-  if (jaExiste) throw new Error("Já existe um funcionário com esse usuário.");
-
-  const salt = gerarSalt();
-  const senhaHash = await gerarHashSenha(senha, salt);
-
-  const db = await obterDatabase();
-  const referencia = await push(ref(db, caminhoFuncionarios()), {
+  const dados = {
     nome: nomeLimpo,
     usuario: usuarioLimpo,
-    salt,
-    senhaHash,
+    senha,
     cargo,
     areas: areasNorm,
-    criadoEm: Date.now(),
-  });
+  };
+  const lojaId = obterLojaId();
+  if (!lojaId) throw new Error("Nenhuma loja conectada.");
 
-  return referencia.key;
+  const temAdmin = await existeAdministrador();
+  if (!temAdmin) {
+    const chave = obterMetaLoja()?.chave;
+    if (!chave) {
+      throw new Error(
+        "Chave de ativação ausente. Reative a licença antes de criar o administrador."
+      );
+    }
+    dados.chaveAtivacao = chave;
+  }
+
+  const resposta = await apiRequest(
+    temAdmin ? "/api/funcionarios" : `/api/lojas/${lojaId}/admin-inicial`,
+    { method: "POST", body: dados }
+  );
+  return resposta.id;
 }
 
 /**
@@ -112,19 +89,16 @@ export async function criarFuncionario({ nome, usuario, senha, cargo, areas }) {
  * @returns {Promise<{id: string, nome: string, usuario: string, cargo: string}>}
  */
 export async function autenticar(usuario, senha) {
-  const encontrado = await buscarPorUsuario(usuario);
-  if (!encontrado) throw new Error("Usuário ou senha inválidos.");
-
-  const { id, dados } = encontrado;
-  const senhaOk = await verificarSenha(senha, dados.salt, dados.senhaHash);
-  if (!senhaOk) throw new Error("Usuário ou senha inválidos.");
-
-  return {
-    id,
-    nome: dados.nome,
-    usuario: dados.usuario,
-    cargo: dados.cargo,
-  };
+  const resposta = await apiRequest("/api/auth/login", {
+    method: "POST",
+    body: {
+      lojaId: obterLojaId(),
+      usuario: String(usuario || "").trim().toLowerCase(),
+      senha,
+    },
+  });
+  definirTokenSessao(resposta.token);
+  return resposta.funcionario;
 }
 
 /**
@@ -135,9 +109,19 @@ export async function autenticar(usuario, senha) {
  * @returns {Promise<boolean>}
  */
 export async function validarAdministrador(usuario, senha) {
-  const encontrado = await buscarPorUsuario(usuario);
-  if (!encontrado || encontrado.dados.cargo !== CARGOS.ADMIN) return false;
-  return verificarSenha(senha, encontrado.dados.salt, encontrado.dados.senhaHash);
+  try {
+    const resposta = await apiRequest("/api/auth/login", {
+      method: "POST",
+      body: {
+        lojaId: obterLojaId(),
+        usuario: String(usuario || "").trim().toLowerCase(),
+        senha,
+      },
+    });
+    return resposta?.funcionario?.cargo === CARGOS.ADMIN;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -145,29 +129,30 @@ export async function validarAdministrador(usuario, senha) {
  * @returns {Promise<Array<object>>}
  */
 export async function listarFuncionarios() {
-  const db = await obterDatabase();
-  const snapshot = await get(ref(db, caminhoFuncionarios()));
-  if (!snapshot.exists()) return [];
-  return Object.entries(snapshot.val())
-    .map(([id, dados]) => ({ id, ...dados }))
-    .sort((a, b) => a.nome.localeCompare(b.nome));
+  return apiRequest("/api/funcionarios");
 }
 
 /**
  * Observa a lista de funcionarios em tempo real.
  * @param {(funcionarios: Array<object>) => void} callback
- * @returns {Promise<import("firebase/database").Unsubscribe>}
+ * @returns {Promise<() => void>}
  */
 export async function observarFuncionarios(callback) {
-  const db = await obterDatabase();
-  return onValue(ref(db, caminhoFuncionarios()), (snapshot) => {
-    const lista = snapshot.exists()
-      ? Object.entries(snapshot.val())
-          .map(([id, dados]) => ({ id, ...dados }))
-          .sort((a, b) => a.nome.localeCompare(b.nome))
-      : [];
-    callback(lista);
-  });
+  let ativo = true;
+  const atualizar = async () => {
+    if (!ativo) return;
+    try {
+      callback(await listarFuncionarios());
+    } catch (erro) {
+      console.error("Falha ao carregar funcionários:", erro);
+    }
+  };
+  await atualizar();
+  const timer = setInterval(atualizar, 3000);
+  return () => {
+    ativo = false;
+    clearInterval(timer);
+  };
 }
 
 /**
@@ -189,12 +174,8 @@ export async function atualizarCargoFuncionario({
   const adminOk = await validarAdministrador(adminUsuario, adminSenha);
   if (!adminOk) throw new Error("Credenciais de administrador inválidas.");
 
-  const db = await obterDatabase();
-  const referencia = ref(db, `${caminhoFuncionarios()}/${funcionarioId}`);
-  const snapshot = await get(referencia);
-  if (!snapshot.exists()) throw new Error("Funcionário não encontrado.");
-
-  const dados = snapshot.val();
+  const dados = (await listarFuncionarios()).find((f) => f.id === funcionarioId);
+  if (!dados) throw new Error("Funcionário não encontrado.");
   if (dados.cargo === cargo) return;
 
   if (dados.cargo === CARGOS.ADMIN && cargo === CARGOS.OPERADOR) {
@@ -206,7 +187,10 @@ export async function atualizarCargoFuncionario({
     }
   }
 
-  await update(referencia, { cargo, atualizadoEm: Date.now() });
+  await apiRequest(`/api/funcionarios/${funcionarioId}`, {
+    method: "PATCH",
+    body: { cargo },
+  });
 }
 
 /**
@@ -225,24 +209,16 @@ export async function alterarSenhaFuncionario({
   adminSenha,
 }) {
   if (!funcionarioId) throw new Error("Funcionário inválido.");
-  if ((novaSenha || "").length < 4) {
-    throw new Error("A nova senha deve ter ao menos 4 caracteres.");
+  if ((novaSenha || "").length < 8) {
+    throw new Error("A nova senha deve ter ao menos 8 caracteres.");
   }
 
   const adminOk = await validarAdministrador(adminUsuario, adminSenha);
   if (!adminOk) throw new Error("Credenciais de administrador inválidas.");
 
-  const salt = gerarSalt();
-  const senhaHash = await gerarHashSenha(novaSenha, salt);
-  const db = await obterDatabase();
-  const referencia = ref(db, `${caminhoFuncionarios()}/${funcionarioId}`);
-  const snapshot = await get(referencia);
-  if (!snapshot.exists()) throw new Error("Funcionário não encontrado.");
-
-  await update(referencia, {
-    salt,
-    senhaHash,
-    atualizadoEm: Date.now(),
+  await apiRequest(`/api/funcionarios/${funcionarioId}`, {
+    method: "PATCH",
+    body: { novaSenha },
   });
 }
 
@@ -296,12 +272,10 @@ export async function atualizarDadosRemuneracao(funcionarioId, dados) {
     patch.salarioBruto = null;
   }
 
-  const db = await obterDatabase();
-  const referencia = ref(db, `${caminhoFuncionarios()}/${funcionarioId}`);
-  const snapshot = await get(referencia);
-  if (!snapshot.exists()) throw new Error("Funcionário não encontrado.");
-
-  await update(referencia, patch);
+  await apiRequest(`/api/funcionarios/${funcionarioId}`, {
+    method: "PATCH",
+    body: patch,
+  });
 }
 
 /**
@@ -316,14 +290,9 @@ export async function atualizarAreasFuncionario(funcionarioId, areas) {
     throw new Error("Selecione ao menos uma área de atuação.");
   }
 
-  const db = await obterDatabase();
-  const referencia = ref(db, `${caminhoFuncionarios()}/${funcionarioId}`);
-  const snapshot = await get(referencia);
-  if (!snapshot.exists()) throw new Error("Funcionário não encontrado.");
-
-  await update(referencia, {
-    areas: areasNorm,
-    atualizadoEm: Date.now(),
+  await apiRequest(`/api/funcionarios/${funcionarioId}`, {
+    method: "PATCH",
+    body: { areas: areasNorm },
   });
 }
 

@@ -1,0 +1,16 @@
+**/__pycache__
+**/*.pyc
+**/.venv
+**/node_modules
+**/.git
+**/.env
+**/.env.*
+!**/.env.example
+renderer
+electron
+marketing
+vendor
+dist
+build
+*.md
+.github

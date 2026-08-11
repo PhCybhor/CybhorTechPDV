@@ -1,5 +1,5 @@
-import { ref, get, set, push, onValue, remove } from "firebase/database";
-import { obterDatabase } from "../config/firebaseClient.js";
+import { ref, get, set, push, onValue, remove } from "../config/databaseClient.js";
+import { obterDatabase } from "../config/databaseClient.js";
 import { caminhoLoja } from "./tenantContext.js";
 
 /**

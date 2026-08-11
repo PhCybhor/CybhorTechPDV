@@ -43,6 +43,56 @@
 
     <div class="resumo" id="resumo-cards"></div>
 
+    <section class="bloco-provisionar" id="bloco-contas">
+      <div class="bloco-cabecalho">
+        <div>
+          <p class="eyebrow">Provisionamento</p>
+          <h2>Criar conta e chave</h2>
+          <p class="subtitulo-bloco">Gera uma loja ativa com codigo de conexao, sem passar pelo pagamento do site.</p>
+        </div>
+      </div>
+
+      <div id="conta-criada" class="conta-criada oculto">
+        <p class="selo selo-ok">Conta criada</p>
+        <p><strong>Loja:</strong> <span id="criada-nome">—</span></p>
+        <p><strong>Usuario:</strong> <span id="criada-usuario">—</span></p>
+        <div class="chave-destaque">
+          <span class="chave-rotulo">Chave / codigo da loja</span>
+          <strong id="criada-codigo">--------</strong>
+          <button type="button" class="btn-suave" id="btn-copiar-criada">Copiar chave</button>
+        </div>
+        <p class="dica">Passe esta chave no CybhorPDV em “Ja tenho codigo”.</p>
+      </div>
+
+      <form id="form-criar-conta" class="form-criar-conta">
+        <label>Nome da loja
+          <input type="text" id="nova-nome-loja" required minlength="2" placeholder="Ex: Mercado Central" />
+        </label>
+        <label>E-mail
+          <input type="email" id="nova-email" required placeholder="loja@email.com" />
+        </label>
+        <label>Nome do admin
+          <input type="text" id="nova-nome" required minlength="2" placeholder="Maria" />
+        </label>
+        <label>Sobrenome
+          <input type="text" id="nova-sobrenome" required minlength="2" placeholder="Silva" />
+        </label>
+        <label>Usuario de login
+          <input type="text" id="nova-usuario" required minlength="3" pattern="[a-zA-Z0-9._-]+" placeholder="maria" autocomplete="off" />
+        </label>
+        <label>Senha
+          <input type="password" id="nova-senha" required minlength="4" placeholder="Minimo 4 caracteres" autocomplete="new-password" />
+        </label>
+        <label>Telefone <span class="opcional">(opcional)</span>
+          <input type="tel" id="nova-telefone" placeholder="(11) 99999-0000" />
+        </label>
+        <div class="form-acoes">
+          <button type="submit" class="btn-destaque" id="btn-criar-conta">Criar conta e gerar chave</button>
+          <p id="criar-erro" class="erro oculto"></p>
+        </div>
+      </form>
+    </section>
+
     <div class="tabela-wrap">
       <table>
         <thead>

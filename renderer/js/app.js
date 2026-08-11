@@ -4,6 +4,7 @@ import {
   criarFuncionario,
   validarAdministrador,
   observarFuncionarios,
+  encerrarSessao,
   CARGOS,
 } from "./services/authService.js";
 import {
@@ -22,6 +23,7 @@ import { registrarVenda, observarVendas } from "./services/vendaService.js";
 import { imprimirCupomVenda } from "./services/impressaoService.js";
 import { obterConfigApp } from "./services/configService.js";
 import { definirTenant, obterMetaLoja } from "./services/tenantContext.js";
+import { EVENTO_SESSAO_EXPIRADA } from "./config/apiClient.js";
 import { atualizarIndice, buscar } from "./services/buscaFuzzy.js";
 import { observarDespesas } from "./services/despesaService.js";
 import { gerarResumo } from "./services/relatorioService.js";
@@ -274,6 +276,7 @@ async function iniciar() {
     definirTenant(licenca.lojaId, {
       email: licenca.email,
       nomeLoja: licenca.nomeLoja,
+      chave: licenca.chave,
     });
     const nomeLojaEl = $("login-loja-nome");
     if (nomeLojaEl) {
@@ -296,7 +299,7 @@ async function iniciar() {
     }
   } catch {
     notificar(
-      "Falha ao conectar ao banco de dados. Verifique a internet e o arquivo .env.",
+      "Falha ao conectar à FastAPI. Verifique se o backend PostgreSQL está rodando.",
       "erro",
       6000
     );
@@ -318,6 +321,7 @@ async function tratarAtivacao(evento) {
     definirTenant(resposta.lojaId, {
       email: resposta.email,
       nomeLoja: resposta.nomeLoja,
+      chave: resposta.chave,
     });
     notificar("Licença ativada. Esta loja está isolada das demais.", "sucesso");
     $("form-ativacao").reset();
@@ -372,6 +376,7 @@ async function tratarLogin(evento) {
 }
 
 function sair() {
+  encerrarSessao();
   estado.funcionario = null;
   estado.carrinho?.destruir();
   estado.carrinho = null;
@@ -2346,5 +2351,12 @@ function registrarEventosGerais() {
     }
   });
 }
+
+window.addEventListener(EVENTO_SESSAO_EXPIRADA, () => {
+  if (estado.funcionario) {
+    sair();
+    notificar("Sessão expirada. Faça login novamente.", "alerta", 5000);
+  }
+});
 
 iniciar();

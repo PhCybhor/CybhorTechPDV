@@ -1,5 +1,5 @@
-import { ref, get, set, push, update } from "firebase/database";
-import { obterDatabase } from "../config/firebaseClient.js";
+import { ref, get, set, push, update } from "../config/databaseClient.js";
+import { obterDatabase } from "../config/databaseClient.js";
 
 /**
  * Multi-loja: cada loja tem seus dados isolados em `lojas/{lojaId}` e um

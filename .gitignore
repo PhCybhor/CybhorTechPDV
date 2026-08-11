@@ -1,7 +1,6 @@
 ﻿node_modules/
 dist/
 renderer/dist/
-build/firebase.config.json
 .env
 .env.*
 !.env.example
@@ -11,11 +10,6 @@ Thumbs.db
 .vscode-test
 .npm
 .cache
-server/node_modules/
-server/data/
-server/.env
-server/serviceAccount.json
-
 # Drivers JP-800 ficam locais (symlinks para Downloads); so o README vai no Git
 vendor/jp800/Driver_Utilitarios_JP-800
 vendor/jp800/Driver_Utilitarios_JP-800.zip

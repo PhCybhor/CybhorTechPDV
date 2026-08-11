@@ -1,0 +1,1 @@
+"""API CybhorPDV — FastAPI + PostgreSQL."""

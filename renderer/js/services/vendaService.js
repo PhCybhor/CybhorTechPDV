@@ -1,5 +1,5 @@
-import { ref, push, update, get, onValue } from "firebase/database";
-import { obterDatabase } from "../config/firebaseClient.js";
+import { ref, push, update, get, onValue } from "../config/databaseClient.js";
+import { obterDatabase } from "../config/databaseClient.js";
 import { validarAdministrador } from "./authService.js";
 import { caminhoLoja } from "./tenantContext.js";
 
@@ -34,7 +34,7 @@ export async function listarVendas() {
 /**
  * Observa a lista de vendas em tempo real.
  * @param {(vendas: Array<object>) => void} callback
- * @returns {Promise<import("firebase/database").Unsubscribe>}
+ * @returns {Promise<() => void>}
  */
 export async function observarVendas(callback) {
   const db = await obterDatabase();

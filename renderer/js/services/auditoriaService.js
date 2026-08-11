@@ -1,5 +1,5 @@
-import { ref, push, onValue, query, orderByChild, limitToLast, get } from "firebase/database";
-import { obterDatabase } from "../config/firebaseClient.js";
+import { ref, push, onValue, query, orderByChild, limitToLast, get } from "../config/databaseClient.js";
+import { obterDatabase } from "../config/databaseClient.js";
 import { caminhoLoja } from "./tenantContext.js";
 
 /**

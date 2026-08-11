@@ -3,6 +3,8 @@
 const API_BASE = window.location.origin;
 const params = new URLSearchParams(window.location.search);
 const token = params.get("token");
+const paymentId =
+  params.get("payment_id") || params.get("collection_id") || params.get("paymentId") || "";
 
 const estadoPendente = document.getElementById("estado-pendente");
 const estadoAtivo = document.getElementById("estado-ativo");
@@ -31,7 +33,9 @@ async function consultarAtivacao() {
   }
 
   try {
-    const resposta = await fetch(`${API_BASE}/api/site/ativacao?token=${encodeURIComponent(token)}`);
+    const qs = new URLSearchParams({ token });
+    if (paymentId && paymentId !== "null") qs.set("payment_id", paymentId);
+    const resposta = await fetch(`${API_BASE}/api/site/ativacao?${qs.toString()}`);
     const dados = await resposta.json();
     if (!resposta.ok) throw new Error(dados.erro || "Falha ao consultar ativacao.");
 

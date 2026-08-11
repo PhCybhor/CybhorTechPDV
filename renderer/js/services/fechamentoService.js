@@ -1,6 +1,6 @@
 import { caminhoLoja } from "./tenantContext.js";
-import { obterDatabase } from "../config/firebaseClient.js";
-import { ref, push, get, query, orderByChild, startAt, endAt } from "firebase/database";
+import { obterDatabase } from "../config/databaseClient.js";
+import { ref, push, get, query, orderByChild, startAt, endAt } from "../config/databaseClient.js";
 
 /**
  * Agrega vendas do dia para fechamento de caixa.

@@ -1,5 +1,5 @@
-import { ref, get, push, update, remove, onValue } from "firebase/database";
-import { obterDatabase } from "../config/firebaseClient.js";
+import { ref, get, push, update, remove, onValue } from "../config/databaseClient.js";
+import { obterDatabase } from "../config/databaseClient.js";
 import { caminhoLoja } from "./tenantContext.js";
 
 function caminhoSangrias() {
@@ -88,7 +88,7 @@ export async function listarSangrias() {
 
 /**
  * @param {(lista: Array<object>) => void} callback
- * @returns {Promise<import("firebase/database").Unsubscribe>}
+ * @returns {Promise<() => void>}
  */
 export async function observarSangrias(callback) {
   const db = await obterDatabase();
