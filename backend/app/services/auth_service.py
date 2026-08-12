@@ -39,32 +39,82 @@ def _normalizar_chave(valor: str) -> str:
 
 
 def login_loja(
-    *, codigo_loja: str, loja_id: str, usuario: str, senha: str
+    *,
+    codigo_loja: str,
+    loja_id: str,
+    usuario: str,
+    senha: str,
+    email: str = "",
 ) -> Dict[str, Any]:
     codigo = (codigo_loja or "").strip().upper()
     loja_id_limpo = (loja_id or "").strip()
     usuario_limpo = (usuario or "").strip().lower()
+    email_limpo = (email or "").strip().lower()
 
-    rows = db.consultar(
-        """
-        SELECT f.id, f.nome, f.usuario, f.cargo, f.salt, f.senha_hash,
-               f.loja_id, l.ativa,
-               l.nome AS loja_nome
-        FROM funcionarios f
-        JOIN lojas l ON l.id = f.loja_id
-        WHERE (l.codigo = %s OR l.id::text = %s) AND f.usuario = %s
-        """,
-        (codigo, loja_id_limpo, usuario_limpo),
-    )
+    if not usuario_limpo:
+        raise ErroNegocio("Informe o usuario.", 400)
+
+    # Desktop: codigo/lojaId. Site/portal: usuario+senha (e-mail desambigua se
+    # o mesmo usuario existir em mais de uma loja).
+    if codigo or loja_id_limpo:
+        rows = db.consultar(
+            """
+            SELECT f.id, f.nome, f.usuario, f.cargo, f.salt, f.senha_hash,
+                   f.loja_id, l.ativa, l.codigo AS loja_codigo,
+                   l.nome AS loja_nome
+            FROM funcionarios f
+            JOIN lojas l ON l.id = f.loja_id
+            WHERE (l.codigo = %s OR l.id::text = %s) AND f.usuario = %s
+            """,
+            (codigo, loja_id_limpo, usuario_limpo),
+        )
+    elif email_limpo:
+        rows = db.consultar(
+            """
+            SELECT f.id, f.nome, f.usuario, f.cargo, f.salt, f.senha_hash,
+                   f.loja_id, l.ativa, l.codigo AS loja_codigo,
+                   l.nome AS loja_nome
+            FROM funcionarios f
+            JOIN lojas l ON l.id = f.loja_id
+            WHERE lower(l.email) = %s AND f.usuario = %s
+            """,
+            (email_limpo, usuario_limpo),
+        )
+    else:
+        rows = db.consultar(
+            """
+            SELECT f.id, f.nome, f.usuario, f.cargo, f.salt, f.senha_hash,
+                   f.loja_id, l.ativa, l.codigo AS loja_codigo,
+                   l.nome AS loja_nome
+            FROM funcionarios f
+            JOIN lojas l ON l.id = f.loja_id
+            WHERE f.usuario = %s
+            """,
+            (usuario_limpo,),
+        )
+
     if not rows:
         raise ErroNegocio("Usuario ou senha invalidos.", 401)
 
-    conta = rows[0]
-    if not conta["ativa"]:
-        raise ErroNegocio("Loja desativada. Fale com o suporte.", 403)
-
-    if not verificar_senha(senha or "", conta["salt"], conta["senha_hash"]):
+    candidatas = [
+        r for r in rows if verificar_senha(senha or "", r["salt"], r["senha_hash"])
+    ]
+    if not candidatas:
         raise ErroNegocio("Usuario ou senha invalidos.", 401)
+    if len(candidatas) > 1:
+        raise ErroNegocio(
+            "Ha mais de uma loja com este usuario. Informe tambem o e-mail "
+            "cadastrado no pagamento.",
+            400,
+        )
+
+    conta = candidatas[0]
+    if not conta["ativa"]:
+        raise ErroNegocio(
+            "Loja ainda nao ativada ou desativada. Confirme o pagamento ou "
+            "fale com o suporte.",
+            403,
+        )
 
     _exigir_assinatura_valida(str(conta["loja_id"]))
 
@@ -85,7 +135,11 @@ def login_loja(
             "usuario": conta["usuario"],
             "cargo": conta["cargo"],
         },
-        "loja": {"id": str(conta["loja_id"]), "nome": conta["loja_nome"]},
+        "loja": {
+            "id": str(conta["loja_id"]),
+            "nome": conta["loja_nome"],
+            "codigo": conta["loja_codigo"],
+        },
     }
 
 

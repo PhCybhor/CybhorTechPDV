@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CybhorPDV — Entrar na minha loja</title>
+  <meta name="description" content="Acesse sua conta CybhorPDV para ver o codigo da loja e as vendas." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="landing.css" />
+</head>
+<body>
+  <header class="topo">
+    <div class="container topo-conteudo">
+      <a href="/" class="marca-link"><span class="marca">Cybhor<strong>PDV</strong></span></a>
+      <nav class="menu">
+        <a href="/#planos">Planos</a>
+        <a href="cadastro.html" class="btn-suave">Assinar</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="secao secao-portal">
+    <div class="container portal-estreito">
+      <section class="cartao-cadastro">
+        <p class="eyebrow">Area do cliente</p>
+        <h2>Entrar na minha loja</h2>
+        <p class="cadastro-sub">
+          Use o <strong>usuario</strong> e a <strong>senha</strong> que voce criou no cadastro
+          (antes do pagamento). Aqui voce consulta o codigo da loja e as vendas a qualquer momento.
+        </p>
+
+        <form id="form-login" class="form-comprar">
+          <label>Usuario
+            <input type="text" name="usuario" required minlength="3" autocomplete="username" placeholder="Ex: maria" autofocus />
+          </label>
+          <label>Senha
+            <input type="password" name="senha" required minlength="4" autocomplete="current-password" placeholder="Sua senha" />
+          </label>
+          <label>E-mail da loja <span class="opcional">(so se o usuario existir em mais de uma loja)</span>
+            <input type="email" name="email" autocomplete="email" placeholder="voce@email.com" />
+          </label>
+
+          <button type="submit" class="btn-destaque btn-largo" id="btn-login">Entrar</button>
+          <p id="login-erro" class="form-erro oculto"></p>
+          <p class="plano-nota">
+            Ainda nao tem conta?
+            <a href="cadastro.html">Assine o CybhorPDV</a>
+          </p>
+        </form>
+      </section>
+    </div>
+  </main>
+
+  <footer class="rodape">
+    <div class="container">
+      <span class="marca">Cybhor<strong>PDV</strong></span>
+      <p>© 2026 CybhorPDV. Todos os direitos reservados.</p>
+    </div>
+  </footer>
+  <script src="login.js"></script>
+</body>
+</html>

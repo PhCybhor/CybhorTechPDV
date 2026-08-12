@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CybhorPDV — Minha loja</title>
+  <meta name="description" content="Consulte o codigo da sua loja e o historico de vendas." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="landing.css" />
+</head>
+<body>
+  <header class="topo">
+    <div class="container topo-conteudo">
+      <a href="/" class="marca-link"><span class="marca">Cybhor<strong>PDV</strong></span></a>
+      <nav class="menu">
+        <span id="nome-usuario" class="menu-usuario"></span>
+        <button type="button" class="btn-suave" id="btn-sair">Sair</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="secao secao-portal">
+    <div class="container">
+      <div id="painel-carregando" class="cartao-sucesso">
+        <div class="spinner"></div>
+        <p class="sucesso-sub">Carregando sua loja...</p>
+      </div>
+
+      <div id="painel-conteudo" class="oculto">
+        <p class="eyebrow">Minha loja</p>
+        <h1 id="titulo-loja" class="painel-titulo">—</h1>
+
+        <div class="painel-grade">
+          <section class="cartao-cadastro">
+            <h2 class="painel-h2">Codigo da loja</h2>
+            <p class="cadastro-sub">
+              Use este codigo no CybhorPDV (desktop) em <strong>Ja tenho codigo</strong>
+              para conectar o caixa. Voce pode consultar aqui sempre que precisar.
+            </p>
+            <div class="codigo-bloco">
+              <span class="codigo-rotulo">Chave / codigo</span>
+              <strong id="codigo-loja" class="codigo-valor">--------</strong>
+              <button type="button" class="btn-suave btn-copiar" id="btn-copiar-codigo">Copiar codigo</button>
+            </div>
+            <div class="dados-acesso">
+              <p><strong>Usuario:</strong> <span id="usuario-login">—</span></p>
+            </div>
+          </section>
+
+          <section class="cartao-cadastro">
+            <div class="painel-vendas-topo">
+              <h2 class="painel-h2">Vendas da loja</h2>
+              <button type="button" class="btn-suave" id="btn-atualizar">Atualizar</button>
+            </div>
+            <div id="resumo-vendas" class="resumo-vendas"></div>
+            <div id="lista-vendas" class="lista-vendas"></div>
+            <p id="vendas-vazio" class="cadastro-sub oculto">Ainda nao ha vendas registradas nesta loja.</p>
+            <p id="vendas-erro" class="form-erro oculto"></p>
+          </section>
+        </div>
+      </div>
+
+      <div id="painel-erro" class="cartao-sucesso oculto">
+        <h1>Sessao expirada</h1>
+        <p id="painel-erro-texto" class="sucesso-sub">Faca login novamente.</p>
+        <a href="login.html" class="btn-destaque">Entrar</a>
+      </div>
+    </div>
+  </main>
+
+  <footer class="rodape">
+    <div class="container">
+      <span class="marca">Cybhor<strong>PDV</strong></span>
+      <p>© 2026 CybhorPDV. Todos os direitos reservados.</p>
+    </div>
+  </footer>
+  <script src="painel.js"></script>
+</body>
+</html>

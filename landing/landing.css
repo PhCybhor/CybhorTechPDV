@@ -328,6 +328,78 @@ details p { margin-top: 0.7rem; color: var(--texto-suave); font-size: 0.9rem; }
 }
 .rodape p { color: var(--texto-suave); font-size: 0.8rem; }
 
+/* Portal (login / painel da loja) */
+.secao-portal { padding-top: 3rem; padding-bottom: 4rem; }
+.portal-estreito { max-width: 480px; margin: 0 auto; }
+.menu-usuario { color: var(--texto-suave); font-size: 0.9rem; }
+.painel-titulo { font-size: clamp(1.6rem, 3vw, 2.1rem); margin-bottom: 1.6rem; }
+.painel-h2 { font-size: 1.2rem; margin-bottom: 0.5rem; }
+.painel-grade {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: 1.4rem;
+  align-items: start;
+}
+.painel-vendas-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.8rem;
+}
+.resumo-vendas {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+.resumo-item {
+  flex: 1;
+  min-width: 120px;
+  background: rgba(56, 189, 248, 0.06);
+  border: 1px solid var(--borda);
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+}
+.resumo-item span {
+  display: block;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--texto-suave);
+}
+.resumo-item strong { font-family: "Sora", sans-serif; font-size: 1.1rem; }
+.lista-vendas { display: grid; gap: 0.7rem; max-height: 520px; overflow: auto; }
+.venda-item {
+  border: 1px solid var(--borda);
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+  background: rgba(10, 23, 40, 0.55);
+}
+.venda-topo {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.8rem;
+  font-size: 0.95rem;
+}
+.venda-topo span { color: var(--texto-suave); font-size: 0.82rem; }
+.venda-meta, .venda-itens {
+  color: var(--texto-suave);
+  font-size: 0.82rem;
+  margin-top: 0.35rem;
+}
+button.btn-suave {
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.9rem;
+}
+.form-comprar a { color: var(--acento); }
+
+@media (max-width: 860px) {
+  .painel-grade { grid-template-columns: 1fr; }
+}
+
 @media (max-width: 640px) {
   .menu a:not(.btn-suave) { display: none; }
   .hero { padding: 4rem 0 3.5rem; }

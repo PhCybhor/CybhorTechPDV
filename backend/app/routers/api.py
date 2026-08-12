@@ -175,6 +175,7 @@ def login(request: Request, body: Dict[str, Any]) -> Dict[str, Any]:
         loja_id=body.get("lojaId") or "",
         usuario=body.get("usuario") or "",
         senha=body.get("senha") or "",
+        email=body.get("email") or "",
     )
 
 
