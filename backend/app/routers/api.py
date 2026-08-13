@@ -38,15 +38,24 @@ def saude() -> Dict[str, bool]:
 # --- Site ---
 @api.get("/site/preco")
 def site_preco() -> Dict[str, Any]:
+    from app.planos import catalogo_planos, obter_plano
+
     settings = get_settings()
-    return {"ok": True, "preco": settings.assinatura_valor_mensal}
+    mensal = obter_plano("mensal", settings)
+    return {
+        "ok": True,
+        "preco": mensal["valor"],
+        "planos": catalogo_planos(settings),
+    }
 
 
 @api.post("/site/comprar", status_code=status.HTTP_201_CREATED)
 @limiter.limit("20/15minutes")
 def site_comprar(request: Request, body: Dict[str, Any]) -> Dict[str, str]:
     resultado = site_service.comprar_pelo_site(
-        loja=body.get("loja") or {}, admin=body.get("admin") or {}
+        loja=body.get("loja") or {},
+        admin=body.get("admin") or {},
+        plano=body.get("plano") or "mensal",
     )
     return {
         "tokenAtivacao": resultado["tokenAtivacao"],

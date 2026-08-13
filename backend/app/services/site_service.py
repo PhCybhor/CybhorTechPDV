@@ -6,6 +6,7 @@ from typing import Any, Dict
 from app import db
 from app.config import get_settings
 from app.errors import ErroNegocio
+from app.planos import obter_plano
 from app.services.loja_service import criar_loja_com_admin
 from app.services.pagamento_service import (
     criar_checkout_assinatura,
@@ -30,20 +31,23 @@ def _resolver_nome_pagador(registro: Dict[str, Any], nome_completo_admin: str):
     return unico, unico
 
 
-def comprar_pelo_site(*, loja: Dict[str, Any], admin: Dict[str, Any]) -> Dict[str, str]:
+def comprar_pelo_site(
+    *, loja: Dict[str, Any], admin: Dict[str, Any], plano: str = "mensal"
+) -> Dict[str, str]:
     settings = get_settings()
     if not settings.mp_access_token:
         raise ErroNegocio("Pagamentos indisponiveis no momento.", 503)
 
+    escolhido = obter_plano(plano, settings)
     criada = criar_loja_com_admin(loja=loja, admin=admin, aguardar_pagamento=True)
     token = gerar_token_ativacao()
     db.executar(
         """
         UPDATE assinaturas
-        SET token_ativacao = %s, valor_mensal = %s, atualizado_em = now()
+        SET token_ativacao = %s, plano = %s, valor_mensal = %s, atualizado_em = now()
         WHERE loja_id = %s
         """,
-        (token, settings.assinatura_valor_mensal, criada["lojaId"]),
+        (token, escolhido["id"], escolhido["valor"], criada["lojaId"]),
     )
     email = ((loja or {}).get("email") or (admin or {}).get("email") or "").strip()
     checkout = criar_checkout_assinatura(
@@ -70,7 +74,8 @@ def obter_dados_pagamento(token: str) -> Dict[str, Any]:
     rows = db.consultar(
         """
         SELECT l.id, l.nome, l.email, l.responsavel_nome, l.responsavel_sobrenome,
-               a.status AS assinatura_status, f.nome AS admin_nome_completo
+               a.status AS assinatura_status, a.plano, a.valor_mensal,
+               f.nome AS admin_nome_completo
         FROM assinaturas a
         JOIN lojas l ON l.id = a.loja_id
         JOIN funcionarios f ON f.loja_id = l.id AND f.cargo = 'admin'
@@ -91,6 +96,8 @@ def obter_dados_pagamento(token: str) -> Dict[str, Any]:
         registro, registro["admin_nome_completo"]
     )
     loja_id = str(registro["id"])
+    plano = obter_plano(registro.get("plano") or "mensal", settings)
+    valor = float(registro.get("valor_mensal") or plano["valor"])
     resposta: Dict[str, Any] = {
         "jaAtiva": False,
         "tokenAtivacao": token_limpo,
@@ -100,7 +107,10 @@ def obter_dados_pagamento(token: str) -> Dict[str, Any]:
         "primeiroNome": primeiro,
         "sobrenome": sobrenome,
         "publicKey": settings.mp_public_key,
-        "valorMensal": settings.assinatura_valor_mensal,
+        "valorMensal": valor,
+        "plano": plano["id"],
+        "planoNome": plano["nome"],
+        "planoRotulo": plano["rotuloPeriodo"],
         "modo": "transparente" if settings.mp_public_key else "checkout_pro",
     }
     if settings.mp_public_key:

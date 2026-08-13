@@ -29,6 +29,10 @@ class Settings(BaseSettings):
     mp_client_secret: str = Field(default="", alias="MP_CLIENT_SECRET")
     mp_public_key: str = Field(default="", alias="MP_PUBLIC_KEY")
     assinatura_valor_mensal: float = Field(default=99.9, alias="ASSINATURA_VALOR_MENSAL")
+    assinatura_valor_semestral: float = Field(
+        default=499.9, alias="ASSINATURA_VALOR_SEMESTRAL"
+    )
+    assinatura_valor_anual: float = Field(default=899.9, alias="ASSINATURA_VALOR_ANUAL")
     url_publica_api: str = Field(default="", alias="URL_PUBLICA_API")
     url_publica_site: str = Field(default="http://localhost:3333", alias="URL_PUBLICA_SITE")
     # Permite ativar o desktop com a chave DEV-LOCAL mesmo em produção

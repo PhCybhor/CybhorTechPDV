@@ -11,6 +11,7 @@ import httpx
 from app import db
 from app.config import get_settings
 from app.errors import ErroNegocio
+from app.planos import obter_plano
 from app.mercado_pago import (
     ROTULOS_METODOS,
     configuracao_brick_pagamento,
@@ -58,19 +59,26 @@ def _chamar_mercado_pago(
     return dados
 
 
+def _meses_plano_loja(loja_id: str) -> int:
+    rows = db.consultar("SELECT plano FROM assinaturas WHERE loja_id = %s", (loja_id,))
+    plano_id = rows[0]["plano"] if rows else "mensal"
+    return int(obter_plano(plano_id)["meses"])
+
+
 def ativar_assinatura_loja(loja_id: str) -> None:
+    meses = _meses_plano_loja(loja_id)
     db.executar(
         """
         UPDATE assinaturas
         SET status = 'ativa',
             valida_ate = (
               GREATEST(COALESCE(valida_ate, CURRENT_DATE), CURRENT_DATE)
-              + interval '1 month'
+              + (%s * interval '1 month')
             )::date,
             atualizado_em = now()
         WHERE loja_id = %s
         """,
-        (loja_id,),
+        (meses, loja_id),
     )
     db.executar(
         "UPDATE lojas SET ativa = TRUE, atualizado_em = now() WHERE id = %s",
@@ -197,19 +205,28 @@ def criar_checkout_assinatura(
     nome_loja = registro["nome"]
     site_base = (settings.url_publica_site or "").rstrip("/")
     api_base = (settings.url_publica_api or site_base).rstrip("/")
+    assinatura = db.consultar(
+        "SELECT plano, valor_mensal FROM assinaturas WHERE loja_id = %s",
+        (loja_id,),
+    )
+    plano = obter_plano((assinatura[0]["plano"] if assinatura else "mensal"), settings)
+    valor = float(
+        (assinatura[0]["valor_mensal"] if assinatura else None) or plano["valor"]
+    )
 
     preferencia_body: Dict[str, Any] = {
         "items": [
             {
-                "id": "cybhorpdv-mensal",
-                "title": f"CybhorPDV — assinatura mensal ({nome_loja})",
+                "id": f"cybhorpdv-{plano['id']}",
+                "title": f"CybhorPDV — assinatura {plano['nome'].lower()} ({nome_loja})",
                 "description": (
-                    "Acesso ao sistema PDV CybhorPDV por 1 mes. "
+                    f"Acesso ao sistema PDV CybhorPDV por {plano['meses']} "
+                    f"{'mes' if plano['meses'] == 1 else 'meses'}. "
                     "Codigo individual da loja liberado apos pagamento."
                 ),
                 "quantity": 1,
                 "currency_id": "BRL",
-                "unit_price": settings.assinatura_valor_mensal,
+                "unit_price": valor,
                 "category_id": "services",
             }
         ],
@@ -221,7 +238,7 @@ def criar_checkout_assinatura(
         },
         "metadata": {
             "loja_id": loja_id,
-            "produto": "assinatura-mensal",
+            "produto": f"assinatura-{plano['id']}",
         },
     }
     if api_base.startswith("https://"):
@@ -266,7 +283,7 @@ def criar_checkout_assinatura(
         SET mp_preference_id = %s, valor_mensal = %s, atualizado_em = now()
         WHERE loja_id = %s
         """,
-        (preferencia["id"], settings.assinatura_valor_mensal, loja_id),
+        (preferencia["id"], valor, loja_id),
     )
     return {
         "checkoutUrl": init_point,
@@ -290,7 +307,14 @@ def criar_pagamento_transparente(
         raise ErroNegocio("Loja nao encontrada.", 404)
 
     registro = loja[0]
-    valor = settings.assinatura_valor_mensal
+    assinatura = db.consultar(
+        "SELECT plano, valor_mensal FROM assinaturas WHERE loja_id = %s",
+        (loja_id,),
+    )
+    plano = obter_plano((assinatura[0]["plano"] if assinatura else "mensal"), settings)
+    valor = float(
+        (assinatura[0]["valor_mensal"] if assinatura else None) or plano["valor"]
+    )
     payer_in = (form_data or {}).get("payer") or {}
     first_name = (
         payer_in.get("first_name")

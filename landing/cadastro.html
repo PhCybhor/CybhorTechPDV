@@ -16,8 +16,8 @@
       <nav class="menu">
         <a href="/#recursos">Recursos</a>
         <a href="/#planos">Planos</a>
-        <a href="login.html">Entrar</a>
         <a href="/#faq">Duvidas</a>
+        <a href="/login.html" class="btn-cliente">Area do cliente</a>
       </nav>
     </div>
   </header>
@@ -26,8 +26,13 @@
     <div class="container grade-cadastro">
       <aside class="resumo-plano">
         <p class="eyebrow">Plano selecionado</p>
-        <h1>Plano Mensal</h1>
+        <h1 id="nome-plano">Plano Mensal</h1>
         <p class="plano-preco cadastro-preco"><span>R$</span>99,90<small>/mes</small></p>
+        <div class="seletor-planos" id="seletor-planos">
+          <a href="cadastro.html?plano=mensal" data-plano="mensal">Mensal</a>
+          <a href="cadastro.html?plano=semestral" data-plano="semestral">Semestral</a>
+          <a href="cadastro.html?plano=anual" data-plano="anual">Anual</a>
+        </div>
         <ul class="plano-lista">
           <li>Caixas ilimitados na mesma loja</li>
           <li>Produtos e vendas ilimitados</li>

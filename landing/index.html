@@ -12,13 +12,12 @@
 <body>
   <header class="topo">
     <div class="container topo-conteudo">
-      <span class="marca">Cybhor<strong>PDV</strong></span>
+      <a href="/" class="marca-link"><span class="marca">Cybhor<strong>PDV</strong></span></a>
       <nav class="menu">
-        <a href="#recursos">Recursos</a>
-        <a href="#planos">Planos</a>
-        <a href="#faq">Duvidas</a>
-        <a href="login.html">Area do cliente</a>
-        <a href="#contato" class="btn-suave">Falar com a gente</a>
+        <a href="/#recursos">Recursos</a>
+        <a href="/#planos">Planos</a>
+        <a href="/#faq">Duvidas</a>
+        <a href="/login.html" class="btn-cliente">Area do cliente</a>
       </nav>
     </div>
   </header>
@@ -36,7 +35,7 @@
         </p>
         <div class="hero-acoes">
           <a href="cadastro.html" class="btn-destaque">Quero assinar</a>
-          <a href="login.html" class="btn-suave">Ja sou cliente</a>
+          <a href="/login.html" class="btn-cliente">Area do cliente</a>
         </div>
         <p class="hero-nota">Pagamento seguro via Mercado Pago · Sem fidelidade</p>
       </div>
@@ -80,20 +79,47 @@
     <section id="planos" class="secao secao-planos">
       <div class="container">
         <p class="eyebrow">Planos</p>
-        <h2>Um preco simples, tudo incluso</h2>
-        <div class="cartao-plano">
-          <p class="plano-nome">Plano Mensal</p>
-          <p class="plano-preco"><span>R$</span>99,90<small>/mes por loja</small></p>
-          <ul class="plano-lista">
-            <li>Caixas ilimitados na mesma loja</li>
-            <li>Produtos e vendas ilimitados</li>
-            <li>Impressao de cupom inclusa</li>
-            <li>Relatorios em tempo real</li>
-            <li>Codigo individual liberado apos o pagamento</li>
-          </ul>
-          <a href="cadastro.html" class="btn-destaque btn-largo">Assinar agora</a>
-          <p class="plano-nota">Cadastro rapido · Pagamento seguro via Mercado Pago · Sem fidelidade</p>
+        <h2>Escolha o periodo que cabe no seu caixa</h2>
+        <div class="grade-planos">
+          <article class="cartao-plano">
+            <p class="plano-nome">Mensal</p>
+            <p class="plano-preco"><span>R$</span>99,90<small>/mes</small></p>
+            <ul class="plano-lista">
+              <li>Caixas ilimitados na mesma loja</li>
+              <li>Produtos e vendas ilimitados</li>
+              <li>Impressao de cupom inclusa</li>
+              <li>Relatorios em tempo real</li>
+              <li>Codigo individual apos o pagamento</li>
+            </ul>
+            <a href="cadastro.html?plano=mensal" class="btn-destaque btn-largo">Assinar mensal</a>
+          </article>
+          <article class="cartao-plano cartao-plano-destaque">
+            <p class="plano-selo">Mais escolhido</p>
+            <p class="plano-nome">Semestral</p>
+            <p class="plano-preco"><span>R$</span>499,90<small>/6 meses</small></p>
+            <ul class="plano-lista">
+              <li>Tudo do plano mensal</li>
+              <li>6 meses de acesso de uma vez</li>
+              <li>Economia em relacao ao mensal</li>
+              <li>Area do cliente com analise de vendas</li>
+              <li>Codigo individual apos o pagamento</li>
+            </ul>
+            <a href="cadastro.html?plano=semestral" class="btn-destaque btn-largo">Assinar semestral</a>
+          </article>
+          <article class="cartao-plano">
+            <p class="plano-nome">Anual</p>
+            <p class="plano-preco"><span>R$</span>899,90<small>/ano</small></p>
+            <ul class="plano-lista">
+              <li>Tudo do plano mensal</li>
+              <li>12 meses de acesso de uma vez</li>
+              <li>Melhor custo por mes</li>
+              <li>Area do cliente com analise de vendas</li>
+              <li>Codigo individual apos o pagamento</li>
+            </ul>
+            <a href="cadastro.html?plano=anual" class="btn-destaque btn-largo">Assinar anual</a>
+          </article>
         </div>
+        <p class="plano-nota">Cadastro rapido · Pagamento seguro via Mercado Pago · Sem fidelidade</p>
       </div>
     </section>
 
@@ -117,11 +143,11 @@
           </details>
           <details>
             <summary>Como recebo meu codigo?</summary>
-            <p>Assim que o Mercado Pago confirmar o pagamento, voce vera na tela o codigo individual da sua loja. Use esse codigo no CybhorPDV para conectar o caixa. Se precisar ver de novo, entre em <a href="login.html">Entrar</a> com o usuario e a senha criados no cadastro.</p>
+            <p>Assim que o Mercado Pago confirmar o pagamento, voce vera na tela o codigo individual da sua loja. Use esse codigo no CybhorPDV para conectar o caixa. Se precisar ver de novo, abra <a href="/login.html">Area do cliente</a> com o usuario e a senha criados no cadastro.</p>
           </details>
           <details>
             <summary>Como vejo minhas vendas pelo site?</summary>
-            <p>Acesse <a href="login.html">Entrar</a> com o mesmo usuario e senha do pagamento. No painel voce consulta o codigo da loja e o historico de vendas a qualquer momento.</p>
+            <p>Acesse <a href="/login.html">Area do cliente</a> com o mesmo usuario e senha do pagamento. No painel voce consulta o codigo da loja e o historico de vendas a qualquer momento.</p>
           </details>
           <details>
             <summary>Como funciona o pagamento?</summary>

@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CybhorPDV — Minha loja</title>
-  <meta name="description" content="Consulte o codigo da sua loja e o historico de vendas." />
+  <meta name="description" content="Consulte o codigo da sua loja, analise vendas e acompanhe o faturamento." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="landing.css" />
@@ -14,6 +14,9 @@
     <div class="container topo-conteudo">
       <a href="/" class="marca-link"><span class="marca">Cybhor<strong>PDV</strong></span></a>
       <nav class="menu">
+        <a href="/#recursos">Recursos</a>
+        <a href="/#planos">Planos</a>
+        <a href="/#faq">Duvidas</a>
         <span id="nome-usuario" class="menu-usuario"></span>
         <button type="button" class="btn-suave" id="btn-sair">Sair</button>
       </nav>
@@ -28,37 +31,82 @@
       </div>
 
       <div id="painel-conteudo" class="oculto">
-        <p class="eyebrow">Minha loja</p>
-        <h1 id="titulo-loja" class="painel-titulo">—</h1>
-
-        <div class="painel-grade">
-          <section class="cartao-cadastro">
-            <h2 class="painel-h2">Codigo da loja</h2>
-            <p class="cadastro-sub">
-              Use este codigo no CybhorPDV (desktop) em <strong>Ja tenho codigo</strong>
-              para conectar o caixa. Voce pode consultar aqui sempre que precisar.
-            </p>
-            <div class="codigo-bloco">
-              <span class="codigo-rotulo">Chave / codigo</span>
-              <strong id="codigo-loja" class="codigo-valor">--------</strong>
-              <button type="button" class="btn-suave btn-copiar" id="btn-copiar-codigo">Copiar codigo</button>
-            </div>
-            <div class="dados-acesso">
-              <p><strong>Usuario:</strong> <span id="usuario-login">—</span></p>
-            </div>
-          </section>
-
-          <section class="cartao-cadastro">
-            <div class="painel-vendas-topo">
-              <h2 class="painel-h2">Vendas da loja</h2>
-              <button type="button" class="btn-suave" id="btn-atualizar">Atualizar</button>
-            </div>
-            <div id="resumo-vendas" class="resumo-vendas"></div>
-            <div id="lista-vendas" class="lista-vendas"></div>
-            <p id="vendas-vazio" class="cadastro-sub oculto">Ainda nao ha vendas registradas nesta loja.</p>
-            <p id="vendas-erro" class="form-erro oculto"></p>
-          </section>
+        <div class="painel-cabecalho">
+          <div>
+            <p class="eyebrow">Minha loja</p>
+            <h1 id="titulo-loja" class="painel-titulo">—</h1>
+          </div>
+          <button type="button" class="btn-suave" id="btn-atualizar">Atualizar dados</button>
         </div>
+
+        <section class="cartao-cadastro painel-chave">
+          <div class="painel-chave-grid">
+            <div>
+              <h2 class="painel-h2">Codigo da loja</h2>
+              <p class="cadastro-sub">
+                Use no CybhorPDV em <strong>Ja tenho codigo</strong> para conectar o caixa.
+              </p>
+              <div class="codigo-bloco codigo-bloco-compacto">
+                <span class="codigo-rotulo">Chave / codigo</span>
+                <strong id="codigo-loja" class="codigo-valor">--------</strong>
+                <button type="button" class="btn-suave btn-copiar" id="btn-copiar-codigo">Copiar codigo</button>
+              </div>
+            </div>
+            <div class="dados-acesso dados-acesso-painel">
+              <p><strong>Usuario:</strong> <span id="usuario-login">—</span></p>
+              <p class="cadastro-sub">Mesmo login criado no cadastro/pagamento.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="cartao-cadastro secao-analise">
+          <div class="painel-vendas-topo">
+            <div>
+              <h2 class="painel-h2">Analise e dados das vendas</h2>
+              <p class="cadastro-sub analise-sub">
+                Visao geral do faturamento, formas de pagamento e produtos mais vendidos.
+              </p>
+            </div>
+            <div class="periodo-filtros" role="group" aria-label="Periodo da analise">
+              <button type="button" class="filtro-periodo ativo" data-periodo="hoje">Hoje</button>
+              <button type="button" class="filtro-periodo" data-periodo="7d">7 dias</button>
+              <button type="button" class="filtro-periodo" data-periodo="30d">30 dias</button>
+              <button type="button" class="filtro-periodo" data-periodo="tudo">Tudo</button>
+            </div>
+          </div>
+
+          <div id="kpis-analise" class="grade-kpis"></div>
+
+          <div class="analise-grade">
+            <div class="analise-bloco">
+              <h3 class="analise-titulo">Faturamento por dia</h3>
+              <div id="grafico-dias" class="grafico-barras"></div>
+            </div>
+            <div class="analise-bloco">
+              <h3 class="analise-titulo">Formas de pagamento</h3>
+              <div id="lista-pagamentos" class="lista-ranking"></div>
+            </div>
+            <div class="analise-bloco">
+              <h3 class="analise-titulo">Produtos mais vendidos</h3>
+              <div id="lista-produtos" class="lista-ranking"></div>
+            </div>
+            <div class="analise-bloco">
+              <h3 class="analise-titulo">Vendas por operador</h3>
+              <div id="lista-operadores" class="lista-ranking"></div>
+            </div>
+          </div>
+          <p id="analise-vazia" class="cadastro-sub oculto">Sem vendas neste periodo para analisar.</p>
+        </section>
+
+        <section class="cartao-cadastro">
+          <div class="painel-vendas-topo">
+            <h2 class="painel-h2">Historico de vendas</h2>
+          </div>
+          <div id="resumo-vendas" class="resumo-vendas"></div>
+          <div id="lista-vendas" class="lista-vendas"></div>
+          <p id="vendas-vazio" class="cadastro-sub oculto">Ainda nao ha vendas registradas nesta loja.</p>
+          <p id="vendas-erro" class="form-erro oculto"></p>
+        </section>
       </div>
 
       <div id="painel-erro" class="cartao-sucesso oculto">

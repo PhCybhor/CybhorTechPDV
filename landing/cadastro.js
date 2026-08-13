@@ -1,12 +1,20 @@
 "use strict";
 
-/** URL da API — mesma origem quando o site e servido pelo backend. */
 const API_BASE = window.location.origin;
+const PLANOS_PADRAO = {
+  mensal: { id: "mensal", nome: "Mensal", valor: 99.9, rotuloPeriodo: "/mes" },
+  semestral: { id: "semestral", nome: "Semestral", valor: 499.9, rotuloPeriodo: "/6 meses" },
+  anual: { id: "anual", nome: "Anual", valor: 899.9, rotuloPeriodo: "/ano" },
+};
 
 const form = document.getElementById("form-comprar");
 const btnComprar = document.getElementById("btn-comprar");
 const erroEl = document.getElementById("comprar-erro");
 const precoEl = document.querySelector(".cadastro-preco");
+const nomePlanoEl = document.getElementById("nome-plano");
+const params = new URLSearchParams(window.location.search);
+let planoAtual = String(params.get("plano") || "mensal").toLowerCase();
+if (!PLANOS_PADRAO[planoAtual]) planoAtual = "mensal";
 
 function formatarBRL(valor) {
   return Number(valor).toLocaleString("pt-BR", {
@@ -15,15 +23,37 @@ function formatarBRL(valor) {
   });
 }
 
+function aplicarPlano(plano) {
+  planoAtual = plano.id;
+  if (nomePlanoEl) nomePlanoEl.textContent = `Plano ${plano.nome}`;
+  if (precoEl) {
+    precoEl.innerHTML = `<span>R$</span>${formatarBRL(plano.valor)}<small>${plano.rotuloPeriodo}</small>`;
+  }
+  document.querySelectorAll("#seletor-planos a").forEach((link) => {
+    link.classList.toggle("ativo", link.dataset.plano === plano.id);
+  });
+}
+
 async function carregarPreco() {
+  aplicarPlano(PLANOS_PADRAO[planoAtual]);
   try {
     const res = await fetch(`${API_BASE}/api/site/preco`);
     const dados = await res.json();
-    if (dados.ok && precoEl) {
-      precoEl.innerHTML = `<span>R$</span>${formatarBRL(dados.preco)}<small>/mes</small>`;
+    if (!dados.ok) return;
+    const planos = Array.isArray(dados.planos) ? dados.planos : [];
+    for (const plano of planos) {
+      if (PLANOS_PADRAO[plano.id]) {
+        PLANOS_PADRAO[plano.id] = {
+          id: plano.id,
+          nome: plano.nome,
+          valor: plano.valor,
+          rotuloPeriodo: plano.rotuloPeriodo,
+        };
+      }
     }
+    aplicarPlano(PLANOS_PADRAO[planoAtual] || PLANOS_PADRAO.mensal);
   } catch {
-    /* mantem o preco estatico do HTML */
+    /* mantem o preco estatico */
   }
 }
 
@@ -40,6 +70,7 @@ form.addEventListener("submit", async (evento) => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        plano: planoAtual,
         loja: {
           nome: dados.get("nomeLoja"),
           telefone: dados.get("telefone") || "",

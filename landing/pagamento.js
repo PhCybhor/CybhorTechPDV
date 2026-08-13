@@ -183,8 +183,11 @@ async function iniciar() {
 
     dadosPagamento = dados;
     document.getElementById("nome-loja-resumo").textContent = dados.nomeLoja;
+    const titulo = document.getElementById("titulo-pagamento");
+    if (titulo && dados.planoNome) titulo.textContent = `Plano ${dados.planoNome}`;
+    const rotulo = dados.planoRotulo || "/mes";
     document.querySelector(".cadastro-preco").innerHTML =
-      `<span>R$</span>${Number(dados.valorMensal).toFixed(2).replace(".", ",")}<small>/mes</small>`;
+      `<span>R$</span>${Number(dados.valorMensal).toFixed(2).replace(".", ",")}<small>${rotulo}</small>`;
 
     if (!dados.publicKey) {
       if (!dados.checkoutUrl) {
