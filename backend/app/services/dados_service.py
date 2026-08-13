@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import copy
+import json
 from typing import Any, Dict, List, Sequence
 
 import psycopg2.extras
 
 from app import db
 from app.errors import ErroNegocio
+
+TAMANHO_MAX_DOCUMENTO = 256 * 1024
 
 
 def _normalizar_caminho(loja_id: str, caminho: str) -> List[str]:
@@ -76,6 +79,9 @@ def _carregar_recurso(cur, loja_id: str, recurso: str) -> Dict[str, Any]:
 
 
 def _salvar_recurso(cur, loja_id: str, recurso: str, dados: Dict[str, Any]) -> None:
+    serializado = json.dumps(dados, default=str)
+    if len(serializado.encode("utf-8")) > TAMANHO_MAX_DOCUMENTO:
+        raise ErroNegocio("Documento grande demais.", 413)
     cur.execute(
         """
         INSERT INTO documentos_loja (loja_id, recurso, dados)

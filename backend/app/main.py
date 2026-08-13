@@ -16,6 +16,7 @@ from slowapi.middleware import SlowAPIMiddleware
 from app.config import get_settings
 from app.db import close_pool, init_pool
 from app.errors import ErroNegocio
+from app.http_seguranca import CabecalhosSeguranca
 from app.routers.api import api, limiter
 
 logger = logging.getLogger("cybhorpdv")
@@ -49,45 +50,46 @@ def criar_app() -> FastAPI:
         lifespan=lifespan,
         docs_url=docs,
         redoc_url=None,
+        openapi_url=None if settings.em_producao else "/openapi.json",
     )
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
     app.add_middleware(SlowAPIMiddleware)
+    app.add_middleware(CabecalhosSeguranca)
 
     origens = list(settings.cors_lista)
+    metodos = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+    cabecalhos = ["Authorization", "Content-Type", "Accept"]
     if settings.em_producao:
         site = (settings.url_publica_site or "").rstrip("/")
         if site and site not in origens:
             origens.append(site)
-        # Electron carrega file:// e envia Origin: null.
-        if "null" not in origens:
-            origens.append("null")
+        # Sem cookies: Bearer only. Electron file:// envia Origin null.
         if origens:
             app.add_middleware(
                 CORSMiddleware,
                 allow_origins=origens,
-                allow_credentials=True,
-                allow_methods=["*"],
-                allow_headers=["*"],
+                allow_origin_regex=r"^null$",
+                allow_credentials=False,
+                allow_methods=metodos,
+                allow_headers=cabecalhos,
             )
     elif origens:
-        if "null" not in origens:
-            origens.append("null")
         app.add_middleware(
             CORSMiddleware,
             allow_origins=origens,
-            allow_credentials=True,
-            allow_methods=["*"],
-            allow_headers=["*"],
+            allow_origin_regex=r"^null$",
+            allow_credentials=False,
+            allow_methods=metodos,
+            allow_headers=cabecalhos,
         )
     else:
-        # Dev sem CORS_ORIGENS: libera tudo (Electron file:// incluso).
         app.add_middleware(
             CORSMiddleware,
             allow_origins=["*"],
             allow_credentials=False,
-            allow_methods=["*"],
-            allow_headers=["*"],
+            allow_methods=metodos,
+            allow_headers=cabecalhos,
         )
 
     @app.exception_handler(ErroNegocio)

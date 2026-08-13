@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import hashlib
+import hmac
 import json
 import logging
+import re
 import uuid
 from typing import Any, Dict, List, Optional
 from urllib.parse import quote
@@ -55,8 +58,49 @@ def _chamar_mercado_pago(
                 cause = dados.get("cause") or []
                 if cause:
                     msg = cause[0].get("description")
-        raise ErroNegocio(msg or "Falha ao comunicar com o Mercado Pago.", 502)
+        raise ErroNegocio("Falha ao comunicar com o Mercado Pago.", 502)
     return dados
+
+
+def _payment_id_seguro(valor: Any) -> str:
+    texto = str(valor or "").strip()
+    if not re.fullmatch(r"\d{6,24}", texto):
+        raise ErroNegocio("Notificacao de pagamento invalida.", 400)
+    return texto
+
+
+def _verificar_assinatura_webhook(
+    *,
+    payment_id: str,
+    assinatura: str,
+    request_id: str,
+) -> None:
+    settings = get_settings()
+    segredo = (settings.mp_webhook_secret or "").strip()
+    if not segredo:
+        if settings.em_producao:
+            logger.warning("Webhook MP sem MP_WEBHOOK_SECRET; validando so o id.")
+        return
+
+    partes: Dict[str, str] = {}
+    for pedaco in (assinatura or "").split(","):
+        if "=" not in pedaco:
+            continue
+        chave, valor = pedaco.strip().split("=", 1)
+        partes[chave.strip()] = valor.strip()
+    ts = partes.get("ts") or ""
+    hash_recebido = partes.get("v1") or ""
+    if not ts or not hash_recebido or not request_id:
+        raise ErroNegocio("Assinatura do webhook ausente.", 401)
+
+    manifesto = f"id:{payment_id};request-id:{request_id};ts:{ts};"
+    esperado = hmac.new(
+        segredo.encode("utf-8"),
+        manifesto.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+    if not hmac.compare_digest(esperado, hash_recebido):
+        raise ErroNegocio("Assinatura do webhook invalida.", 401)
 
 
 def _meses_plano_loja(loja_id: str) -> int:
@@ -360,17 +404,28 @@ def criar_pagamento_transparente(
     return pagamento
 
 
-def processar_webhook(notificacao: Dict[str, Any]) -> Dict[str, Any]:
+def processar_webhook(
+    notificacao: Dict[str, Any],
+    *,
+    assinatura: str = "",
+    request_id: str = "",
+) -> Dict[str, Any]:
     tipo = (notificacao.get("type") or notificacao.get("topic") or "").strip().lower()
     data = notificacao.get("data") if isinstance(notificacao.get("data"), dict) else {}
     payment_id = data.get("id") or notificacao.get("id") or notificacao.get("data.id")
     if tipo not in ("payment", "") or not payment_id:
-        # IPN clássico: topic=payment&id=...
         if (notificacao.get("topic") or "").lower() != "payment":
             return {"ignorado": True}
         payment_id = notificacao.get("id")
         if not payment_id:
             return {"ignorado": True}
+
+    payment_id = _payment_id_seguro(payment_id)
+    _verificar_assinatura_webhook(
+        payment_id=payment_id,
+        assinatura=assinatura,
+        request_id=request_id,
+    )
 
     pagamento = _chamar_mercado_pago(f"/v1/payments/{payment_id}")
     if not isinstance(pagamento, dict):

@@ -3,8 +3,7 @@
 const API_BASE = window.location.origin;
 const params = new URLSearchParams(window.location.search);
 const token = params.get("token");
-const paymentId =
-  params.get("payment_id") || params.get("collection_id") || params.get("paymentId") || "";
+let intervaloAtivacao = null;
 
 const estadoPendente = document.getElementById("estado-pendente");
 const estadoAtivo = document.getElementById("estado-ativo");
@@ -34,12 +33,15 @@ async function consultarAtivacao() {
 
   try {
     const qs = new URLSearchParams({ token });
-    if (paymentId && paymentId !== "null") qs.set("payment_id", paymentId);
     const resposta = await fetch(`${API_BASE}/api/site/ativacao?${qs.toString()}`);
     const dados = await resposta.json();
     if (!resposta.ok) throw new Error(dados.erro || "Falha ao consultar ativacao.");
 
     if (dados.status === "ativa") {
+      if (intervaloAtivacao) {
+        clearInterval(intervaloAtivacao);
+        intervaloAtivacao = null;
+      }
       mostrarAtivo(dados);
       return;
     }
@@ -59,7 +61,7 @@ document.getElementById("btn-copiar-codigo")?.addEventListener("click", () => {
 
 if (token) {
   consultarAtivacao();
-  setInterval(consultarAtivacao, 4000);
+  intervaloAtivacao = setInterval(consultarAtivacao, 4000);
 } else {
   mostrarErro("Token de ativacao nao encontrado.");
 }

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import os
+import re
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict
 
 from app import db
@@ -12,7 +14,6 @@ from app.services.pagamento_service import (
     criar_checkout_assinatura,
     criar_pagamento_transparente,
     obter_configuracao_pagamento_site,
-    processar_webhook,
     sincronizar_pagamento_loja,
 )
 
@@ -160,27 +161,17 @@ def processar_pagamento_site(token: str, form_data: Dict[str, Any]) -> Dict[str,
             "mensagem": "Pagamento em processamento. Siga as instrucoes abaixo.",
             "exibirStatus": True,
         }
-    raise ErroNegocio(
-        pagamento.get("status_detail") or "Pagamento nao aprovado. Tente outro metodo.",
-        402,
-    )
+    raise ErroNegocio("Pagamento nao aprovado. Tente outro metodo.", 402)
 
 
-def consultar_ativacao(token: str, payment_id: str = "") -> Dict[str, Any]:
+def consultar_ativacao(token: str) -> Dict[str, Any]:
     token_limpo = (token or "").strip()
-    if len(token_limpo) < 32:
+    if not re.fullmatch(r"[0-9a-f]{64}", token_limpo):
         raise ErroNegocio("Token invalido.", 400)
-
-    payment_limpo = str(payment_id or "").strip()
-    if payment_limpo and payment_limpo.lower() not in ("null", "undefined"):
-        try:
-            processar_webhook({"type": "payment", "data": {"id": payment_limpo}})
-        except Exception:
-            pass
 
     sql = """
         SELECT l.id, l.nome, l.codigo, l.ativa, a.status AS assinatura_status,
-               f.usuario AS admin_usuario
+               a.atualizado_em, f.usuario AS admin_usuario
         FROM assinaturas a
         JOIN lojas l ON l.id = a.loja_id
         JOIN funcionarios f ON f.loja_id = l.id AND f.cargo = 'admin'
@@ -199,6 +190,21 @@ def consultar_ativacao(token: str, payment_id: str = "") -> Dict[str, Any]:
         registro = rows[0]
 
     if registro["assinatura_status"] == "ativa" and registro["ativa"]:
+        atualizado = registro.get("atualizado_em")
+        limite = datetime.now(timezone.utc) - timedelta(hours=24)
+        if atualizado is not None:
+            if atualizado.tzinfo is None:
+                atualizado = atualizado.replace(tzinfo=timezone.utc)
+            if atualizado < limite:
+                return {
+                    "status": "ativa",
+                    "nomeLoja": registro["nome"],
+                    "codigo": "",
+                    "usuario": "",
+                    "mensagem": (
+                        "Pagamento confirmado. Consulte o codigo em Area do cliente."
+                    ),
+                }
         return {
             "status": "ativa",
             "nomeLoja": registro["nome"],

@@ -78,11 +78,8 @@ def site_pagar(request: Request, body: Dict[str, Any]) -> Dict[str, Any]:
 
 
 @api.get("/site/ativacao")
-def site_ativacao(
-    token: str = Query(...),
-    payment_id: str = Query(default=""),
-) -> Dict[str, Any]:
-    return site_service.consultar_ativacao(token, payment_id=payment_id)
+def site_ativacao(token: str = Query(...)) -> Dict[str, Any]:
+    return site_service.consultar_ativacao(token)
 
 
 def _recurso_do_caminho(caminho: str) -> str:
@@ -103,7 +100,6 @@ RECURSOS_OPERADOR_ESCRITA = frozenset(
         "suprimentos",
         "clientes",
         "fechamentos",
-        "auditoria",
     }
 )
 
@@ -130,8 +126,9 @@ def _exigir_lote_dados(auth: AuthLoja, atualizacoes: Dict[str, Any]) -> None:
 @limiter.limit("20/15minutes")
 def criar_loja(request: Request, body: Dict[str, Any]) -> Dict[str, str]:
     settings = get_settings()
-    # Em produção, loja só fica ativa após pagamento (fluxo /site/comprar).
-    aguardar = True if settings.em_producao else bool(body.get("aguardarPagamento"))
+    if settings.em_producao:
+        raise ErroNegocio("Cadastro de loja apenas pelo site ou pelo admin.", 403)
+    aguardar = bool(body.get("aguardarPagamento"))
     return loja_service.criar_loja_com_admin(
         loja=body.get("loja") or {},
         admin=body.get("admin") or {},
@@ -150,9 +147,9 @@ def conectar_loja(request: Request, body: Dict[str, Any]) -> Dict[str, str]:
 def ativar_desktop(request: Request, body: Dict[str, Any]) -> Dict[str, Any]:
     chave = (body.get("chave") or "").strip().upper()
     settings = get_settings()
-    if chave == "DEV-LOCAL" and (
-        not settings.em_producao or settings.permitir_dev_local
-    ):
+    if chave == "DEV-LOCAL":
+        if settings.em_producao:
+            raise ErroNegocio("Chave de desenvolvimento indisponivel.", 403)
         return loja_service.obter_ou_criar_loja_desenvolvimento()
     return loja_service.ativar_por_codigo(chave)
 
@@ -324,7 +321,6 @@ def assinatura(auth: AuthLoja = Depends(autenticar_loja)) -> Dict[str, Any]:
 @api.post("/pagamentos/webhook")
 @limiter.limit("60/minute")
 def webhook(request: Request, body: Optional[Dict[str, Any]] = None) -> Dict[str, bool]:
-    # Aceita JSON (topic notifications) e query IPN (?topic=payment&id=...).
     payload = dict(body or {})
     for chave in ("type", "topic", "id", "data.id"):
         if chave not in payload and chave in request.query_params:
@@ -333,7 +329,11 @@ def webhook(request: Request, body: Optional[Dict[str, Any]] = None) -> Dict[str
         payload["data"] = {"id": payload.get("id")}
     if "type" not in payload and payload.get("topic"):
         payload["type"] = payload.get("topic")
-    pagamento_service.processar_webhook(payload)
+    pagamento_service.processar_webhook(
+        payload,
+        assinatura=request.headers.get("x-signature") or "",
+        request_id=request.headers.get("x-request-id") or "",
+    )
     return {"ok": True}
 
 
@@ -341,6 +341,8 @@ def webhook(request: Request, body: Optional[Dict[str, Any]] = None) -> Dict[str
 @api.post("/admin/bootstrap", status_code=status.HTTP_201_CREATED)
 @limiter.limit("5/15minutes")
 def admin_bootstrap(request: Request, body: Dict[str, Any]) -> Dict[str, str]:
+    if get_settings().em_producao:
+        raise ErroNegocio("Bootstrap indisponivel em producao.", 403)
     return admin_service.bootstrap_admin_sistema(
         nome=body.get("nome") or "",
         email=body.get("email") or "",

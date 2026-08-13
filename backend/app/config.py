@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     mp_access_token: str = Field(default="", alias="MP_ACCESS_TOKEN")
     mp_client_secret: str = Field(default="", alias="MP_CLIENT_SECRET")
     mp_public_key: str = Field(default="", alias="MP_PUBLIC_KEY")
+    mp_webhook_secret: str = Field(default="", alias="MP_WEBHOOK_SECRET")
     assinatura_valor_mensal: float = Field(default=99.9, alias="ASSINATURA_VALOR_MENSAL")
     assinatura_valor_semestral: float = Field(
         default=499.9, alias="ASSINATURA_VALOR_SEMESTRAL"
@@ -46,7 +47,7 @@ class Settings(BaseSettings):
 
     @property
     def em_producao(self) -> bool:
-        return self.node_env == "production"
+        return (self.node_env or "").strip().lower() in ("production", "prod")
 
     def validar_obrigatorias(self) -> None:
         faltando = []

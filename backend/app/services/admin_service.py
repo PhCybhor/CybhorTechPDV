@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hmac
 from typing import Any, Dict, List, Optional
 
 from app import db
@@ -129,7 +130,10 @@ def bootstrap_admin_sistema(
     settings = get_settings()
     segredo = (settings.admin_bootstrap_secret or "").strip()
     existentes = db.consultar("SELECT 1 FROM administradores_sistema LIMIT 1")
-    autorizado = bool(segredo) and (secret or "") == segredo
+    recebido = secret or ""
+    autorizado = bool(segredo) and len(recebido) == len(segredo) and hmac.compare_digest(
+        recebido, segredo
+    )
     if existentes and not autorizado:
         raise ErroNegocio("Bootstrap indisponivel: ja existe administrador.", 409)
     return criar_ou_atualizar_admin_sistema(nome=nome, email=email, senha=senha)

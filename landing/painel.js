@@ -57,6 +57,15 @@ async function apiGet(caminho) {
   return dados;
 }
 
+function escapeHtml(texto) {
+  return String(texto ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function formatarBRL(valor) {
   return Number(valor || 0).toLocaleString("pt-BR", {
     style: "currency",
@@ -205,8 +214,8 @@ function renderizarRanking(el, linhas, formatarLinha) {
       return `
         <div class="ranking-item">
           <div class="ranking-topo">
-            <strong>${formatarLinha(linha)}</strong>
-            <span>${formatarBRL(linha.total)}</span>
+            <strong>${escapeHtml(formatarLinha(linha))}</strong>
+            <span>${escapeHtml(formatarBRL(linha.total))}</span>
           </div>
           <div class="ranking-barra"><i style="width:${pct}%"></i></div>
           <p class="ranking-meta">${linha.qtd} venda${linha.qtd === 1 ? "" : "s"}</p>
@@ -300,17 +309,21 @@ function renderizarHistorico(vendas) {
 
     const card = document.createElement("article");
     card.className = "venda-item";
+    const forma =
+      LABELS_PAGAMENTO[String(venda.formaPagamento || "").toLowerCase()] ||
+      venda.formaPagamento ||
+      "—";
     card.innerHTML = `
       <div class="venda-topo">
-        <strong>${formatarBRL(venda.total)}</strong>
-        <span>${formatarData(venda.criadoEm)}</span>
+        <strong>${escapeHtml(formatarBRL(venda.total))}</strong>
+        <span>${escapeHtml(formatarData(venda.criadoEm))}</span>
       </div>
       <p class="venda-meta">
-        ${LABELS_PAGAMENTO[String(venda.formaPagamento || "").toLowerCase()] || venda.formaPagamento || "—"}
-        · ${venda.funcionarioNome || "Operador"}
-        ${Number(venda.desconto) > 0 ? ` · Desc. ${formatarBRL(venda.desconto)}` : ""}
+        ${escapeHtml(forma)}
+        · ${escapeHtml(venda.funcionarioNome || "Operador")}
+        ${Number(venda.desconto) > 0 ? ` · Desc. ${escapeHtml(formatarBRL(venda.desconto))}` : ""}
       </p>
-      <p class="venda-itens">${resumoItens}${extra || (itens.length ? "" : "Sem itens")}</p>
+      <p class="venda-itens">${escapeHtml(resumoItens)}${escapeHtml(extra || (itens.length ? "" : "Sem itens"))}</p>
     `;
     elLista.appendChild(card);
   }

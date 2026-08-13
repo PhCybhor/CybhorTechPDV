@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Dict, Optional
 
 import jwt
 from fastapi import Depends, Header, HTTPException
 from pydantic import BaseModel
 
+from app import db
 from app.config import get_settings
 
 
@@ -67,15 +68,42 @@ def autenticar_loja(authorization: Optional[str] = Header(default=None)) -> Auth
         raise HTTPException(status_code=401, detail="Sessao invalida ou expirada.")
     loja_id = payload.get("lojaId")
     funcionario_id = payload.get("funcionarioId")
-    cargo = payload.get("cargo")
-    nome = payload.get("nome")
-    if not loja_id or not funcionario_id or not cargo or nome is None:
+    if not loja_id or not funcionario_id:
         raise HTTPException(status_code=401, detail="Sessao invalida ou expirada.")
+
+    rows = db.consultar(
+        """
+        SELECT f.id, f.nome, f.cargo, l.id AS loja_id, l.ativa,
+               a.status AS assinatura_status, a.valida_ate
+        FROM funcionarios f
+        JOIN lojas l ON l.id = f.loja_id
+        LEFT JOIN assinaturas a ON a.loja_id = l.id
+        WHERE f.id = %s AND l.id = %s
+        """,
+        (str(funcionario_id), str(loja_id)),
+    )
+    if not rows:
+        raise HTTPException(status_code=401, detail="Sessao invalida ou expirada.")
+    conta = rows[0]
+    if not conta["ativa"]:
+        raise HTTPException(status_code=403, detail="Loja desativada.")
+    status = conta.get("assinatura_status")
+    if status and status != "ativa":
+        raise HTTPException(
+            status_code=403,
+            detail="Assinatura inativa. Regularize o pagamento para continuar.",
+        )
+    valida_ate = conta.get("valida_ate")
+    if valida_ate is not None and valida_ate < date.today():
+        raise HTTPException(
+            status_code=403,
+            detail="Assinatura expirada. Renove o pagamento para continuar.",
+        )
     return AuthLoja(
-        loja_id=str(loja_id),
-        funcionario_id=str(funcionario_id),
-        cargo=str(cargo),
-        nome=str(nome),
+        loja_id=str(conta["loja_id"]),
+        funcionario_id=str(conta["id"]),
+        cargo=str(conta["cargo"]),
+        nome=str(conta["nome"] or ""),
     )
 
 
@@ -95,7 +123,12 @@ def autenticar_admin_sistema(
     if payload.get("tipo") != "admin-sistema":
         raise HTTPException(status_code=401, detail="Sessao invalida ou expirada.")
     admin_id = payload.get("adminId")
-    email = payload.get("email")
-    if not admin_id or not email:
+    if not admin_id:
         raise HTTPException(status_code=401, detail="Sessao invalida ou expirada.")
-    return AuthAdminSistema(id=str(admin_id), email=str(email))
+    rows = db.consultar(
+        "SELECT id, email FROM administradores_sistema WHERE id = %s",
+        (str(admin_id),),
+    )
+    if not rows:
+        raise HTTPException(status_code=401, detail="Sessao invalida ou expirada.")
+    return AuthAdminSistema(id=str(rows[0]["id"]), email=str(rows[0]["email"]))
