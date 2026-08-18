@@ -186,6 +186,40 @@ button.btn-destaque:disabled {
   box-shadow: 0 24px 70px rgba(14, 165, 233, 0.18);
   transform: translateY(-6px);
 }
+.cartao-trial {
+  max-width: 720px;
+  margin: 0 auto 1.5rem;
+  border-color: var(--acento);
+  box-shadow: 0 18px 50px rgba(14, 165, 233, 0.14);
+}
+.grade-downloads {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+.cartao-download {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  text-decoration: none;
+  color: inherit;
+  border: 1px solid var(--borda);
+  border-radius: 14px;
+  padding: 1rem 1.15rem;
+  background: rgba(13, 27, 48, 0.6);
+}
+.cartao-download:hover {
+  border-color: var(--acento);
+}
+.cartao-download small {
+  display: block;
+  color: var(--texto-suave);
+  font-size: 0.78rem;
+  margin-top: 0.2rem;
+}
+.secao-downloads { margin-top: 1.2rem; }
+.sucesso-downloads { text-align: left; margin-top: 1.6rem; }
 .plano-selo {
   display: inline-block;
   margin-bottom: 0.6rem;

@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS lojas (
   endereco TEXT NOT NULL DEFAULT '',
   telefone TEXT NOT NULL DEFAULT '',
   email TEXT NOT NULL DEFAULT '',
+  cpf TEXT NOT NULL DEFAULT '',
   responsavel_nome TEXT NOT NULL DEFAULT '',
   responsavel_sobrenome TEXT NOT NULL DEFAULT '',
   codigo VARCHAR(8) NOT NULL UNIQUE,
@@ -112,6 +113,14 @@ CREATE TABLE IF NOT EXISTS pagamentos (
   criado_em TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_pagamentos_loja ON pagamentos (loja_id);
+
+-- Um teste gratis de 30 dias por CPF (primeira compra).
+CREATE TABLE IF NOT EXISTS trials_cpf (
+  cpf VARCHAR(11) PRIMARY KEY,
+  loja_id UUID NOT NULL REFERENCES lojas(id) ON DELETE CASCADE,
+  criado_em TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_lojas_cpf ON lojas (cpf) WHERE cpf <> '';
 
 -- Dados flexiveis dos modulos avancados do desktop (clientes, despesas,
 -- fornecedores, caixa, auditoria etc.). Cada recurso fica isolado por loja

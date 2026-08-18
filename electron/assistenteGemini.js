@@ -1,5 +1,7 @@
 "use strict";
 
+const { requisitarJson } = require("./httpJson");
+
 /**
  * Cliente Gemini (Google AI Studio) no processo principal — a chave nunca vai ao renderer.
  */
@@ -119,7 +121,7 @@ async function consultarAssistente(payload = {}) {
   )}:generateContent?key=${encodeURIComponent(apiKey)}`;
 
   try {
-    const resposta = await fetch(url, {
+    const resposta = await requisitarJson(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -131,7 +133,7 @@ async function consultarAssistente(payload = {}) {
       }),
     });
 
-    const corpo = await resposta.json().catch(() => ({}));
+    const corpo = resposta.dados || {};
     if (!resposta.ok) {
       const detalhe =
         corpo?.error?.message ||

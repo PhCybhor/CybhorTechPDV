@@ -8,6 +8,7 @@ from typing import Any, Dict
 from app import db
 from app.config import get_settings
 from app.errors import ErroNegocio
+from app.cpf import validar_cpf
 from app.planos import obter_plano
 from app.services.loja_service import criar_loja_com_admin
 from app.services.pagamento_service import (
@@ -34,13 +35,23 @@ def _resolver_nome_pagador(registro: Dict[str, Any], nome_completo_admin: str):
 
 def comprar_pelo_site(
     *, loja: Dict[str, Any], admin: Dict[str, Any], plano: str = "mensal"
-) -> Dict[str, str]:
+) -> Dict[str, Any]:
     settings = get_settings()
+    escolhido = obter_plano(plano, settings)
+    cpf = validar_cpf((loja or {}).get("cpf") or (admin or {}).get("cpf") or "")
+
+    if escolhido.get("gratis"):
+        return _iniciar_teste_gratis(loja=loja or {}, admin=admin or {}, cpf=cpf)
+
     if not settings.mp_access_token:
         raise ErroNegocio("Pagamentos indisponiveis no momento.", 503)
 
-    escolhido = obter_plano(plano, settings)
-    criada = criar_loja_com_admin(loja=loja, admin=admin, aguardar_pagamento=True)
+    criada = criar_loja_com_admin(
+        loja={**(loja or {}), "cpf": cpf},
+        admin=admin,
+        aguardar_pagamento=True,
+        cpf=cpf,
+    )
     token = gerar_token_ativacao()
     db.executar(
         """
@@ -60,6 +71,48 @@ def comprar_pelo_site(
         "tokenAtivacao": token,
         "checkoutUrl": checkout["checkoutUrl"],
         "publicKey": settings.mp_public_key,
+        "trial": False,
+    }
+
+
+def _iniciar_teste_gratis(
+    *, loja: Dict[str, Any], admin: Dict[str, Any], cpf: str
+) -> Dict[str, Any]:
+    ja_usou = db.consultar("SELECT 1 FROM trials_cpf WHERE cpf = %s", (cpf,))
+    if ja_usou:
+        raise ErroNegocio(
+            "Este CPF ja usou o teste gratis de 30 dias. Escolha um plano pago.",
+            409,
+        )
+
+    token = gerar_token_ativacao()
+    criada = criar_loja_com_admin(
+        loja={**loja, "cpf": cpf},
+        admin=admin,
+        aguardar_pagamento=False,
+        cpf=cpf,
+        dias_validade=30,
+        plano="teste",
+        trial_cpf=cpf,
+    )
+    db.executar(
+        """
+        UPDATE assinaturas
+        SET token_ativacao = %s, plano = 'teste', valor_mensal = 0, atualizado_em = now()
+        WHERE loja_id = %s
+        """,
+        (token, criada["lojaId"]),
+    )
+    usuario = (admin.get("usuario") or "").strip().lower()
+    return {
+        "lojaId": criada["lojaId"],
+        "tokenAtivacao": token,
+        "checkoutUrl": "",
+        "publicKey": "",
+        "trial": True,
+        "codigo": criada["codigo"],
+        "usuario": usuario,
+        "redirectUrl": f"/sucesso.html?token={token}&trial=1",
     }
 
 
@@ -210,9 +263,73 @@ def consultar_ativacao(token: str) -> Dict[str, Any]:
             "nomeLoja": registro["nome"],
             "codigo": registro["codigo"],
             "usuario": registro["admin_usuario"],
-            "mensagem": "Pagamento confirmado! Use o codigo abaixo no CybhorPDV.",
+            "mensagem": "Loja ativa. Use o codigo abaixo no CybhorPDV.",
         }
     return {
         "status": "pendente",
         "mensagem": "Aguardando confirmacao do pagamento. Esta pagina atualiza sozinha.",
     }
+
+
+INSTALADORES = (
+    {
+        "id": "win10-x64",
+        "arquivo": "CybhorPDV-Setup-win10-x64.exe",
+        "rotulo": "Windows 10 / 11 (64 bits)",
+        "so": "win10",
+    },
+    {
+        "id": "win7-x64",
+        "arquivo": "CybhorPDV-Setup-win7-x64.exe",
+        "rotulo": "Windows 7 (64 bits)",
+        "so": "win7",
+    },
+    {
+        "id": "win7-ia32",
+        "arquivo": "CybhorPDV-Setup-win7-ia32.exe",
+        "rotulo": "Windows 7 (32 bits)",
+        "so": "win7",
+    },
+)
+
+
+def _pasta_downloads():
+    from pathlib import Path
+
+    candidatos = (
+        Path("/app/downloads"),
+        Path(__file__).resolve().parents[2] / "downloads",
+        Path("/home/cybhorpdv/downloads"),
+    )
+    for pasta in candidatos:
+        if pasta.is_dir():
+            return pasta
+    return candidatos[0]
+
+
+def listar_instaladores() -> Dict[str, Any]:
+    pasta = _pasta_downloads()
+    github = "https://github.com/cybhortech/sistemaPDV/releases/latest/download"
+    itens = []
+    for item in INSTALADORES:
+        local = pasta / item["arquivo"]
+        url = (
+            f"/api/site/baixar/{item['arquivo']}"
+            if local.is_file()
+            else f"{github}/{item['arquivo']}"
+        )
+        itens.append({**item, "url": url, "local": local.is_file()})
+    return {"ok": True, "instaladores": itens}
+
+
+def caminho_instalador(arquivo: str):
+    from pathlib import Path
+
+    nome = Path(arquivo or "").name
+    permitidos = {item["arquivo"] for item in INSTALADORES}
+    if nome not in permitidos:
+        raise ErroNegocio("Arquivo invalido.", 404)
+    caminho = _pasta_downloads() / nome
+    if not caminho.is_file():
+        raise ErroNegocio("Instalador ainda nao publicado neste servidor.", 404)
+    return caminho

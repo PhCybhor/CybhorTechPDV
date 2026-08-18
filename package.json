@@ -11,10 +11,10 @@
     "start": "npm run build:renderer && electron .",
     "test:impressao": "node scripts/testar-impressao-jp800.js",
     "dist": "npm run dist:win10",
-    "dist:win10": "npm run build:renderer:prod && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win zip nsis --x64 -c.win.signAndEditExecutable=false",
-    "dist:prod": "npm run build:renderer:prod && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win nsis zip --x64 -c.win.signAndEditExecutable=false",
-    "dist:win7": "npm run build:renderer:prod && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win zip --x64 --ia32 -c.win.signAndEditExecutable=false -c.electronVersion=22.3.27",
-    "dist:nsis": "npm run build:renderer:prod && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win nsis --x64 -c.win.signAndEditExecutable=false"
+    "dist:win10": "npm run build:renderer:prod && electron-builder --win nsis --x64 -c.win.signAndEditExecutable=false",
+    "dist:prod": "npm run dist:win10",
+    "dist:win7": "npm run build:renderer:prod && electron-builder --config electron-builder.win7.json --win nsis --x64 --ia32 -c.win.signAndEditExecutable=false",
+    "dist:nsis": "npm run dist:win10"
   },
   "dependencies": {
     "chart.js": "^4.5.1",
@@ -40,6 +40,7 @@
       "renderer/styles.css",
       "renderer/dist/**/*",
       "renderer/assets/**/*",
+      "build/icon.png",
       "!renderer/js/**/*",
       "!**/*.map"
     ],
@@ -60,23 +61,21 @@
           "arch": [
             "x64"
           ]
-        },
-        {
-          "target": "zip",
-          "arch": [
-            "x64"
-          ]
         }
       ],
-      "artifactName": "CybhorPDV-${version}-win10-${arch}.${ext}"
+      "artifactName": "CybhorPDV-Setup-win10-${arch}.${ext}"
     },
     "nsis": {
       "oneClick": false,
       "perMachine": true,
       "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": false,
+      "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "CybhorPDV"
+      "shortcutName": "CybhorPDV",
+      "unicode": true,
+      "installerLanguages": [
+        "pt_BR"
+      ]
     }
   }
 }

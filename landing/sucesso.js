@@ -16,6 +16,13 @@ function mostrarAtivo(dados) {
   document.getElementById("codigo-loja").textContent = dados.codigo;
   document.getElementById("nome-loja").textContent = dados.nomeLoja;
   document.getElementById("usuario-login").textContent = dados.usuario;
+  if (params.get("trial") === "1") {
+    const selo = document.getElementById("selo-ativo");
+    if (selo) selo.textContent = "Teste gratis de 30 dias ativado";
+  }
+  if (typeof carregarInstaladores === "function") {
+    carregarInstaladores("lista-downloads");
+  }
 }
 
 function mostrarErro(mensagem) {

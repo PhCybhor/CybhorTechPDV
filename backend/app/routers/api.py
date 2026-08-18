@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Depends, Query, Request, Response, status
+from fastapi.responses import FileResponse
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
@@ -51,7 +52,7 @@ def site_preco() -> Dict[str, Any]:
 
 @api.post("/site/comprar", status_code=status.HTTP_201_CREATED)
 @limiter.limit("20/15minutes")
-def site_comprar(request: Request, body: Dict[str, Any]) -> Dict[str, str]:
+def site_comprar(request: Request, body: Dict[str, Any]) -> Dict[str, Any]:
     resultado = site_service.comprar_pelo_site(
         loja=body.get("loja") or {},
         admin=body.get("admin") or {},
@@ -59,9 +60,27 @@ def site_comprar(request: Request, body: Dict[str, Any]) -> Dict[str, str]:
     )
     return {
         "tokenAtivacao": resultado["tokenAtivacao"],
-        "checkoutUrl": resultado["checkoutUrl"],
+        "checkoutUrl": resultado.get("checkoutUrl") or "",
         "publicKey": resultado.get("publicKey") or "",
+        "trial": bool(resultado.get("trial")),
+        "redirectUrl": resultado.get("redirectUrl") or "",
     }
+
+
+@api.get("/site/downloads")
+def site_downloads() -> Dict[str, Any]:
+    return site_service.listar_instaladores()
+
+
+@api.get("/site/baixar/{arquivo}")
+@limiter.limit("30/hour")
+def site_baixar(request: Request, arquivo: str) -> FileResponse:
+    caminho = site_service.caminho_instalador(arquivo)
+    return FileResponse(
+        path=str(caminho),
+        filename=caminho.name,
+        media_type="application/octet-stream",
+    )
 
 
 @api.get("/site/pagamento")

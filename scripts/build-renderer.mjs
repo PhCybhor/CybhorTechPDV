@@ -22,7 +22,7 @@ await build({
   minify: true,
   treeShaking: true,
   format: "iife",
-  target: "chrome120",
+  target: "chrome108",
   legalComments: "none",
   drop: ["console", "debugger"],
   outfile: saida,

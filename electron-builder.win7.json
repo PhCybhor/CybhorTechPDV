@@ -1,0 +1,46 @@
+{
+  "appId": "com.cybhor.pdv",
+  "productName": "CybhorPDV",
+  "electronVersion": "22.3.27",
+  "asar": true,
+  "icon": "build/icon.png",
+  "files": [
+    "electron/**/*",
+    "renderer/index.html",
+    "renderer/styles.css",
+    "renderer/dist/**/*",
+    "renderer/assets/**/*",
+    "build/icon.png",
+    "!renderer/js/**/*",
+    "!**/*.map"
+  ],
+  "asarUnpack": [
+    "electron/impressao/**"
+  ],
+  "extraResources": [
+    {
+      "from": ".env",
+      "to": ".env"
+    }
+  ],
+  "win": {
+    "icon": "build/icon.png",
+    "target": [
+      {
+        "target": "nsis",
+        "arch": ["x64", "ia32"]
+      }
+    ],
+    "artifactName": "CybhorPDV-Setup-win7-${arch}.${ext}"
+  },
+  "nsis": {
+    "oneClick": false,
+    "perMachine": true,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true,
+    "shortcutName": "CybhorPDV",
+    "unicode": true,
+    "installerLanguages": ["pt_BR"]
+  }
+}

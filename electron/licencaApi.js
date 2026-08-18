@@ -1,5 +1,7 @@
 "use strict";
 
+const { requisitarJson } = require("./httpJson");
+
 /**
  * Validação de licença contra a API de vendas (Mercado Pago / servidor Cybhor).
  */
@@ -30,12 +32,12 @@ async function validarLicencaRemota(chave) {
 
   const url = `${obterUrlApi()}/api/ativar`;
   try {
-    const resposta = await fetch(url, {
+    const resposta = await requisitarJson(url, {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify({ chave: limpa }),
     });
-    const dados = await resposta.json().catch(() => ({}));
+    const dados = resposta.dados || {};
     if (!resposta.ok || !dados.ok) {
       return {
         ok: false,

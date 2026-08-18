@@ -128,6 +128,19 @@ function preencherLoja(perfil, cache) {
   document.getElementById("nome-usuario").textContent = cache.usuario
     ? `Ola, ${cache.usuario}`
     : "";
+  const planoEl = document.getElementById("plano-loja");
+  const validadeEl = document.getElementById("validade-loja");
+  if (planoEl) {
+    const nomes = { teste: "Teste gratis (30 dias)", mensal: "Mensal", semestral: "Semestral", anual: "Anual" };
+    planoEl.textContent = nomes[perfil.plano] || perfil.plano || "—";
+  }
+  if (validadeEl && perfil.validaAte) {
+    const data = new Date(`${perfil.validaAte}T00:00:00`);
+    const texto = Number.isNaN(data.getTime())
+      ? perfil.validaAte
+      : data.toLocaleDateString("pt-BR");
+    validadeEl.textContent = `Valido ate ${texto}. Mesmo login criado no cadastro.`;
+  }
 }
 
 function renderizarKpis(vendas) {
@@ -377,6 +390,9 @@ async function iniciar() {
     preencherLoja(perfil, cache);
     elCarregando.classList.add("oculto");
     elConteudo.classList.remove("oculto");
+    if (typeof carregarInstaladores === "function") {
+      carregarInstaladores("lista-downloads");
+    }
     await carregarVendas();
   } catch (erro) {
     mostrarErro(erro.message);

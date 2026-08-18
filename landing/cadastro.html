@@ -29,6 +29,7 @@
         <h1 id="nome-plano">Plano Mensal</h1>
         <p class="plano-preco cadastro-preco"><span>R$</span>99,90<small>/mes</small></p>
         <div class="seletor-planos" id="seletor-planos">
+          <a href="cadastro.html?plano=teste" data-plano="teste">Teste 30 dias</a>
           <a href="cadastro.html?plano=mensal" data-plano="mensal">Mensal</a>
           <a href="cadastro.html?plano=semestral" data-plano="semestral">Semestral</a>
           <a href="cadastro.html?plano=anual" data-plano="anual">Anual</a>
@@ -46,7 +47,7 @@
       <section class="cartao-cadastro">
         <p class="eyebrow">Passo 1 de 2</p>
         <h2>Cadastre sua loja</h2>
-        <p class="cadastro-sub">Preencha os dados abaixo. Na proxima etapa voce sera redirecionado ao Mercado Pago para pagar.</p>
+        <p class="cadastro-sub" id="cadastro-sub">Preencha os dados abaixo. Na proxima etapa voce sera redirecionado ao Mercado Pago para pagar.</p>
 
         <form id="form-comprar" class="form-comprar">
           <label>Nome da loja
@@ -57,6 +58,9 @@
           </label>
           <label>Sobrenome
             <input type="text" name="sobrenomeAdmin" required minlength="2" placeholder="Ex: Silva" autocomplete="family-name" />
+          </label>
+          <label>CPF
+            <input type="text" name="cpf" id="campo-cpf" required inputmode="numeric" autocomplete="off" placeholder="000.000.000-00" maxlength="14" />
           </label>
           <label>E-mail
             <input type="email" name="email" required placeholder="voce@email.com" />
@@ -75,7 +79,7 @@
             Continuar para pagamento
           </button>
           <p id="comprar-erro" class="form-erro oculto"></p>
-          <p class="plano-nota">Na proxima tela voce paga no site (Pix, cartao ou boleto). Apos o pagamento, recebe o <strong>codigo individual</strong> da sua loja.</p>
+          <p class="plano-nota" id="cadastro-nota">Na proxima tela voce paga no site (Pix, cartao ou boleto). Apos o pagamento, recebe o <strong>codigo individual</strong> da sua loja.</p>
         </form>
       </section>
     </div>

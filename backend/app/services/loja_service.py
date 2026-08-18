@@ -3,6 +3,8 @@ from __future__ import annotations
 import os
 from typing import Any, Dict
 
+import psycopg2
+
 from app import db
 from app.errors import ErroNegocio
 from app.security import gerar_hash_senha, gerar_salt, validar_tamanho_senha
@@ -16,7 +18,14 @@ def gerar_codigo_loja() -> str:
 
 
 def criar_loja_com_admin(
-    *, loja: Dict[str, Any], admin: Dict[str, Any], aguardar_pagamento: bool = False
+    *,
+    loja: Dict[str, Any],
+    admin: Dict[str, Any],
+    aguardar_pagamento: bool = False,
+    cpf: str = "",
+    dias_validade: int | None = None,
+    plano: str = "",
+    trial_cpf: str = "",
 ) -> Dict[str, str]:
     nome = (loja or {}).get("nome", "").strip()
     if len(nome) < 2:
@@ -37,7 +46,7 @@ def criar_loja_com_admin(
     if len(usuario) < 3:
         raise ErroNegocio("O usuario deve ter ao menos 3 caracteres.")
     senha = validar_tamanho_senha(admin.get("senha") or "")
-    if aguardar_pagamento and "@" not in email:
+    if "@" not in email:
         raise ErroNegocio("Informe um e-mail valido.")
 
     salt = gerar_salt()
@@ -53,9 +62,9 @@ def criar_loja_com_admin(
 
         cur.execute(
             """
-            INSERT INTO lojas (nome, cnpj, endereco, telefone, email,
+            INSERT INTO lojas (nome, cnpj, endereco, telefone, email, cpf,
                                responsavel_nome, responsavel_sobrenome, codigo, ativa)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
             """,
             (
@@ -64,6 +73,7 @@ def criar_loja_com_admin(
                 (loja.get("endereco") or "").strip(),
                 (loja.get("telefone") or "").strip(),
                 email,
+                cpf or "",
                 primeiro_nome,
                 sobrenome,
                 codigo,
@@ -79,21 +89,43 @@ def criar_loja_com_admin(
             """,
             (loja_id, nome_admin, usuario, salt, senha_hash),
         )
-        cur.execute(
-            """
-            INSERT INTO assinaturas (loja_id, status, valida_ate)
-            VALUES (
-              %s,
-              %s,
-              CASE WHEN %s THEN NULL ELSE (CURRENT_DATE + interval '1 year')::date END
+        if aguardar_pagamento:
+            cur.execute(
+                """
+                INSERT INTO assinaturas (loja_id, status, valida_ate)
+                VALUES (%s, 'pendente', NULL)
+                """,
+                (loja_id,),
             )
-            """,
-            (
-                loja_id,
-                "pendente" if aguardar_pagamento else "ativa",
-                aguardar_pagamento,
-            ),
-        )
+        elif dias_validade:
+            cur.execute(
+                """
+                INSERT INTO assinaturas (loja_id, status, valida_ate, plano, valor_mensal)
+                VALUES (%s, 'ativa', (CURRENT_DATE + (%s * interval '1 day'))::date, %s, 0)
+                """,
+                (loja_id, int(dias_validade), plano or "teste"),
+            )
+            if trial_cpf:
+                try:
+                    cur.execute(
+                        "INSERT INTO trials_cpf (cpf, loja_id) VALUES (%s, %s)",
+                        (trial_cpf, loja_id),
+                    )
+                except psycopg2.Error as exc:
+                    if getattr(exc, "pgcode", None) == "23505":
+                        raise ErroNegocio(
+                            "Este CPF ja usou o teste gratis de 30 dias. Escolha um plano pago.",
+                            409,
+                        ) from exc
+                    raise
+        else:
+            cur.execute(
+                """
+                INSERT INTO assinaturas (loja_id, status, valida_ate)
+                VALUES (%s, 'ativa', (CURRENT_DATE + interval '1 year')::date)
+                """,
+                (loja_id,),
+            )
 
     return {"lojaId": loja_id, "codigo": codigo}
 
@@ -118,13 +150,21 @@ def buscar_loja_por_codigo(codigo: str) -> Dict[str, str]:
 
 def obter_perfil(loja_id: str) -> Dict[str, Any]:
     rows = db.consultar(
-        "SELECT id, nome, cnpj, endereco, telefone, codigo FROM lojas WHERE id = %s",
+        """
+        SELECT l.id, l.nome, l.cnpj, l.endereco, l.telefone, l.codigo,
+               a.plano, a.status AS "assinaturaStatus", a.valida_ate AS "validaAte"
+        FROM lojas l
+        LEFT JOIN assinaturas a ON a.loja_id = l.id
+        WHERE l.id = %s
+        """,
         (loja_id,),
     )
     if not rows:
         raise ErroNegocio("Loja nao encontrada.", 404)
     row = rows[0]
     row["id"] = str(row["id"])
+    if row.get("validaAte") is not None:
+        row["validaAte"] = str(row["validaAte"])
     return row
 
 
