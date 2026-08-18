@@ -11,9 +11,9 @@
     "start": "npm run build:renderer && electron .",
     "test:impressao": "node scripts/testar-impressao-jp800.js",
     "dist": "npm run dist:win10",
-    "dist:win10": "npm run build:renderer:prod && electron-builder --win nsis --x64 -c.win.signAndEditExecutable=false -c.publish=never",
+    "dist:win10": "npm run build:renderer:prod && electron-builder --win nsis --x64 --publish never -c.win.signAndEditExecutable=false",
     "dist:prod": "npm run dist:win10",
-    "dist:win7": "npm run build:renderer:prod && electron-builder --config electron-builder.win7.json --win nsis --x64 --ia32 -c.win.signAndEditExecutable=false -c.publish=never",
+    "dist:win7": "npm run build:renderer:prod && electron-builder --config electron-builder.win7.json --win nsis --x64 --ia32 --publish never -c.win.signAndEditExecutable=false",
     "dist:nsis": "npm run dist:win10"
   },
   "dependencies": {
@@ -32,6 +32,7 @@
   "build": {
     "appId": "com.cybhor.pdv",
     "productName": "CybhorPDV",
+    "publish": [],
     "asar": true,
     "icon": "build/icon.png",
     "files": [

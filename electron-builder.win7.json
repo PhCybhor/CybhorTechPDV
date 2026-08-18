@@ -1,6 +1,7 @@
 {
   "appId": "com.cybhor.pdv",
   "productName": "CybhorPDV",
+  "publish": [],
   "electronVersion": "22.3.27",
   "asar": true,
   "icon": "build/icon.png",
