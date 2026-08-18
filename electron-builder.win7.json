@@ -42,5 +42,6 @@
     "shortcutName": "CybhorPDV",
     "unicode": true,
     "installerLanguages": ["pt_BR"]
-  }
+  },
+  "publish": null
 }
