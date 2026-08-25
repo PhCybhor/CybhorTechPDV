@@ -18,22 +18,28 @@
   }
 
   async function chamarApi(caminho, opcoes = {}) {
+    const ehLogin = caminho === "/admin/login";
     const resposta = await fetch(`/api${caminho}`, {
       ...opcoes,
       headers: {
         "Content-Type": "application/json",
-        ...(obterToken() ? { Authorization: `Bearer ${obterToken()}` } : {}),
+        ...(!ehLogin && obterToken() ? { Authorization: `Bearer ${obterToken()}` } : {}),
         ...(opcoes.headers || {}),
       },
     });
 
+    const dados = await resposta.json().catch(() => ({}));
     if (resposta.status === 401) {
-      sessionStorage.removeItem(CHAVE_TOKEN);
-      mostrarLogin();
-      throw new Error("Sessao expirada.");
+      // Login com senha errada tambem retorna 401 — nao confundir com sessao.
+      if (!ehLogin) {
+        sessionStorage.removeItem(CHAVE_TOKEN);
+        mostrarLogin();
+      }
+      throw new Error(
+        dados.erro || (ehLogin ? "Credenciais invalidas." : "Sessao expirada. Entre novamente.")
+      );
     }
 
-    const dados = await resposta.json().catch(() => ({}));
     if (!resposta.ok) throw new Error(dados.erro || "Falha na requisicao.");
     return dados;
   }
