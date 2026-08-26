@@ -42,7 +42,7 @@ const MODOS = [
   },
   {
     id: "concorrencia",
-    titulo: "Copy thief",
+    titulo: "Concorrência",
     dica: "Ideias dos concorrentes adaptadas (ético)",
     placeholder: "Ex.: o mercado da esquina faz combo + entrega. O que posso adaptar?",
   },
@@ -296,7 +296,7 @@ export class PainelAssistente {
       const lojaId = obterLojaId();
       const titulo =
         this.modo === "concorrencia"
-          ? "Copy thief"
+          ? "Concorrência"
           : MODOS.find((m) => m.id === this.modo)?.titulo || "Campanha";
       salvarCampanha(lojaId, { titulo, texto, modo: this.modo });
       notificar("Campanha salva em Números → Dicas do dia.", "sucesso");

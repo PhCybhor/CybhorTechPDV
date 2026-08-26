@@ -2,7 +2,7 @@ import { formatarMoeda } from "../utils/formato.js";
 
 /**
  * Gera insights acionáveis da loja (Pulso) a partir de dados já carregados.
- * Copy-thief: o que PDVs caros vendem como “BI” — aqui em linguagem de balcão.
+ * Insights práticos: o que PDVs caros vendem como “BI” — aqui em linguagem de balcão.
  */
 
 /**
@@ -135,7 +135,7 @@ export function gerarInsightsLoja(dados = {}) {
     insights.push({
       tipo: "dica",
       titulo: "Manhã quieta",
-      texto: "Abra com combo do dia na porta ou story. CybhorIA no modo Copy thief gera o texto em 30 segundos.",
+      texto: "Abra com combo do dia na porta ou story. CybhorIA no modo Concorrência gera o texto em 30 segundos.",
       acao: "assistente-concorrencia",
     });
   }

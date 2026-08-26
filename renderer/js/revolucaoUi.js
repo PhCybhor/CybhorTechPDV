@@ -69,7 +69,7 @@ export function instalarRevolucao(ctx) {
         { id: "clientes", titulo: "Clientes / fiado", rota: "clientes" },
         { id: "gestao", titulo: "Gestão+ (DRE, pedido, combos)", rota: "gestao" },
         { id: "assistente", titulo: "CybhorIA", rota: "assistente" },
-        { id: "copythief", titulo: "Copy thief (IA)", acao: "assistente-concorrencia" },
+        { id: "concorrencia-ia", titulo: "Concorrência (IA)", acao: "assistente-concorrencia" },
         { id: "equipe", titulo: "Equipe", rota: "funcionarios" },
         { id: "config", titulo: "Configurações", rota: "configuracoes" },
         { id: "backup", titulo: "Exportar backup JSON", acao: "backup" },

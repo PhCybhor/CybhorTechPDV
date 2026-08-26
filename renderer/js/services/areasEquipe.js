@@ -122,7 +122,7 @@ export const GUIAS_POR_AREA = Object.freeze({
       "Medir o que vendeu mais após a campanha",
     ],
     dicas: [
-      "Use o CybhorIA no modo Criativos / Promoções / Copy thief.",
+      "Use o CybhorIA no modo Criativos / Promoções / Concorrência.",
       "Promoção sem estoque gera fila e reclamação — confira antes.",
       "Anúncio local (bairro) costuma converter mais que alcance amplo.",
       "Peça ao caixa os 5 mais vendidos antes de montar o combo.",

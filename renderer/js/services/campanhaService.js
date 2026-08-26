@@ -1,5 +1,5 @@
 /**
- * Campanhas geradas pelo Copy thief — salvas localmente por loja
+ * Campanhas geradas pela CybhorIA — salvas localmente por loja
  * para virar plano de ação (não só texto na tela).
  */
 
@@ -45,7 +45,7 @@ export function salvarCampanha(lojaId, dados) {
   const lista = listarCampanhas(lojaId);
   const item = {
     id: `c_${Date.now().toString(36)}`,
-    titulo: String(dados.titulo || "Campanha Copy thief").trim().slice(0, 80),
+    titulo: String(dados.titulo || "Campanha CybhorIA").trim().slice(0, 80),
     texto,
     modo: dados.modo || "concorrencia",
     status: "rascunho",

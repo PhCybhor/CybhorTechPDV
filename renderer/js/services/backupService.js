@@ -1,6 +1,6 @@
 /**
  * Exporta um snapshot JSON da loja (backup / migração).
- * Copy-thief de “exportar dados” dos ERPs — sem depender de nuvem terceira.
+ * Exportação de dados no estilo dos ERPs — sem depender de nuvem terceira.
  */
 
 /**

@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Versao do release (ex: 2.1.0)"
+        description: "Versao do release (ex: 2.1.1)"
         required: true
-        default: "2.1.0"
+        default: "2.1.1"
 
 env:
   CSC_IDENTITY_AUTO_DISCOVERY: "false"
@@ -37,24 +37,32 @@ jobs:
 
       - name: Garantir .env de producao no instalador
         shell: pwsh
+        env:
+          CYBHOR_API_URL_SECRET: ${{ secrets.CYBHOR_API_URL }}
+          GEMINI_API_KEY_SECRET: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          $apiUrl = "${{ secrets.CYBHOR_API_URL }}"
+          $apiUrl = "$env:CYBHOR_API_URL_SECRET"
           if ([string]::IsNullOrWhiteSpace($apiUrl)) {
             $apiUrl = "https://pdv.vps10229.panel.icontainer.run"
           }
-          $conteudo = @"
-          CYBHOR_API_URL=$apiUrl
-          CYBHOR_MODO_DEV=0
-          "@
-          # Remove indentacao acidental do here-string e grava sem BOM.
-          $linhas = $conteudo -split "`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne "" }
+          $gemini = "$env:GEMINI_API_KEY_SECRET"
+          $linhas = @(
+            "CYBHOR_API_URL=$apiUrl",
+            "CYBHOR_MODO_DEV=0"
+          )
+          if (-not [string]::IsNullOrWhiteSpace($gemini)) {
+            $linhas += "GEMINI_API_KEY=$gemini"
+          }
           [System.IO.File]::WriteAllText(
             (Join-Path $PWD "build/env.producao"),
             (($linhas -join "`n") + "`n"),
             (New-Object System.Text.UTF8Encoding $false)
           )
           Copy-Item "build/env.producao" ".env" -Force
-          Get-Content "build/env.producao"
+          # Nao imprime a chave da IA nos logs.
+          Get-Content "build/env.producao" | ForEach-Object {
+            if ($_ -match '^GEMINI_API_KEY=') { 'GEMINI_API_KEY=***' } else { $_ }
+          }
 
       - name: Instalador Windows 10 / 11
         run: npm run dist:win10

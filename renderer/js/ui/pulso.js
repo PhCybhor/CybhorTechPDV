@@ -7,7 +7,7 @@ import {
 } from "../services/campanhaService.js";
 
 /**
- * Painel Pulso da Loja: insights + campanhas Copy thief.
+ * Painel Pulso da Loja: insights + campanhas da CybhorIA.
  */
 export class PainelPulso {
   /**
@@ -55,7 +55,7 @@ export class PainelPulso {
 
     const htmlCampanhas =
       campanhas.length === 0
-        ? `<p class="ranking-vazio">Nenhuma campanha salva. No CybhorIA (Copy thief), use “Salvar campanha”.</p>`
+        ? `<p class="ranking-vazio">Nenhuma campanha salva. No CybhorIA (Concorrência), use “Salvar campanha”.</p>`
         : campanhas
             .slice(0, 8)
             .map(
@@ -94,7 +94,7 @@ export class PainelPulso {
           <div class="pulso-lista">${htmlInsights}</div>
         </section>
         <section class="pulso-secao">
-          <h3 class="painel-titulo">Campanhas Copy thief</h3>
+          <h3 class="painel-titulo">Campanhas da CybhorIA</h3>
           <p class="subtitulo painel-sub">Ideias salvas viram plano de ação</p>
           <div class="campanhas-lista">${htmlCampanhas}</div>
         </section>
