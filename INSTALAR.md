@@ -22,7 +22,8 @@ Você **não precisa baixar o código-fonte**. Basta o instalador e a **chave de
 
 ## Requisitos
 
-- Windows 10/11 (pacote win10) **ou** Windows 7 SP1 (pacote win7)
+- Windows 10/11 (pacote **win10**) **ou** Windows 7 SP1 (pacote **win7** — nunca use o win10 no Windows 7)
+- No Windows 7: baixe `CybhorPDV-Setup-win7-x64.exe` (64 bits) ou `...-win7-ia32.exe` (32 bits)
 - Conexão com a internet (ativar licença e sincronizar dados)
 - Uma chave de licença válida (1 chave = 1 loja)
 
@@ -33,6 +34,7 @@ Você **não precisa baixar o código-fonte**. Basta o instalador e a **chave de
 | "Licença inválida" | Confira a chave, internet e se a API de vendas está no ar |
 | "Falha ao conectar ao banco de dados" | Verifique a internet e reinstale com o instalador mais recente |
 | Antivírus bloqueou | Permita o CybhorPDV nas exceções do antivírus |
+| Não abre no Windows 7 | Use o instalador **win7** (não o win10), confirme Windows 7 **SP1**, reinstale e abra como administrador |
 | Não abre após instalar | Execute o `.exe` como administrador |
 | Quero outra loja | Compre outra licença — cada chave cria um espaço separado |
 

@@ -5,6 +5,9 @@
   "electronVersion": "22.3.27",
   "asar": true,
   "icon": "build/icon.png",
+  "directories": {
+    "output": "dist-win7"
+  },
   "files": [
     "electron/**/*",
     "renderer/index.html",
@@ -27,22 +30,24 @@
   ],
   "win": {
     "icon": "build/icon.png",
+    "executableName": "CybhorPDV",
+    "requestedExecutionLevel": "asInvoker",
     "target": [
       {
-        "target": "nsis",
-        "arch": ["x64", "ia32"]
+        "target": "nsis"
       }
     ],
     "artifactName": "CybhorPDV-Setup-win7-${arch}.${ext}"
   },
   "nsis": {
     "oneClick": false,
-    "perMachine": true,
+    "perMachine": false,
     "allowToChangeInstallationDirectory": true,
     "createDesktopShortcut": true,
     "createStartMenuShortcut": true,
     "shortcutName": "CybhorPDV",
     "unicode": true,
-    "installerLanguages": ["pt_BR"]
+    "installerLanguages": ["pt_BR"],
+    "displayLanguageSelector": false
   }
 }

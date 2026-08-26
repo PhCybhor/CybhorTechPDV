@@ -16,10 +16,11 @@ const https = require("https");
 function requisitarJson(url, opcoes = {}) {
   try {
     const { net, app } = require("electron");
-    if (net?.request && app?.isReady?.()) {
+    // Electron 22 (Win7) nao tem fetch no Node — preferir net apos ready.
+    if (net && typeof net.request === "function" && app && app.isReady()) {
       return requisitarComElectronNet(net, url, opcoes);
     }
-  } catch {
+  } catch (_erro) {
     /* fora do processo Electron */
   }
 

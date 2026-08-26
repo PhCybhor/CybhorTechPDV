@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Versao do release (ex: 2.1.1)"
+        description: "Versao do release (ex: 2.1.2)"
         required: true
-        default: "2.1.1"
+        default: "2.1.2"
 
 env:
   CSC_IDENTITY_AUTO_DISCOVERY: "false"
@@ -66,6 +66,17 @@ jobs:
 
       - name: Instalador Windows 10 / 11
         run: npm run dist:win10
+
+      - name: Limpar pasta do Win10 antes do Win7
+        shell: pwsh
+        run: |
+          # Evita reaproveitar win-unpacked com Electron 31 no build Win7.
+          if (Test-Path dist) {
+            Get-ChildItem dist -Directory | Remove-Item -Recurse -Force
+          }
+          if (Test-Path dist-win7) {
+            Remove-Item dist-win7 -Recurse -Force
+          }
 
       - name: Instalador Windows 7
         run: npm run dist:win7

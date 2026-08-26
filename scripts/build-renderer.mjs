@@ -13,8 +13,7 @@ const ofuscar =
 
 /**
  * Compila o renderer.
- * Em desenvolvimento: só minify (rápido).
- * Em produção (`CYBHOR_OFUSCAR=1` ou `--ofuscar`): ofuscação forte.
+ * target chrome108 = Electron 22 (ultimo com suporte oficial ao Windows 7).
  */
 await build({
   entryPoints: [path.join(raiz, "renderer/js/app.js")],
@@ -22,7 +21,7 @@ await build({
   minify: true,
   treeShaking: true,
   format: "iife",
-  target: "chrome108",
+  target: ["chrome108", "es2020"],
   legalComments: "none",
   drop: ["console", "debugger"],
   outfile: saida,
@@ -34,10 +33,10 @@ if (ofuscar) {
     "javascript-obfuscator"
   );
   const codigo = fs.readFileSync(saida, "utf8");
+  // Ofuscacao leve: flattening agressivo quebra o Chromium do Electron 22/Win7.
   const ofuscado = JavaScriptObfuscator.obfuscate(codigo, {
     compact: true,
-    controlFlowFlattening: true,
-    controlFlowFlatteningThreshold: 0.4,
+    controlFlowFlattening: false,
     deadCodeInjection: false,
     debugProtection: false,
     disableConsoleOutput: true,
@@ -47,12 +46,12 @@ if (ofuscar) {
     selfDefending: false,
     stringArray: true,
     stringArrayEncoding: ["base64"],
-    stringArrayThreshold: 0.75,
-    transformObjectKeys: true,
+    stringArrayThreshold: 0.5,
+    transformObjectKeys: false,
     unicodeEscapeSequence: false,
   }).getObfuscatedCode();
   fs.writeFileSync(saida, ofuscado, "utf8");
-  console.log("Bundle ofuscado gerado em renderer/dist/bundle.js");
+  console.log("Bundle ofuscado (leve) gerado em renderer/dist/bundle.js");
 } else {
   console.log(
     "Bundle de desenvolvimento gerado em renderer/dist/bundle.js (use CYBHOR_OFUSCAR=1 para ofuscar)"

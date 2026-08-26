@@ -1,6 +1,6 @@
 "use strict";
 
-const { app, BrowserWindow, ipcMain, shell } = require("electron");
+const { app, BrowserWindow, ipcMain, shell, dialog } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const { imprimirCupomVenda } = require("./impressao/imprimirCupom");
@@ -22,6 +22,15 @@ const {
 } = require("./licencaApi");
 
 const { consultarAssistente } = require("./assistenteGemini");
+
+// Win7 / GPUs antigas: evita tela preta ou crash na abertura.
+try {
+  app.disableHardwareAcceleration();
+  app.commandLine.appendSwitch("disable-gpu");
+  app.commandLine.appendSwitch("disable-gpu-compositing");
+} catch {
+  /* versoes antigas do Electron */
+}
 
 /**
  * Remove BOM e espacos que o PowerShell/Out-File às vezes coloca no .env do CI.
@@ -72,8 +81,8 @@ function criarJanela() {
   const janela = new BrowserWindow({
     width: 1280,
     height: 800,
-    minWidth: 1024,
-    minHeight: 700,
+    minWidth: 900,
+    minHeight: 600,
     show: false,
     backgroundColor: "#07111f",
     icon: path.join(__dirname, "..", "build", "icon.png"),
@@ -82,6 +91,7 @@ function criarJanela() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,
+      backgroundThrottling: false,
     },
   });
 
@@ -89,7 +99,32 @@ function criarJanela() {
   janela.setTitle("CybhorPDV 2.1");
   janela.loadFile(path.join(__dirname, "..", "renderer", "index.html"));
 
-  janela.once("ready-to-show", () => janela.show());
+  let mostrou = false;
+  const exibir = () => {
+    if (mostrou || janela.isDestroyed()) return;
+    mostrou = true;
+    janela.show();
+  };
+  janela.once("ready-to-show", exibir);
+  // Se o renderer travar (ofuscacao/GPU), ainda assim abre a janela.
+  setTimeout(exibir, 5000);
+
+  janela.webContents.on("did-fail-load", (_e, codigo, descricao) => {
+    console.error("Falha ao carregar UI:", codigo, descricao);
+    exibir();
+    dialog.showErrorBox(
+      "CybhorPDV",
+      "Nao foi possivel carregar a interface (" + codigo + "). Reinstale o aplicativo."
+    );
+  });
+
+  janela.webContents.on("render-process-gone", (_e, details) => {
+    console.error("Renderer encerrado:", details);
+    dialog.showErrorBox(
+      "CybhorPDV",
+      "O aplicativo fechou inesperadamente. No Windows 7 use o instalador win7 (nao o win10) e confira se ha SP1 instalado."
+    );
+  });
 }
 
 carregarVariaveisDeAmbiente();
