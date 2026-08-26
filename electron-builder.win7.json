@@ -12,6 +12,7 @@
     "renderer/dist/**/*",
     "renderer/assets/**/*",
     "build/icon.png",
+    "build/env.producao",
     "!renderer/js/**/*",
     "!**/*.map"
   ],
@@ -20,7 +21,7 @@
   ],
   "extraResources": [
     {
-      "from": ".env",
+      "from": "build/env.producao",
       "to": ".env"
     }
   ],
@@ -29,7 +30,7 @@
     "target": [
       {
         "target": "nsis",
-        "arch": ["x64"]
+        "arch": ["x64", "ia32"]
       }
     ],
     "artifactName": "CybhorPDV-Setup-win7-${arch}.${ext}"

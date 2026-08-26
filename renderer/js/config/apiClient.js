@@ -1,6 +1,9 @@
 let apiUrlCache = null;
 let tokenSessao = null;
 
+/** Fallback do instalador — nunca localhost no .exe do cliente. */
+const API_URL_PRODUCAO = "https://pdv.vps10229.panel.icontainer.run";
+
 export const EVENTO_SESSAO_EXPIRADA = "cybhor:sessao-expirada";
 
 export function definirTokenSessao(token) {
@@ -26,9 +29,15 @@ function notificarSessaoExpirada() {
 
 export async function obterApiUrl() {
   if (apiUrlCache) return apiUrlCache;
-  const configurada = await window.pdvAPI?.obterApiUrl?.();
-  apiUrlCache = String(configurada || "http://localhost:3333").replace(/\/+$/, "");
+  const configurada = String((await window.pdvAPI?.obterApiUrl?.()) || "")
+    .trim()
+    .replace(/\/+$/, "");
+  apiUrlCache = configurada || API_URL_PRODUCAO;
   return apiUrlCache;
+}
+
+function mensagemErroRede() {
+  return "Sem conexão com o servidor CybhorPDV. Verifique a internet do computador e tente de novo.";
 }
 
 export async function apiRequest(caminho, opcoes = {}) {
@@ -51,9 +60,7 @@ export async function apiRequest(caminho, opcoes = {}) {
           : JSON.stringify(opcoes.body),
     });
   } catch {
-    throw new Error(
-      "Não foi possível conectar à API. Verifique se a FastAPI está rodando."
-    );
+    throw new Error(mensagemErroRede());
   }
 
   const dados =
@@ -64,7 +71,9 @@ export async function apiRequest(caminho, opcoes = {}) {
   }
   if (!resposta.ok) {
     throw new Error(
-      dados?.erro || dados?.detail || `Falha na API (${resposta.status}).`
+      dados?.erro ||
+        dados?.detail ||
+        `Não foi possível concluir a operação (${resposta.status}).`
     );
   }
   return dados;

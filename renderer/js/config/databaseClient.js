@@ -148,7 +148,7 @@ export function onValue(referencia, callback) {
         callback(snapshot);
       }
     } catch (erro) {
-      console.error("Falha ao atualizar dados da FastAPI:", erro);
+      console.error("Falha ao atualizar dados do servidor:", erro);
     }
   };
 

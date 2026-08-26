@@ -7,7 +7,7 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -120,6 +120,11 @@ def criar_app() -> FastAPI:
     app.include_router(api, prefix="/api")
 
     if ADMIN_DIR.is_dir():
+        # StaticFiles exige /admin/ — redireciona /admin sem barra.
+        @app.get("/admin", include_in_schema=False)
+        def _admin_sem_barra() -> RedirectResponse:
+            return RedirectResponse(url="/admin/", status_code=307)
+
         app.mount("/admin", StaticFiles(directory=str(ADMIN_DIR), html=True), name="admin")
     if LANDING_DIR.is_dir():
         app.mount("/", StaticFiles(directory=str(LANDING_DIR), html=True), name="landing")

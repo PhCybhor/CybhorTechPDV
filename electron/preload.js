@@ -7,6 +7,7 @@ const { contextBridge, ipcRenderer } = require("electron");
  */
 contextBridge.exposeInMainWorld("pdvAPI", {
   obterApiUrl: () => ipcRenderer.invoke("obter-api-url"),
+  testarConexaoApi: () => ipcRenderer.invoke("testar-conexao-api"),
   obterConfigApp: () => ipcRenderer.invoke("obter-config-app"),
   salvarConfigApp: (config) => ipcRenderer.invoke("salvar-config-app", config),
   listarImpressoras: () => ipcRenderer.invoke("listar-impressoras"),

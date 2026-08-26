@@ -14,20 +14,57 @@ const {
   salvarLicenca,
   limparLicenca,
 } = require("./licencaStore");
-const { validarLicencaRemota, obterUrlApi } = require("./licencaApi");
+const {
+  validarLicencaRemota,
+  obterUrlApi,
+  testarConexaoApi,
+  API_URL_PRODUCAO,
+} = require("./licencaApi");
 
 const { consultarAssistente } = require("./assistenteGemini");
 
 /**
- * Carrega as variáveis de ambiente do arquivo .env.
+ * Remove BOM e espacos que o PowerShell/Out-File às vezes coloca no .env do CI.
+ * @param {string} texto
+ */
+function limparTextoEnv(texto) {
+  return String(texto || "")
+    .replace(/^\uFEFF/, "")
+    .replace(/\r\n/g, "\n");
+}
+
+/**
+ * Carrega as variáveis de ambiente do arquivo .env (dev ou resources do instalador).
  */
 function carregarVariaveisDeAmbiente() {
-  const caminhoDev = path.join(__dirname, "..", ".env");
-  const caminhoProd = path.join(process.resourcesPath || "", ".env");
-  const caminho = fs.existsSync(caminhoDev) ? caminhoDev : caminhoProd;
+  const candidatos = [
+    path.join(__dirname, "..", ".env"),
+    path.join(process.resourcesPath || "", ".env"),
+    path.join(__dirname, "..", "build", "env.producao"),
+  ];
 
-  if (fs.existsSync(caminho)) {
-    require("dotenv").config({ path: caminho });
+  for (const caminho of candidatos) {
+    if (!caminho || !fs.existsSync(caminho)) continue;
+    try {
+      const bruto = limparTextoEnv(fs.readFileSync(caminho, "utf8"));
+      for (const linha of bruto.split("\n")) {
+        const limpa = linha.trim();
+        if (!limpa || limpa.startsWith("#") || !limpa.includes("=")) continue;
+        const i = limpa.indexOf("=");
+        const chave = limpa.slice(0, i).trim();
+        const valor = limpa.slice(i + 1).trim();
+        if (chave && process.env[chave] === undefined) {
+          process.env[chave] = valor;
+        }
+      }
+      break;
+    } catch (erro) {
+      console.error("Falha ao ler .env:", caminho, erro);
+    }
+  }
+
+  if (!String(process.env.CYBHOR_API_URL || "").trim() && app.isPackaged) {
+    process.env.CYBHOR_API_URL = API_URL_PRODUCAO;
   }
 }
 
@@ -49,7 +86,7 @@ function criarJanela() {
   });
 
   janela.setMenuBarVisibility(false);
-  janela.setTitle("CybhorPDV 2.0");
+  janela.setTitle("CybhorPDV 2.1");
   janela.loadFile(path.join(__dirname, "..", "renderer", "index.html"));
 
   janela.once("ready-to-show", () => janela.show());
@@ -58,6 +95,18 @@ function criarJanela() {
 carregarVariaveisDeAmbiente();
 
 ipcMain.handle("obter-api-url", () => obterUrlApi());
+
+ipcMain.handle("testar-conexao-api", async () => {
+  try {
+    return await testarConexaoApi();
+  } catch (erro) {
+    return {
+      ok: false,
+      mensagem: erro?.message || "Falha ao testar conexao.",
+      apiUrl: obterUrlApi(),
+    };
+  }
+});
 
 ipcMain.handle("obter-config-app", () => {
   try {

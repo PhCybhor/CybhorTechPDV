@@ -2,18 +2,60 @@
 
 const { requisitarJson } = require("./httpJson");
 
+/** URL publica de producao — fallback do instalador (nunca localhost no .exe). */
+const API_URL_PRODUCAO = "https://pdv.vps10229.panel.icontainer.run";
+
 /**
- * Validação de licença contra a API de vendas (Mercado Pago / servidor Cybhor).
+ * @returns {boolean}
  */
+function appEmpacotado() {
+  try {
+    const { app } = require("electron");
+    return Boolean(app?.isPackaged);
+  } catch {
+    return false;
+  }
+}
 
 /**
  * @returns {string}
  */
 function obterUrlApi() {
-  return (process.env.CYBHOR_API_URL || "http://localhost:3333").replace(
-    /\/+$/,
-    ""
-  );
+  const configurada = String(process.env.CYBHOR_API_URL || "")
+    .trim()
+    .replace(/\/+$/, "");
+  if (configurada) return configurada;
+  if (appEmpacotado()) return API_URL_PRODUCAO;
+  return "http://localhost:3333";
+}
+
+/**
+ * Testa se a API responde (usado na tela de ativacao/login).
+ * @returns {Promise<{ok: boolean, mensagem: string, apiUrl: string}>}
+ */
+async function testarConexaoApi() {
+  const apiUrl = obterUrlApi();
+  try {
+    const resposta = await requisitarJson(`${apiUrl}/api/saude`, {
+      method: "GET",
+      headers: { Accept: "application/json" },
+    });
+    if (resposta.ok && resposta.dados?.ok) {
+      return { ok: true, mensagem: "Conectado ao servidor CybhorPDV.", apiUrl };
+    }
+    return {
+      ok: false,
+      mensagem: "Servidor respondeu, mas a saude da API falhou. Tente de novo em instantes.",
+      apiUrl,
+    };
+  } catch (erro) {
+    return {
+      ok: false,
+      mensagem:
+        "Sem conexao com o servidor. Verifique a internet do computador e tente novamente.",
+      apiUrl,
+    };
+  }
 }
 
 /**
@@ -27,7 +69,7 @@ async function validarLicencaRemota(chave) {
     .replace(/\s+/g, "");
 
   if (!limpa || limpa.length < 6) {
-    return { ok: false, mensagem: "Informe uma chave de licença válida." };
+    return { ok: false, mensagem: "Digite o codigo da loja (ex.: MP9S33)." };
   }
 
   const url = `${obterUrlApi()}/api/ativar`;
@@ -44,7 +86,7 @@ async function validarLicencaRemota(chave) {
         mensagem:
           dados.mensagem ||
           dados.erro ||
-          "Licença inválida ou inativa. Verifique a chave da compra.",
+          "Codigo invalido ou loja inativa. Confira o codigo na Area do cliente do site.",
       };
     }
     return {
@@ -58,12 +100,14 @@ async function validarLicencaRemota(chave) {
     return {
       ok: false,
       mensagem:
-        "Não foi possível validar a licença. Verifique a internet e a URL da API (CYBHOR_API_URL).",
+        "Nao foi possivel conectar ao servidor. Verifique a internet e tente novamente.",
     };
   }
 }
 
 module.exports = {
+  API_URL_PRODUCAO,
   obterUrlApi,
+  testarConexaoApi,
   validarLicencaRemota,
 };

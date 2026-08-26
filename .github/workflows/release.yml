@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Versao do release (ex: 2.0.0)"
+        description: "Versao do release (ex: 2.1.0)"
         required: true
-        default: "2.0.0"
+        default: "2.1.0"
 
 env:
   CSC_IDENTITY_AUTO_DISCOVERY: "false"
@@ -35,17 +35,26 @@ jobs:
       - name: Instalar dependencias
         run: npm ci
 
-      - name: Criar arquivo .env
+      - name: Garantir .env de producao no instalador
         shell: pwsh
         run: |
           $apiUrl = "${{ secrets.CYBHOR_API_URL }}"
           if ([string]::IsNullOrWhiteSpace($apiUrl)) {
             $apiUrl = "https://pdv.vps10229.panel.icontainer.run"
           }
-          @"
+          $conteudo = @"
           CYBHOR_API_URL=$apiUrl
           CYBHOR_MODO_DEV=0
-          "@ | Out-File -FilePath .env -Encoding ascii
+          "@
+          # Remove indentacao acidental do here-string e grava sem BOM.
+          $linhas = $conteudo -split "`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne "" }
+          [System.IO.File]::WriteAllText(
+            (Join-Path $PWD "build/env.producao"),
+            (($linhas -join "`n") + "`n"),
+            (New-Object System.Text.UTF8Encoding $false)
+          )
+          Copy-Item "build/env.producao" ".env" -Force
+          Get-Content "build/env.producao"
 
       - name: Instalador Windows 10 / 11
         run: npm run dist:win10

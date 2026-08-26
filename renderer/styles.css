@@ -424,6 +424,47 @@ input[type="date"] {
   gap: 4px;
   flex: 1;
   min-height: 0;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.nav-grupo {
+  margin: 12px 8px 4px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cor-texto-muted);
+}
+
+.nav-grupo:first-child {
+  margin-top: 0;
+}
+
+.status-conexao {
+  margin: 0 0 1rem;
+  padding: 0.65rem 0.8rem;
+  border-radius: var(--raio-sm);
+  background: rgba(148, 163, 184, 0.1);
+  color: var(--cor-texto-suave);
+  font-size: 0.86rem;
+  line-height: 1.35;
+}
+
+.status-conexao.ok {
+  background: var(--cor-sucesso-bg);
+  color: var(--cor-sucesso);
+}
+
+.status-conexao.erro {
+  background: var(--cor-erro-bg);
+  color: var(--cor-erro);
+}
+
+.dica-ativacao {
+  margin-top: 12px !important;
+  margin-bottom: 0 !important;
+  font-size: 0.85rem !important;
 }
 
 .nav-item {

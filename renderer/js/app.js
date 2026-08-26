@@ -271,6 +271,7 @@ async function iniciar() {
     const licenca = await window.pdvAPI?.obterLicenca?.();
     if (!licenca?.ativada || !licenca.lojaId) {
       mostrarTela("tela-ativacao");
+      void atualizarStatusConexao();
       return;
     }
     definirTenant(licenca.lojaId, {
@@ -286,6 +287,7 @@ async function iniciar() {
     }
   } catch {
     mostrarTela("tela-ativacao");
+    void atualizarStatusConexao();
     return;
   }
 
@@ -299,11 +301,32 @@ async function iniciar() {
     }
   } catch {
     notificar(
-      "Falha ao conectar à FastAPI. Verifique se o backend PostgreSQL está rodando.",
+      "Sem conexão com o servidor. Verifique a internet e tente novamente.",
       "erro",
       6000
     );
     mostrarTela("tela-login");
+  }
+}
+
+async function atualizarStatusConexao() {
+  const el = $("ativacao-status-api");
+  if (!el) return;
+  el.classList.remove("ok", "erro");
+  el.textContent = "Verificando conexão...";
+  try {
+    const resultado = await window.pdvAPI?.testarConexaoApi?.();
+    if (resultado?.ok) {
+      el.classList.add("ok");
+      el.textContent = "Servidor online — pode conectar sua loja.";
+    } else {
+      el.classList.add("erro");
+      el.textContent =
+        resultado?.mensagem || "Sem conexão com o servidor. Verifique a internet.";
+    }
+  } catch {
+    el.classList.add("erro");
+    el.textContent = "Sem conexão com o servidor. Verifique a internet.";
   }
 }
 
@@ -316,18 +339,27 @@ async function tratarAtivacao(evento) {
   try {
     const resposta = await window.pdvAPI.ativarLicenca($("ativacao-chave").value);
     if (!resposta?.ok) {
-      throw new Error(resposta?.mensagem || "Não foi possível ativar.");
+      throw new Error(resposta?.mensagem || "Não foi possível conectar a loja.");
     }
     definirTenant(resposta.lojaId, {
       email: resposta.email,
       nomeLoja: resposta.nomeLoja,
       chave: resposta.chave,
     });
-    notificar("Licença ativada. Esta loja está isolada das demais.", "sucesso");
+    notificar(
+      resposta.nomeLoja
+        ? `Loja conectada: ${resposta.nomeLoja}`
+        : "Loja conectada com sucesso.",
+      "sucesso"
+    );
     $("form-ativacao").reset();
 
     const temAdmin = await existeAdministrador();
     mostrarTela(temAdmin ? "tela-login" : "tela-setup");
+    const nomeLojaEl = $("login-loja-nome");
+    if (nomeLojaEl && resposta.nomeLoja) {
+      nomeLojaEl.textContent = `Loja: ${resposta.nomeLoja}`;
+    }
   } catch (erro) {
     setErro($("ativacao-erro"), erro.message);
   } finally {
@@ -2003,6 +2035,9 @@ async function finalizarVenda() {
 
 function registrarEventosGerais() {
   $("form-ativacao")?.addEventListener("submit", tratarAtivacao);
+  $("btn-testar-conexao")?.addEventListener("click", () => {
+    void atualizarStatusConexao();
+  });
   $("form-setup").addEventListener("submit", tratarSetup);
   $("form-login").addEventListener("submit", tratarLogin);
   $("btn-sair").addEventListener("click", sair);

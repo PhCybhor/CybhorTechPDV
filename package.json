@@ -1,7 +1,7 @@
 {
   "name": "cybhor-pdv",
-  "version": "2.0.0",
-  "description": "CybhorPDV 2.0 - PDV desktop com FastAPI e PostgreSQL.",
+  "version": "2.1.0",
+  "description": "CybhorPDV - PDV desktop para Windows 7 e Windows 10+.",
   "author": "Loja",
   "license": "MIT",
   "main": "electron/main.js",
@@ -13,7 +13,7 @@
     "dist": "npm run dist:win10",
     "dist:win10": "npm run build:renderer:prod && electron-builder --win nsis --x64 --publish never -c.win.signAndEditExecutable=false",
     "dist:prod": "npm run dist:win10",
-    "dist:win7": "npm run build:renderer:prod && electron-builder --config electron-builder.win7.json --win nsis --x64 --publish never -c.win.signAndEditExecutable=false && electron-builder --config electron-builder.win7.json --win nsis --ia32 --publish never -c.win.signAndEditExecutable=false",
+    "dist:win7": "npm run build:renderer:prod && electron-builder --config electron-builder.win7.json --win nsis --x64 --ia32 --publish never -c.win.signAndEditExecutable=false",
     "dist:nsis": "npm run dist:win10"
   },
   "dependencies": {
@@ -42,6 +42,7 @@
       "renderer/dist/**/*",
       "renderer/assets/**/*",
       "build/icon.png",
+      "build/env.producao",
       "!renderer/js/**/*",
       "!**/*.map"
     ],
@@ -50,7 +51,7 @@
     ],
     "extraResources": [
       {
-        "from": ".env",
+        "from": "build/env.producao",
         "to": ".env"
       }
     ],

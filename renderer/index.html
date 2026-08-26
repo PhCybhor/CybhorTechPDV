@@ -7,7 +7,7 @@
       content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https: http://127.0.0.1:* http://localhost:*; img-src 'self' data:;"
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>CybhorPDV 2.0</title>
+    <title>CybhorPDV 2.1</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
@@ -22,26 +22,30 @@
     <section id="tela-ativacao" class="tela tela-central oculto">
       <div class="cartao cartao-form">
         <img src="assets/logo.png" class="logo-login" alt="CybhorPDV" />
-        <h1 class="titulo">Ativar licença</h1>
+        <h1 class="titulo">Conectar sua loja</h1>
         <p class="subtitulo">
-          Cada loja usa uma chave exclusiva. Os dados ficam isolados — nada se mistura com outra instalação.
+          Digite o <strong>código da loja</strong> que você recebeu no site
+          (Area do cliente ou após o pagamento).
         </p>
+        <p id="ativacao-status-api" class="status-conexao" aria-live="polite">Verificando conexão...</p>
         <form id="form-ativacao" class="form">
-          <label>Chave da licença
+          <label>Código da loja
             <input
               type="text"
               id="ativacao-chave"
               autocomplete="off"
               required
-              placeholder="CYB-XXXX-XXXX-XXXX"
+              placeholder="Ex.: MP9S33"
               spellcheck="false"
+              maxlength="16"
             />
           </label>
-          <button type="submit" class="btn btn-primario">Ativar esta loja</button>
+          <button type="submit" class="btn btn-primario">Conectar loja</button>
+          <button type="button" class="btn btn-secundario" id="btn-testar-conexao">Testar conexão</button>
           <p class="mensagem-erro oculto" id="ativacao-erro"></p>
         </form>
-        <p class="subtitulo" style="margin-top: 12px; margin-bottom: 0">
-          Comprou agora? Use a chave da página de sucesso do Mercado Pago.
+        <p class="subtitulo dica-ativacao">
+          Não tem o código? Entre no site → Area do cliente com seu usuário e senha.
         </p>
       </div>
     </section>
@@ -75,7 +79,7 @@
     <section id="tela-login" class="tela tela-central oculto">
       <div class="cartao cartao-form">
         <img src="assets/logo.png" class="logo-login" alt="CybhorPDV" />
-        <h1 class="titulo">CybhorPDV 2.0</h1>
+        <h1 class="titulo">CybhorPDV</h1>
         <p class="subtitulo">Acesse com seu usuário e senha.</p>
         <p class="subtitulo" id="login-loja-nome" style="margin-top:-12px;color:var(--cor-acento)"></p>
         <form id="form-login" class="form">
@@ -98,11 +102,12 @@
           <img src="assets/logo.png" class="logo-sidebar" alt="" />
           <div class="sidebar-marca-texto">
             <strong>CybhorPDV</strong>
-            <span>v2.0</span>
+            <span>v2.1</span>
           </div>
         </div>
 
         <nav class="sidebar-nav" aria-label="Menu principal">
+          <p class="nav-grupo">Dia a dia</p>
           <button type="button" class="nav-item ativo" data-rota="pdv" id="nav-pdv" title="Caixa">
             <svg class="nav-icone" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <rect x="3" y="4" width="18" height="16" rx="2"/>
@@ -117,13 +122,12 @@
             </svg>
             <span>Produtos</span>
           </button>
-          <button type="button" class="nav-item oculto" data-rota="fornecedores" id="nav-fornecedores" title="Fornecedores">
+          <button type="button" class="nav-item" data-rota="historico" id="nav-historico" title="Vendas">
             <svg class="nav-icone" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
-              <circle cx="9" cy="7" r="4"/>
-              <path d="M22 11h-6M19 8v6"/>
+              <circle cx="12" cy="12" r="9"/>
+              <path d="M12 7v5l3 2"/>
             </svg>
-            <span>Fornecedores</span>
+            <span>Vendas</span>
           </button>
           <button type="button" class="nav-item oculto" data-rota="clientes" id="nav-clientes" title="Clientes">
             <svg class="nav-icone" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -132,29 +136,14 @@
             </svg>
             <span>Clientes</span>
           </button>
-          <button type="button" class="nav-item oculto" data-rota="gestao" id="nav-gestao" title="Gestão avançada">
-            <svg class="nav-icone" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 20V10M18 20V4M6 20v-4"/>
-            </svg>
-            <span>Gestão+</span>
-          </button>
-          <button type="button" class="nav-item oculto" data-rota="relatorios" id="nav-relatorios" title="Números da loja">
+
+          <p class="nav-grupo">Gestão da loja</p>
+          <button type="button" class="nav-item oculto" data-rota="relatorios" id="nav-relatorios" title="Relatórios">
             <svg class="nav-icone" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M4 19V5M4 19h16"/>
               <path d="M8 16V10M13 16V7M18 16v-4"/>
             </svg>
-            <span>Números</span>
-          </button>
-          <button type="button" class="nav-item oculto" data-rota="assistente" id="nav-assistente" title="Assistente IA">
-            <svg class="nav-icone" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 3a4 4 0 0 1 4 4v1h1a3 3 0 0 1 0 6h-.5"/>
-              <path d="M8 8V7a4 4 0 0 1 7.5-1.9"/>
-              <path d="M7 14H6a3 3 0 0 1 0-6h1"/>
-              <path d="M8 14v2a4 4 0 0 0 8 0v-2"/>
-              <circle cx="9" cy="11" r="1"/>
-              <circle cx="15" cy="11" r="1"/>
-            </svg>
-            <span>CybhorIA</span>
+            <span>Relatórios</span>
           </button>
           <button type="button" class="nav-item oculto" data-rota="funcionarios" id="nav-funcionarios" title="Equipe">
             <svg class="nav-icone" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -164,12 +153,30 @@
             </svg>
             <span>Equipe</span>
           </button>
-          <button type="button" class="nav-item" data-rota="historico" id="nav-historico" title="Histórico">
+          <button type="button" class="nav-item oculto" data-rota="fornecedores" id="nav-fornecedores" title="Fornecedores">
             <svg class="nav-icone" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="9"/>
-              <path d="M12 7v5l3 2"/>
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <path d="M22 11h-6M19 8v6"/>
             </svg>
-            <span>Histórico</span>
+            <span>Fornecedores</span>
+          </button>
+          <button type="button" class="nav-item oculto" data-rota="gestao" id="nav-gestao" title="Estoque e finanças">
+            <svg class="nav-icone" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 20V10M18 20V4M6 20v-4"/>
+            </svg>
+            <span>Estoque e finanças</span>
+          </button>
+          <button type="button" class="nav-item oculto" data-rota="assistente" id="nav-assistente" title="Assistente">
+            <svg class="nav-icone" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 3a4 4 0 0 1 4 4v1h1a3 3 0 0 1 0 6h-.5"/>
+              <path d="M8 8V7a4 4 0 0 1 7.5-1.9"/>
+              <path d="M7 14H6a3 3 0 0 1 0-6h1"/>
+              <path d="M8 14v2a4 4 0 0 0 8 0v-2"/>
+              <circle cx="9" cy="11" r="1"/>
+              <circle cx="15" cy="11" r="1"/>
+            </svg>
+            <span>Assistente</span>
           </button>
           <button type="button" class="nav-item oculto" data-rota="configuracoes" id="nav-configuracoes" title="Configurações">
             <svg class="nav-icone" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -542,7 +549,7 @@
         <div id="rota-gestao" class="rota oculto">
           <header class="rota-cabecalho">
             <div>
-              <h1 class="rota-titulo">Gestão+</h1>
+              <h1 class="rota-titulo">Estoque e finanças</h1>
               <p class="rota-sub">Pedido, DRE, inventário, combos, cupons, turnos e auditoria</p>
             </div>
           </header>
@@ -555,7 +562,7 @@
         <div id="rota-relatorios" class="rota oculto">
           <header class="rota-cabecalho">
             <div>
-              <h1 class="rota-titulo">Números da loja</h1>
+              <h1 class="rota-titulo">Relatórios</h1>
               <p class="rota-sub">Veja o que entrou, o que saiu e se sobrou lucro — em português simples</p>
             </div>
           </header>
@@ -1040,7 +1047,7 @@
         <div id="rota-historico" class="rota oculto">
           <header class="rota-cabecalho">
             <div>
-              <h1 class="rota-titulo">Histórico</h1>
+              <h1 class="rota-titulo">Vendas</h1>
               <p class="rota-sub">Consulte vendas, reimprima cupons e cancele com autorização</p>
             </div>
           </header>

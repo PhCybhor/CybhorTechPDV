@@ -4,12 +4,25 @@ const http = require("http");
 const https = require("https");
 
 /**
- * POST/GET JSON compativel com Electron 22 (Node 16, sem fetch nativo).
+ * POST/GET JSON:
+ * 1) electron.net (Chromium) — melhor TLS no Windows 7
+ * 2) fetch nativo (Electron 31+)
+ * 3) http/https do Node
+ *
  * @param {string} url
  * @param {{ method?: string, headers?: Record<string,string>, body?: string }} opcoes
  * @returns {Promise<{ ok: boolean, status: number, dados: any }>}
  */
 function requisitarJson(url, opcoes = {}) {
+  try {
+    const { net, app } = require("electron");
+    if (net?.request && app?.isReady?.()) {
+      return requisitarComElectronNet(net, url, opcoes);
+    }
+  } catch {
+    /* fora do processo Electron */
+  }
+
   if (typeof fetch === "function") {
     return fetch(url, {
       method: opcoes.method || "GET",
@@ -21,6 +34,51 @@ function requisitarJson(url, opcoes = {}) {
     });
   }
 
+  return requisitarComNode(url, opcoes);
+}
+
+/**
+ * @param {typeof import("electron").net} net
+ * @param {string} url
+ * @param {{ method?: string, headers?: Record<string,string>, body?: string }} opcoes
+ */
+function requisitarComElectronNet(net, url, opcoes) {
+  return new Promise((resolve, reject) => {
+    const req = net.request({
+      url,
+      method: opcoes.method || "GET",
+    });
+    const headers = opcoes.headers || {};
+    for (const [chave, valor] of Object.entries(headers)) {
+      if (valor != null) req.setHeader(chave, String(valor));
+    }
+    const partes = [];
+    req.on("response", (res) => {
+      res.on("data", (chunk) => partes.push(Buffer.from(chunk)));
+      res.on("end", () => {
+        const texto = Buffer.concat(partes).toString("utf8");
+        let dados = {};
+        try {
+          dados = texto ? JSON.parse(texto) : {};
+        } catch {
+          dados = {};
+        }
+        const status = res.statusCode || 0;
+        resolve({ ok: status >= 200 && status < 300, status, dados });
+      });
+      res.on("error", reject);
+    });
+    req.on("error", reject);
+    if (opcoes.body) req.write(opcoes.body);
+    req.end();
+  });
+}
+
+/**
+ * @param {string} url
+ * @param {{ method?: string, headers?: Record<string,string>, body?: string }} opcoes
+ */
+function requisitarComNode(url, opcoes) {
   return new Promise((resolve, reject) => {
     const alvo = new URL(url);
     const lib = alvo.protocol === "https:" ? https : http;
@@ -36,6 +94,7 @@ function requisitarJson(url, opcoes = {}) {
         path: `${alvo.pathname}${alvo.search}`,
         method: opcoes.method || "GET",
         headers,
+        timeout: 20000,
       },
       (res) => {
         const partes = [];
@@ -57,6 +116,9 @@ function requisitarJson(url, opcoes = {}) {
         });
       }
     );
+    req.on("timeout", () => {
+      req.destroy(new Error("Tempo esgotado ao conectar ao servidor."));
+    });
     req.on("error", reject);
     if (corpo) req.write(corpo);
     req.end();
