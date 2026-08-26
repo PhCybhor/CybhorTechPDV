@@ -9,7 +9,7 @@
   const $ = (id) => document.getElementById(id);
   const CHAVE_TOKEN = "cybhor-admin-token";
 
-  const obterToken = () => sessionStorage.getItem(CHAVE_TOKEN);
+  const obterToken = () => sessionStorage.getItem(CHAVE_TOKEN) || "";
 
   function escapeHtml(texto) {
     const div = document.createElement("div");
@@ -17,30 +17,45 @@
     return div.innerHTML;
   }
 
+  function mensagemErroApi(dados, fallback) {
+    const erro = dados?.erro || dados?.detail || dados?.mensagem;
+    if (typeof erro === "string" && erro.trim()) return erro.trim();
+    return fallback;
+  }
+
   async function chamarApi(caminho, opcoes = {}) {
     const ehLogin = caminho === "/admin/login";
+    // Congela o token desta requisicao — evita que um 401 antigo apague login novo.
+    const tokenUsado = ehLogin ? "" : obterToken();
+    const cabecalhos = {
+      "Content-Type": "application/json",
+      ...(opcoes.headers || {}),
+    };
+    if (tokenUsado) cabecalhos.Authorization = `Bearer ${tokenUsado}`;
+
     const resposta = await fetch(`/api${caminho}`, {
       ...opcoes,
-      headers: {
-        "Content-Type": "application/json",
-        ...(!ehLogin && obterToken() ? { Authorization: `Bearer ${obterToken()}` } : {}),
-        ...(opcoes.headers || {}),
-      },
+      headers: cabecalhos,
     });
 
     const dados = await resposta.json().catch(() => ({}));
     if (resposta.status === 401) {
       // Login com senha errada tambem retorna 401 — nao confundir com sessao.
-      if (!ehLogin) {
+      if (!ehLogin && tokenUsado && obterToken() === tokenUsado) {
         sessionStorage.removeItem(CHAVE_TOKEN);
         mostrarLogin();
       }
       throw new Error(
-        dados.erro || (ehLogin ? "Credenciais invalidas." : "Sessao expirada. Entre novamente.")
+        mensagemErroApi(
+          dados,
+          ehLogin ? "Credenciais invalidas." : "Sessao expirada. Entre novamente."
+        )
       );
     }
 
-    if (!resposta.ok) throw new Error(dados.erro || "Falha na requisicao.");
+    if (!resposta.ok) {
+      throw new Error(mensagemErroApi(dados, "Falha na requisicao."));
+    }
     return dados;
   }
 
@@ -204,8 +219,12 @@
   $("form-login").addEventListener("submit", async (evento) => {
     evento.preventDefault();
     const erroEl = $("login-erro");
+    const botao = $("form-login")?.querySelector("button[type=submit]");
     erroEl.classList.add("oculto");
+    if (botao) botao.disabled = true;
     try {
+      // Descarta token antigo antes do login para nao misturar sessoes.
+      sessionStorage.removeItem(CHAVE_TOKEN);
       const sessao = await chamarApi("/admin/login", {
         method: "POST",
         body: JSON.stringify({
@@ -213,12 +232,19 @@
           senha: $("login-senha").value,
         }),
       });
+      if (!sessao?.token) {
+        throw new Error("Login sem token. Tente novamente.");
+      }
       sessionStorage.setItem(CHAVE_TOKEN, sessao.token);
       mostrarPainel();
       await carregarLojas();
     } catch (erro) {
-      erroEl.textContent = erro.message;
+      sessionStorage.removeItem(CHAVE_TOKEN);
+      mostrarLogin();
+      erroEl.textContent = erro.message || "Nao foi possivel entrar.";
       erroEl.classList.remove("oculto");
+    } finally {
+      if (botao) botao.disabled = false;
     }
   });
 
@@ -268,14 +294,30 @@
     }, 1800);
   });
 
-  $("btn-atualizar").addEventListener("click", () => carregarLojas().catch(() => {}));
+  $("btn-atualizar").addEventListener("click", () => {
+    carregarLojas().catch((erro) => {
+      alert(erro.message || "Falha ao atualizar.");
+    });
+  });
   $("btn-sair").addEventListener("click", () => {
     sessionStorage.removeItem(CHAVE_TOKEN);
     mostrarLogin();
   });
 
-  if (obterToken()) {
+  async function restaurarSessao() {
+    const token = obterToken();
+    if (!token) return;
     mostrarPainel();
-    carregarLojas().catch(() => mostrarLogin());
+    try {
+      await carregarLojas();
+    } catch {
+      // So volta ao login se o token ainda for o que falhou (evita corrida com login novo).
+      if (obterToken() === token) {
+        sessionStorage.removeItem(CHAVE_TOKEN);
+        mostrarLogin();
+      }
+    }
   }
+
+  void restaurarSessao();
 })();
