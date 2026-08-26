@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Versao do release (ex: 2.1.2)"
+        description: "Versao do release (ex: 2.1.3)"
         required: true
-        default: "2.1.2"
+        default: "2.1.3"
 
 env:
   CSC_IDENTITY_AUTO_DISCOVERY: "false"

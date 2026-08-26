@@ -23,7 +23,7 @@ import { registrarVenda, observarVendas } from "./services/vendaService.js";
 import { imprimirCupomVenda } from "./services/impressaoService.js";
 import { obterConfigApp } from "./services/configService.js";
 import { definirTenant, obterMetaLoja } from "./services/tenantContext.js";
-import { EVENTO_SESSAO_EXPIRADA } from "./config/apiClient.js";
+import { EVENTO_SESSAO_EXPIRADA, obterApiUrl } from "./config/apiClient.js";
 import { atualizarIndice, buscar } from "./services/buscaFuzzy.js";
 import { observarDespesas } from "./services/despesaService.js";
 import { gerarResumo } from "./services/relatorioService.js";
@@ -315,7 +315,27 @@ async function atualizarStatusConexao() {
   el.classList.remove("ok", "erro");
   el.textContent = "Verificando conexão...";
   try {
-    const resultado = await window.pdvAPI?.testarConexaoApi?.();
+    let resultado = await window.pdvAPI?.testarConexaoApi?.();
+    // Fallback: testa direto do renderer se o processo principal falhar.
+    if (!resultado?.ok) {
+      try {
+        const apiUrl = await obterApiUrl();
+        const resposta = await fetch(`${apiUrl}/api/saude`, {
+          method: "GET",
+          headers: { Accept: "application/json" },
+        });
+        const dados = await resposta.json().catch(() => ({}));
+        if (resposta.ok && dados?.ok) {
+          resultado = {
+            ok: true,
+            mensagem: "Conectado ao servidor CybhorPDV.",
+            apiUrl,
+          };
+        }
+      } catch {
+        /* mantem resultado anterior */
+      }
+    }
     if (resultado?.ok) {
       el.classList.add("ok");
       el.textContent = "Servidor online — pode conectar sua loja.";

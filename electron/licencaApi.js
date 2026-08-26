@@ -1,6 +1,6 @@
 "use strict";
 
-const { requisitarJson } = require("./httpJson");
+const { requisitarJson, traduzirErroRede } = require("./httpJson");
 
 /** URL publica de producao — fallback do instalador (nunca localhost no .exe). */
 const API_URL_PRODUCAO = "https://pdv.vps10229.panel.icontainer.run";
@@ -11,8 +11,8 @@ const API_URL_PRODUCAO = "https://pdv.vps10229.panel.icontainer.run";
 function appEmpacotado() {
   try {
     const { app } = require("electron");
-    return Boolean(app?.isPackaged);
-  } catch {
+    return Boolean(app.isPackaged);
+  } catch (_erro) {
     return false;
   }
 }
@@ -30,6 +30,26 @@ function obterUrlApi() {
 }
 
 /**
+ * Hosts oficiais da API — usados no bypass controlado de certificado (Win7).
+ * @returns {Set<string>}
+ */
+function hostsApiConfiaveis() {
+  const hosts = new Set();
+  try {
+    hosts.add(new URL(API_URL_PRODUCAO).hostname);
+  } catch (_erro) {
+    /* ignore */
+  }
+  try {
+    const atual = obterUrlApi();
+    if (atual.startsWith("https://")) hosts.add(new URL(atual).hostname);
+  } catch (_erro) {
+    /* ignore */
+  }
+  return hosts;
+}
+
+/**
  * Testa se a API responde (usado na tela de ativacao/login).
  * @returns {Promise<{ok: boolean, mensagem: string, apiUrl: string}>}
  */
@@ -40,19 +60,19 @@ async function testarConexaoApi() {
       method: "GET",
       headers: { Accept: "application/json" },
     });
-    if (resposta.ok && resposta.dados?.ok) {
+    if (resposta.ok && (resposta.dados?.ok === true || resposta.status === 200)) {
       return { ok: true, mensagem: "Conectado ao servidor CybhorPDV.", apiUrl };
     }
     return {
       ok: false,
-      mensagem: "Servidor respondeu, mas a saude da API falhou. Tente de novo em instantes.",
+      mensagem:
+        "Servidor respondeu, mas a saude da API falhou. Tente de novo em instantes.",
       apiUrl,
     };
   } catch (erro) {
     return {
       ok: false,
-      mensagem:
-        "Sem conexao com o servidor. Verifique a internet do computador e tente novamente.",
+      mensagem: traduzirErroRede(erro),
       apiUrl,
     };
   }
@@ -96,11 +116,10 @@ async function validarLicencaRemota(chave) {
       nomeLoja: dados.nomeLoja || "",
       chave: limpa,
     };
-  } catch {
+  } catch (erro) {
     return {
       ok: false,
-      mensagem:
-        "Nao foi possivel conectar ao servidor. Verifique a internet e tente novamente.",
+      mensagem: traduzirErroRede(erro),
     };
   }
 }
@@ -108,6 +127,7 @@ async function validarLicencaRemota(chave) {
 module.exports = {
   API_URL_PRODUCAO,
   obterUrlApi,
+  hostsApiConfiaveis,
   testarConexaoApi,
   validarLicencaRemota,
 };

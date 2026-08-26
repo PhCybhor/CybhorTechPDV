@@ -4,38 +4,81 @@ const http = require("http");
 const https = require("https");
 
 /**
- * POST/GET JSON:
- * 1) electron.net (Chromium) — melhor TLS no Windows 7
- * 2) fetch nativo (Electron 31+)
+ * POST/GET JSON com fallbacks (Win7 / Electron 22 sem fetch nativo):
+ * 1) electron.net (Chromium)
+ * 2) fetch (Electron 31+)
  * 3) http/https do Node
  *
  * @param {string} url
  * @param {{ method?: string, headers?: Record<string,string>, body?: string }} opcoes
  * @returns {Promise<{ ok: boolean, status: number, dados: any }>}
  */
-function requisitarJson(url, opcoes = {}) {
+async function requisitarJson(url, opcoes = {}) {
+  const erros = [];
+
   try {
     const { net, app } = require("electron");
-    // Electron 22 (Win7) nao tem fetch no Node — preferir net apos ready.
     if (net && typeof net.request === "function" && app && app.isReady()) {
-      return requisitarComElectronNet(net, url, opcoes);
+      return await requisitarComElectronNet(net, url, opcoes);
     }
-  } catch (_erro) {
-    /* fora do processo Electron */
+  } catch (erro) {
+    erros.push(erro);
   }
 
   if (typeof fetch === "function") {
-    return fetch(url, {
-      method: opcoes.method || "GET",
-      headers: opcoes.headers || {},
-      body: opcoes.body,
-    }).then(async (resposta) => {
+    try {
+      const resposta = await fetch(url, {
+        method: opcoes.method || "GET",
+        headers: opcoes.headers || {},
+        body: opcoes.body,
+      });
       const dados = await resposta.json().catch(() => ({}));
       return { ok: resposta.ok, status: resposta.status, dados };
-    });
+    } catch (erro) {
+      erros.push(erro);
+    }
   }
 
-  return requisitarComNode(url, opcoes);
+  try {
+    return await requisitarComNode(url, opcoes);
+  } catch (erro) {
+    erros.push(erro);
+    const ultimo = erros[erros.length - 1] || erro;
+    const mensagem = traduzirErroRede(ultimo);
+    const falha = new Error(mensagem);
+    falha.causa = ultimo;
+    throw falha;
+  }
+}
+
+/**
+ * @param {unknown} erro
+ * @returns {string}
+ */
+function traduzirErroRede(erro) {
+  const bruto = String(
+    (erro && erro.message) || (erro && erro.code) || erro || "falha de rede"
+  );
+  const texto = bruto.toLowerCase();
+  if (
+    texto.includes("cert") ||
+    texto.includes("ssl") ||
+    texto.includes("tls") ||
+    texto.includes("unable_to_verify") ||
+    texto.includes("err_cert")
+  ) {
+    return "Falha de certificado SSL ao falar com o servidor. Atualize o CybhorPDV ou a data/hora do Windows.";
+  }
+  if (texto.includes("enotfound") || texto.includes("getaddrinfo")) {
+    return "Sem DNS/internet. Verifique a conexao de rede do computador.";
+  }
+  if (texto.includes("etimedout") || texto.includes("timeout") || texto.includes("tempo esgotado")) {
+    return "Tempo esgotado ao conectar. Verifique a internet e tente de novo.";
+  }
+  if (texto.includes("econnrefused")) {
+    return "Servidor recusou a conexao. Tente novamente em instantes.";
+  }
+  return "Sem conexao com o servidor. Verifique a internet e tente novamente.";
 }
 
 /**
@@ -61,7 +104,7 @@ function requisitarComElectronNet(net, url, opcoes) {
         let dados = {};
         try {
           dados = texto ? JSON.parse(texto) : {};
-        } catch {
+        } catch (_erro) {
           dados = {};
         }
         const status = res.statusCode || 0;
@@ -96,6 +139,8 @@ function requisitarComNode(url, opcoes) {
         method: opcoes.method || "GET",
         headers,
         timeout: 20000,
+        // Ultimo recurso no Node: alguns Win7 quebram na cadeia LE nova.
+        rejectUnauthorized: true,
       },
       (res) => {
         const partes = [];
@@ -105,7 +150,7 @@ function requisitarComNode(url, opcoes) {
           let dados = {};
           try {
             dados = texto ? JSON.parse(texto) : {};
-          } catch {
+          } catch (_erro) {
             dados = {};
           }
           const status = res.statusCode || 0;
@@ -126,4 +171,4 @@ function requisitarComNode(url, opcoes) {
   });
 }
 
-module.exports = { requisitarJson };
+module.exports = { requisitarJson, traduzirErroRede };

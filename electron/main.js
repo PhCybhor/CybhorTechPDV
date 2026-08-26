@@ -19,6 +19,7 @@ const {
   obterUrlApi,
   testarConexaoApi,
   API_URL_PRODUCAO,
+  hostsApiConfiaveis,
 } = require("./licencaApi");
 
 const { consultarAssistente } = require("./assistenteGemini");
@@ -311,6 +312,24 @@ ipcMain.handle("abrir-externo", async (_evento, url) => {
 });
 
 app.whenReady().then(() => {
+  // Win7 + Electron 22: cadeias novas da Let's Encrypt (YE/YR) podem falhar
+  // na verificacao do Chromium antigo. Aceita so o host oficial da API.
+  try {
+    const { session } = require("electron");
+    const confiaveis = hostsApiConfiaveis();
+    session.defaultSession.setCertificateVerifyProc((pedido, callback) => {
+      const host = String(pedido.hostname || "");
+      if (confiaveis.has(host)) {
+        callback(0);
+        return;
+      }
+      // -3 = usa o resultado padrao do Chromium
+      callback(-3);
+    });
+  } catch (erro) {
+    console.error("Falha ao configurar verificacao de certificado:", erro);
+  }
+
   carregarConfigApp();
   criarJanela();
 
