@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import json
+import uuid
 from typing import Any, Dict, List, Sequence
 
 import psycopg2.extras
@@ -63,6 +64,32 @@ def _mesclar_no_documento(
     _definir_no_documento(documento, partes, base)
 
 
+def _parece_registro_unico(documento: Dict[str, Any]) -> bool:
+    """Detecta JSONB gravado como um único registro na raiz (ex.: venda sem id filho)."""
+    if not documento:
+        return False
+    if "itens" in documento or "criadoEm" in documento:
+        tem_filhos = any(
+            isinstance(v, dict) and ("itens" in v or "criadoEm" in v or "nome" in v)
+            for v in documento.values()
+        )
+        return not tem_filhos
+    return False
+
+
+def _normalizar_mapa_registros(documento: Any) -> Dict[str, Any]:
+    if not isinstance(documento, dict):
+        return {}
+    dados = copy.deepcopy(documento)
+    if _parece_registro_unico(dados):
+        dados = {"legado": dados}
+    for chave_quebrada in ("undefined", "null"):
+        legado = dados.pop(chave_quebrada, None)
+        if isinstance(legado, dict) and "legado" not in dados:
+            dados["legado"] = legado
+    return dados
+
+
 def _carregar_recurso(cur, loja_id: str, recurso: str) -> Dict[str, Any]:
     cur.execute(
         """
@@ -73,9 +100,9 @@ def _carregar_recurso(cur, loja_id: str, recurso: str) -> Dict[str, Any]:
         (loja_id, recurso),
     )
     row = cur.fetchone()
-    if not row or not isinstance(row["dados"], dict):
+    if not row:
         return {}
-    return copy.deepcopy(row["dados"])
+    return _normalizar_mapa_registros(row["dados"])
 
 
 def _salvar_recurso(cur, loja_id: str, recurso: str, dados: Dict[str, Any]) -> None:
@@ -99,7 +126,7 @@ def obter(loja_id: str, caminho: str) -> Any:
         "SELECT dados FROM documentos_loja WHERE loja_id = %s AND recurso = %s",
         (loja_id, partes[0]),
     )
-    documento = rows[0]["dados"] if rows else {}
+    documento = _normalizar_mapa_registros(rows[0]["dados"] if rows else {})
     if len(partes) == 1:
         return documento
     return _buscar_no_documento(documento, partes[1:])
@@ -158,7 +185,12 @@ def atualizar_lote(loja_id: str, atualizacoes: Dict[str, Any]) -> None:
             documento = _carregar_recurso(cur, loja_id, recurso)
             for subpartes, valor in operacoes:
                 if not subpartes:
-                    documento = valor if isinstance(valor, dict) else {"valor": valor}
-                else:
-                    _definir_no_documento(documento, subpartes, valor)
+                    # Nunca substituir o mapa inteiro por um registro solto.
+                    if isinstance(valor, dict) and not _parece_registro_unico(valor):
+                        documento = valor
+                    continue
+                partes_ok = list(subpartes)
+                if partes_ok[0] in ("undefined", "null", ""):
+                    partes_ok[0] = uuid.uuid4().hex
+                _definir_no_documento(documento, partes_ok, valor)
             _salvar_recurso(cur, loja_id, recurso, documento)

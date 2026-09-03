@@ -106,12 +106,21 @@ export async function set(referencia, valor) {
   });
 }
 
-export async function push(referencia, valor) {
+/**
+ * Gera um id filho (compatível com Firebase: push(ref) é síncrono e tem .key).
+ * Se passar valor, também persiste; o retorno continua awaitable.
+ */
+export function push(referencia, valor) {
   const chave = crypto.randomUUID().replace(/-/g, "");
   const caminhoBase = normalizarCaminho(referencia.caminho);
-  const resultado = { caminho: `${caminhoBase}/${chave}`, key: chave, constraints: [] };
-  if (valor !== undefined) await set(resultado, valor);
-  return resultado;
+  const resultado = {
+    caminho: `${caminhoBase}/${chave}`,
+    key: chave,
+    constraints: [],
+  };
+  if (valor === undefined) return resultado;
+  const pendente = set(resultado, valor).then(() => resultado);
+  return Object.assign(pendente, resultado);
 }
 
 export async function update(referencia, patch) {

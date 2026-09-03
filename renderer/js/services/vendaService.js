@@ -18,7 +18,14 @@ function caminhoProdutos() {
  */
 function mapearVendas(valor) {
   if (!valor) return [];
-  return Object.entries(valor).map(([id, dados]) => ({ id, ...dados }));
+  // Documento pode ser mapa {id: venda} ou, por bug antigo, a própria venda na raiz.
+  if (Array.isArray(valor.itens) && valor.criadoEm != null && !valor.id) {
+    return [{ id: "legado", ...valor }];
+  }
+  return Object.entries(valor)
+    .filter(([, dados]) => dados && typeof dados === "object" && !Array.isArray(dados))
+    .filter(([, dados]) => dados.criadoEm != null || Array.isArray(dados.itens))
+    .map(([id, dados]) => ({ id, ...dados }));
 }
 
 /**
@@ -108,6 +115,9 @@ export async function registrarVenda({
   );
 
   const referenciaVenda = push(ref(db, pathVendas));
+  if (!referenciaVenda?.key) {
+    throw new Error("Não foi possível gerar o identificador da venda.");
+  }
   const atualizacoes = {};
 
   const criadoEm = Date.now();
