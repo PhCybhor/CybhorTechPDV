@@ -22,6 +22,7 @@ export class PainelHistorico {
    *   inputFiltro: HTMLInputElement,
    *   selectPeriodo: HTMLSelectElement,
    *   ehAdmin: boolean,
+   *   podeCancelar?: boolean,
    *   funcionarioNome: string,
    *   onReimprimir: (venda: object) => void,
    *   formCancelar: HTMLFormElement,
@@ -35,6 +36,7 @@ export class PainelHistorico {
     inputFiltro,
     selectPeriodo,
     ehAdmin,
+    podeCancelar = ehAdmin,
     funcionarioNome,
     onReimprimir,
     formCancelar,
@@ -46,6 +48,7 @@ export class PainelHistorico {
     this.inputFiltro = inputFiltro;
     this.selectPeriodo = selectPeriodo;
     this.ehAdmin = ehAdmin;
+    this.podeCancelar = podeCancelar;
     this.funcionarioNome = funcionarioNome;
     this.onReimprimir = onReimprimir;
     this.formCancelar = formCancelar;
@@ -133,7 +136,7 @@ export class PainelHistorico {
               Cupom
             </button>
             ${
-              this.ehAdmin && !cancelada
+              this.podeCancelar && !cancelada
                 ? `<button type="button" class="btn btn-texto btn-sm" data-acao="cancelar" data-id="${escapeHtml(venda.id)}">Cancelar</button>`
                 : ""
             }
@@ -156,6 +159,7 @@ export class PainelHistorico {
     }
 
     if (botao.dataset.acao === "cancelar") {
+      if (!this.podeCancelar) return;
       this.vendaCancelarId = venda.id;
       this.formCancelar.reset();
       this.erroCancelar.textContent = "";
@@ -168,7 +172,7 @@ export class PainelHistorico {
   /** @param {Event} evento */
   async _confirmarCancelamento(evento) {
     evento.preventDefault();
-    if (!this.vendaCancelarId) return;
+    if (!this.vendaCancelarId || !this.podeCancelar) return;
 
     this.erroCancelar.textContent = "";
     this.erroCancelar.classList.add("oculto");

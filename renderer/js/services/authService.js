@@ -296,3 +296,16 @@ export async function atualizarAreasFuncionario(funcionarioId, areas) {
   });
 }
 
+/**
+ * Atualiza as permissões do operador de caixa.
+ * @param {string} funcionarioId
+ * @param {Record<string, boolean>} permissoes
+ */
+export async function atualizarPermissoesFuncionario(funcionarioId, permissoes) {
+  if (!funcionarioId) throw new Error("Funcionário inválido.");
+  await apiRequest(`/api/funcionarios/${funcionarioId}`, {
+    method: "PATCH",
+    body: { permissoes: permissoes || {} },
+  });
+}
+

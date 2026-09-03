@@ -6,6 +6,7 @@ import {
 import { obterLojaId, obterMetaLoja } from "../services/tenantContext.js";
 import { notificar } from "./notificacao.js";
 import { escapeHtml } from "../utils/escape.js";
+import { MODULOS_LOJA, CAMPOS_CADASTRO_PRODUTO, aplicarAparencia } from "../utils/aparencia.js";
 
 /**
  * Painel de configurações da loja e impressora.
@@ -17,19 +18,36 @@ export class PainelConfiguracoes {
    *   selectImpressora: HTMLSelectElement,
    *   erroEl: HTMLElement,
    *   onSalvo?: (config: object) => void
+   *   onAparencia?: (parcial: object) => void
    * }} opcoes
    */
-  constructor({ form, selectImpressora, erroEl, onSalvo = null }) {
+  constructor({ form, selectImpressora, erroEl, onSalvo = null, onAparencia = null }) {
     this.form = form;
     this.selectImpressora = selectImpressora;
     this.erroEl = erroEl;
     this.onSalvo = onSalvo;
+    this.onAparencia = onAparencia;
     this._carregando = false;
 
     this.form.addEventListener("submit", (e) => this._salvar(e));
     this.form
       .querySelector("#btn-atualizar-impressoras")
       ?.addEventListener("click", () => this._carregarImpressoras());
+
+    const idsPreview = [
+      "#cfg-tema",
+      "#cfg-fonte-ui",
+      "#cfg-densidade-ui",
+      "#cfg-tamanho-ui",
+      "#cfg-reduzir-animacoes",
+    ];
+    for (const seletor of idsPreview) {
+      this.form.querySelector(seletor)?.addEventListener("change", () => {
+        const parcial = this._lerAparencia();
+        aplicarAparencia(parcial);
+        this.onAparencia?.(parcial);
+      });
+    }
   }
 
   async carregar() {
@@ -49,6 +67,22 @@ export class PainelConfiguracoes {
     } catch (erro) {
       this._setErro(erro.message);
     }
+  }
+
+  /**
+   * @returns {object}
+   */
+  _lerAparencia() {
+    return {
+      tema: this.form.querySelector("#cfg-tema")?.value || "escuro",
+      fonteUi: this.form.querySelector("#cfg-fonte-ui")?.value || "sistema",
+      densidadeUi:
+        this.form.querySelector("#cfg-densidade-ui")?.value || "confortavel",
+      tamanhoUi: this.form.querySelector("#cfg-tamanho-ui")?.value || "medio",
+      reduzirAnimacoes: Boolean(
+        this.form.querySelector("#cfg-reduzir-animacoes")?.checked
+      ),
+    };
   }
 
   /**
@@ -82,6 +116,37 @@ export class PainelConfiguracoes {
     if (barras) barras.checked = config.modoBarrasContinuo !== false;
     const gav = this.form.querySelector("#cfg-abrir-gaveta");
     if (gav) gav.checked = Boolean(config.abrirGavetaAoVender);
+
+    const tema = this.form.querySelector("#cfg-tema");
+    if (tema) tema.value = config.tema === "claro" ? "claro" : "escuro";
+    const fonte = this.form.querySelector("#cfg-fonte-ui");
+    if (fonte) fonte.value = config.fonteUi || "sistema";
+    const dens = this.form.querySelector("#cfg-densidade-ui");
+    if (dens) {
+      dens.value =
+        config.densidadeUi === "compacta" ? "compacta" : "confortavel";
+    }
+    const tam = this.form.querySelector("#cfg-tamanho-ui");
+    if (tam) tam.value = config.tamanhoUi || "medio";
+    const anim = this.form.querySelector("#cfg-reduzir-animacoes");
+    if (anim) anim.checked = Boolean(config.reduzirAnimacoes);
+
+    const ocFiado = this.form.querySelector("#cfg-ocultar-fiado");
+    if (ocFiado) ocFiado.checked = Boolean(config.ocultarFiado);
+    const ocDesc = this.form.querySelector("#cfg-ocultar-desconto");
+    if (ocDesc) ocDesc.checked = Boolean(config.ocultarDesconto);
+    const ocCli = this.form.querySelector("#cfg-ocultar-cliente");
+    if (ocCli) ocCli.checked = Boolean(config.ocultarCliente);
+
+    for (const campo of CAMPOS_CADASTRO_PRODUTO) {
+      const el = this.form.querySelector(`#cfg-${kebabModulo(campo.chave)}`);
+      if (el) el.checked = config[campo.chave] !== false;
+    }
+
+    for (const mod of MODULOS_LOJA) {
+      const el = this.form.querySelector(`#cfg-${kebabModulo(mod.chave)}`);
+      if (el) el.checked = config[mod.chave] !== false;
+    }
   }
 
   /**
@@ -129,6 +194,19 @@ export class PainelConfiguracoes {
     if (botao) botao.disabled = true;
 
     try {
+      /** @type {Record<string, boolean>} */
+      const modulos = {};
+      for (const mod of MODULOS_LOJA) {
+        const el = this.form.querySelector(`#cfg-${kebabModulo(mod.chave)}`);
+        modulos[mod.chave] = Boolean(el?.checked);
+      }
+
+      const camposProduto = {};
+      for (const campo of CAMPOS_CADASTRO_PRODUTO) {
+        const el = this.form.querySelector(`#cfg-${kebabModulo(campo.chave)}`);
+        camposProduto[campo.chave] = Boolean(el?.checked);
+      }
+
       const config = await salvarConfigApp({
         lojaNome: this.form.querySelector("#cfg-loja-nome").value,
         lojaCnpj: this.form.querySelector("#cfg-loja-cnpj").value,
@@ -153,6 +231,18 @@ export class PainelConfiguracoes {
         abrirGavetaAoVender: Boolean(
           this.form.querySelector("#cfg-abrir-gaveta")?.checked
         ),
+        ...this._lerAparencia(),
+        ocultarFiado: Boolean(
+          this.form.querySelector("#cfg-ocultar-fiado")?.checked
+        ),
+        ocultarDesconto: Boolean(
+          this.form.querySelector("#cfg-ocultar-desconto")?.checked
+        ),
+        ocultarCliente: Boolean(
+          this.form.querySelector("#cfg-ocultar-cliente")?.checked
+        ),
+        ...camposProduto,
+        ...modulos,
       });
       notificar("Configurações salvas.", "sucesso");
       this.onSalvo?.(config);
@@ -175,4 +265,9 @@ export class PainelConfiguracoes {
 /** @param {string} texto */
 function escapeAttr(texto) {
   return escapeHtml(texto).replace(/'/g, "&#39;");
+}
+
+/** @param {string} chave camelCase → kebab (moduloHistorico → modulo-historico) */
+function kebabModulo(chave) {
+  return chave.replace(/([A-Z])/g, "-$1").toLowerCase();
 }

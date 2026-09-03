@@ -25,7 +25,55 @@ const CAMPOS = [
   "cashbackPct",
   "modoBarrasContinuo",
   "abrirGavetaAoVender",
+  "tema",
+  "fonteUi",
+  "densidadeUi",
+  "tamanhoUi",
+  "reduzirAnimacoes",
+  "ocultarFiado",
+  "ocultarDesconto",
+  "ocultarCliente",
+  "campoProdutoCusto",
+  "campoProdutoCodigos",
+  "campoProdutoCategoria",
+  "campoProdutoUnidade",
+  "campoProdutoCaixa",
+  "campoProdutoValidade",
+  "campoProdutoPromocao",
+  "moduloProdutos",
+  "moduloHistorico",
+  "moduloClientes",
+  "moduloRelatorios",
+  "moduloFornecedores",
+  "moduloGestao",
+  "moduloAssistente",
+  "moduloFuncionarios",
 ];
+
+/**
+ * @param {unknown} valor
+ * @param {boolean} padrao
+ * @returns {boolean}
+ */
+function comoBool(valor, padrao = true) {
+  if (
+    valor === false ||
+    valor === 0 ||
+    valor === "0" ||
+    valor === "false"
+  ) {
+    return false;
+  }
+  if (
+    valor === true ||
+    valor === 1 ||
+    valor === "1" ||
+    valor === "true"
+  ) {
+    return true;
+  }
+  return padrao;
+}
 
 /**
  * @returns {string}
@@ -55,6 +103,29 @@ function padraoDoEnv() {
     cashbackPct: 0,
     modoBarrasContinuo: true,
     abrirGavetaAoVender: false,
+    tema: "escuro",
+    fonteUi: "sistema",
+    densidadeUi: "confortavel",
+    tamanhoUi: "medio",
+    reduzirAnimacoes: false,
+    ocultarFiado: false,
+    ocultarDesconto: false,
+    ocultarCliente: false,
+    campoProdutoCusto: true,
+    campoProdutoCodigos: true,
+    campoProdutoCategoria: true,
+    campoProdutoUnidade: true,
+    campoProdutoCaixa: true,
+    campoProdutoValidade: true,
+    campoProdutoPromocao: true,
+    moduloProdutos: true,
+    moduloHistorico: true,
+    moduloClientes: true,
+    moduloRelatorios: true,
+    moduloFornecedores: true,
+    moduloGestao: true,
+    moduloAssistente: true,
+    moduloFuncionarios: true,
   };
 }
 
@@ -114,6 +185,37 @@ function normalizar(bruto) {
       entrada.abrirGavetaAoVender === 1 ||
       entrada.abrirGavetaAoVender === "1" ||
       entrada.abrirGavetaAoVender === "true",
+    tema: entrada.tema === "claro" ? "claro" : "escuro",
+    fonteUi: ["sistema", "moderna", "legivel", "tecnica"].includes(
+      entrada.fonteUi
+    )
+      ? entrada.fonteUi
+      : "sistema",
+    densidadeUi: entrada.densidadeUi === "compacta" ? "compacta" : "confortavel",
+    tamanhoUi: ["pequeno", "medio", "grande", "enorme"].includes(
+      entrada.tamanhoUi
+    )
+      ? entrada.tamanhoUi
+      : "medio",
+    reduzirAnimacoes: comoBool(entrada.reduzirAnimacoes, false),
+    ocultarFiado: comoBool(entrada.ocultarFiado, false),
+    ocultarDesconto: comoBool(entrada.ocultarDesconto, false),
+    ocultarCliente: comoBool(entrada.ocultarCliente, false),
+    campoProdutoCusto: comoBool(entrada.campoProdutoCusto, true),
+    campoProdutoCodigos: comoBool(entrada.campoProdutoCodigos, true),
+    campoProdutoCategoria: comoBool(entrada.campoProdutoCategoria, true),
+    campoProdutoUnidade: comoBool(entrada.campoProdutoUnidade, true),
+    campoProdutoCaixa: comoBool(entrada.campoProdutoCaixa, true),
+    campoProdutoValidade: comoBool(entrada.campoProdutoValidade, true),
+    campoProdutoPromocao: comoBool(entrada.campoProdutoPromocao, true),
+    moduloProdutos: comoBool(entrada.moduloProdutos, true),
+    moduloHistorico: comoBool(entrada.moduloHistorico, true),
+    moduloClientes: comoBool(entrada.moduloClientes, true),
+    moduloRelatorios: comoBool(entrada.moduloRelatorios, true),
+    moduloFornecedores: comoBool(entrada.moduloFornecedores, true),
+    moduloGestao: comoBool(entrada.moduloGestao, true),
+    moduloAssistente: comoBool(entrada.moduloAssistente, true),
+    moduloFuncionarios: comoBool(entrada.moduloFuncionarios, true),
   };
 }
 

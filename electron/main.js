@@ -79,13 +79,14 @@ function carregarVariaveisDeAmbiente() {
 }
 
 function criarJanela() {
+  const config = obterConfigApp();
   const janela = new BrowserWindow({
     width: 1280,
     height: 800,
     minWidth: 900,
     minHeight: 600,
     show: false,
-    backgroundColor: "#07111f",
+    backgroundColor: config.tema === "claro" ? "#f4f7fb" : "#07111f",
     icon: path.join(__dirname, "..", "build", "icon.png"),
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),

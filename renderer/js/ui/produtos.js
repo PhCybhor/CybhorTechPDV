@@ -36,6 +36,9 @@ export class PainelProdutos {
     onExcluir,
     onAjustarEstoque,
     estoqueMinimo = 5,
+    permitirExcluir = true,
+    permitirEditar = true,
+    permitirAjustarEstoque = true,
   }) {
     this.container = container;
     this.inputFiltro = inputFiltro;
@@ -43,6 +46,9 @@ export class PainelProdutos {
     this.onExcluir = onExcluir;
     this.onAjustarEstoque = onAjustarEstoque;
     this.estoqueMinimo = estoqueMinimo;
+    this.permitirExcluir = permitirExcluir;
+    this.permitirEditar = permitirEditar;
+    this.permitirAjustarEstoque = permitirAjustarEstoque;
     this.produtos = [];
     this._assinatura = "";
 
@@ -123,10 +129,22 @@ export class PainelProdutos {
           }</span>
           <span class="gestao-estoque ${baixo ? "baixo" : ""}">Est. ${estoque}</span>
           <div class="gestao-acoes">
-            <button type="button" class="btn btn-secundario btn-sm" data-acao="estoque-menos" data-id="${escapeHtml(produto.id)}" title="Remover 1 do estoque">−1</button>
-            <button type="button" class="btn btn-secundario btn-sm" data-acao="estoque-mais" data-id="${escapeHtml(produto.id)}" title="Adicionar 1 ao estoque">+1</button>
-            <button type="button" class="btn btn-secundario btn-sm" data-acao="editar" data-id="${escapeHtml(produto.id)}">Editar</button>
-            <button type="button" class="btn btn-texto btn-sm" data-acao="excluir" data-id="${escapeHtml(produto.id)}">Excluir</button>
+            ${
+              this.permitirAjustarEstoque
+                ? `<button type="button" class="btn btn-secundario btn-sm" data-acao="estoque-menos" data-id="${escapeHtml(produto.id)}" title="Remover 1 do estoque">−1</button>
+            <button type="button" class="btn btn-secundario btn-sm" data-acao="estoque-mais" data-id="${escapeHtml(produto.id)}" title="Adicionar 1 ao estoque">+1</button>`
+                : ""
+            }
+            ${
+              this.permitirEditar
+                ? `<button type="button" class="btn btn-secundario btn-sm" data-acao="editar" data-id="${escapeHtml(produto.id)}">Editar</button>`
+                : ""
+            }
+            ${
+              this.permitirExcluir
+                ? `<button type="button" class="btn btn-texto btn-sm" data-acao="excluir" data-id="${escapeHtml(produto.id)}">Excluir</button>`
+                : ""
+            }
           </div>
         </div>`;
       })

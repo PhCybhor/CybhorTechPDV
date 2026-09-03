@@ -38,6 +38,31 @@ def _normalizar_chave(valor: str) -> str:
     return "".join(c for c in (valor or "").strip().upper() if c.isalnum())
 
 
+_PERMISSOES_OPERADOR = {
+    "cadastrarProduto": True,
+    "editarProduto": True,
+    "excluirProduto": False,
+    "ajustarEstoque": True,
+    "aplicarDesconto": True,
+    "venderFiado": True,
+    "verHistorico": True,
+    "cancelarVenda": False,
+    "fazerSangria": True,
+    "gerenciarClientes": False,
+}
+
+
+def _normalizar_permissoes(valor: Any) -> Dict[str, bool]:
+    bruto = valor if isinstance(valor, dict) else {}
+    saida: Dict[str, bool] = {}
+    for chave, padrao in _PERMISSOES_OPERADOR.items():
+        if chave in bruto:
+            saida[chave] = bool(bruto[chave])
+        else:
+            saida[chave] = padrao
+    return saida
+
+
 def login_loja(
     *,
     codigo_loja: str,
@@ -60,7 +85,7 @@ def login_loja(
         rows = db.consultar(
             """
             SELECT f.id, f.nome, f.usuario, f.cargo, f.salt, f.senha_hash,
-                   f.loja_id, l.ativa, l.codigo AS loja_codigo,
+                   f.dados, f.loja_id, l.ativa, l.codigo AS loja_codigo,
                    l.nome AS loja_nome
             FROM funcionarios f
             JOIN lojas l ON l.id = f.loja_id
@@ -72,7 +97,7 @@ def login_loja(
         rows = db.consultar(
             """
             SELECT f.id, f.nome, f.usuario, f.cargo, f.salt, f.senha_hash,
-                   f.loja_id, l.ativa, l.codigo AS loja_codigo,
+                   f.dados, f.loja_id, l.ativa, l.codigo AS loja_codigo,
                    l.nome AS loja_nome
             FROM funcionarios f
             JOIN lojas l ON l.id = f.loja_id
@@ -84,7 +109,7 @@ def login_loja(
         rows = db.consultar(
             """
             SELECT f.id, f.nome, f.usuario, f.cargo, f.salt, f.senha_hash,
-                   f.loja_id, l.ativa, l.codigo AS loja_codigo,
+                   f.dados, f.loja_id, l.ativa, l.codigo AS loja_codigo,
                    l.nome AS loja_nome
             FROM funcionarios f
             JOIN lojas l ON l.id = f.loja_id
@@ -118,6 +143,9 @@ def login_loja(
 
     _exigir_assinatura_valida(str(conta["loja_id"]))
 
+    extras = conta.get("dados") or {}
+    if not isinstance(extras, dict):
+        extras = {}
     token = emitir_token(
         {
             "tipo": "loja",
@@ -134,6 +162,8 @@ def login_loja(
             "nome": conta["nome"],
             "usuario": conta["usuario"],
             "cargo": conta["cargo"],
+            "areas": extras.get("areas") or [],
+            "permissoes": _normalizar_permissoes(extras.get("permissoes")),
         },
         "loja": {
             "id": str(conta["loja_id"]),
@@ -178,7 +208,12 @@ def criar_funcionario(loja_id: str, dados: Dict[str, Any]) -> Dict[str, str]:
             salt,
             senha_hash,
             cargo,
-            json.dumps({"areas": dados.get("areas") or []}),
+            json.dumps(
+                {
+                    "areas": dados.get("areas") or [],
+                    "permissoes": _normalizar_permissoes(dados.get("permissoes")),
+                }
+            ),
         ),
     )
     return {"id": str(rows[0]["id"])}
@@ -198,6 +233,7 @@ def listar_funcionarios(loja_id: str) -> List[Dict[str, Any]]:
         extras = r.pop("dados") or {}
         if isinstance(extras, dict):
             r.update(extras)
+        r["permissoes"] = _normalizar_permissoes(r.get("permissoes"))
     return rows
 
 
@@ -293,12 +329,15 @@ def atualizar_funcionario(
 
     extras_permitidos = {
         "areas",
+        "permissoes",
         "tipoVinculo",
         "salarioBruto",
         "dependentes",
         "valorContrato",
     }
     extras = {k: v for k, v in dados.items() if k in extras_permitidos}
+    if "permissoes" in extras:
+        extras["permissoes"] = _normalizar_permissoes(extras.get("permissoes"))
     if extras:
         db.executar(
             """

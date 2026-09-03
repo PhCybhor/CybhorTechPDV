@@ -170,8 +170,8 @@ export class PainelGestaoAvancada {
             <label>Nome <input id="combo-nome" required placeholder="2 por 1 refrigerante" /></label>
             <label>Produto <select id="combo-produto" required>${produtosOpts}</select></label>
             <div class="form-linha">
-              <label>Leve <input type="number" id="combo-leve" value="2" min="2" /></label>
-              <label>Pague <input type="number" id="combo-pague" value="1" min="1" /></label>
+              <label>Leve <input type="number" id="combo-leve" min="2" /></label>
+              <label>Pague <input type="number" id="combo-pague" min="1" /></label>
             </div>
             <button type="submit" class="btn btn-primario">Salvar combo</button>
           </form>
@@ -206,7 +206,7 @@ export class PainelGestaoAvancada {
             </div>
             <div class="form-linha">
               <label>Valor <input type="number" id="cupom-valor" min="0" step="0.01" required /></label>
-              <label>Usos <input type="number" id="cupom-usos" min="1" value="1" /></label>
+              <label>Usos <input type="number" id="cupom-usos" min="1" /></label>
             </div>
             <button type="submit" class="btn btn-primario">Criar cupom</button>
           </form>

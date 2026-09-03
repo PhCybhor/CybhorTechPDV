@@ -25,6 +25,7 @@ import {
   montarMensagemReposicao,
 } from "./services/whatsappUtil.js";
 import { CARGOS } from "./services/authService.js";
+import { pode } from "./services/permissoesOperador.js";
 
 /**
  * @param {object} ctx — estado + callbacks do app
@@ -384,11 +385,19 @@ export function instalarRevolucao(ctx) {
     });
 
     $("btn-sangria-pdv")?.addEventListener("click", () => {
+      if (!pode(estado.funcionario, "fazerSangria")) {
+        notificar("Você não tem permissão para fazer sangria.", "alerta");
+        return;
+      }
       abrirModal("modal-sangria-pdv");
     });
 
     $("form-sangria-pdv")?.addEventListener("submit", async (e) => {
       e.preventDefault();
+      if (!pode(estado.funcionario, "fazerSangria")) {
+        notificar("Você não tem permissão para fazer sangria.", "alerta");
+        return;
+      }
       try {
         await criarSangria({
           valor: $("sangria-pdv-valor")?.value,

@@ -44,6 +44,7 @@ export class Carrinho {
     /** @type {Map<string, object>} */
     this.itens = new Map();
     this.desconto = 0;
+    this.descontoDesligado = false;
     this.valorRecebido = 0;
     /** Pagamento dividido (ex.: parte dinheiro + PIX). */
     this.dividirPagamento = false;
@@ -52,6 +53,12 @@ export class Carrinho {
     this._destruido = false;
     this._aoCliqueItens = (evento) => this._tratarCliqueItens(evento);
     this._aoDesconto = () => {
+      if (this.descontoDesligado) {
+        this.desconto = 0;
+        if (this.inputDesconto) this.inputDesconto.value = "";
+        this._atualizarTotais();
+        return;
+      }
       this.desconto = Number(this.inputDesconto.value) || 0;
       this._atualizarTotais();
     };
@@ -181,14 +188,24 @@ export class Carrinho {
     this.dividirPagamento = false;
     this.valorParteDinheiro = 0;
     this.formaRestante = "pix";
-    this.inputDesconto.value = "0";
-    if (this.inputRecebido) this.inputRecebido.value = "0";
+    this.inputDesconto.value = "";
+    if (this.inputRecebido) this.inputRecebido.value = "";
     this.renderizar();
   }
 
   /**
-   * @param {boolean} ativo
+   * @param {boolean} desligado
    */
+  definirDescontoDesligado(desligado) {
+    this.descontoDesligado = Boolean(desligado);
+    if (this.descontoDesligado) {
+      this.desconto = 0;
+      if (this.inputDesconto) this.inputDesconto.value = "";
+    }
+    this._atualizarTotais();
+  }
+
+  /** @param {boolean} ativo */
   definirDividir(ativo) {
     this.dividirPagamento = Boolean(ativo);
     this._atualizarTotais();
@@ -240,6 +257,7 @@ export class Carrinho {
 
   /** @returns {number} */
   obterDesconto() {
+    if (this.descontoDesligado) return 0;
     const subtotal = this.obterSubtotal();
     return Math.min(Math.max(0, this.desconto), subtotal);
   }

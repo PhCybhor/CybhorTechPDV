@@ -176,6 +176,10 @@ export function instalarMegaPack(ctx) {
    */
   async function validarAntesDeFinalizar(carrinho) {
     const config = estado.configLoja || {};
+    const ocultarCliente = Boolean(config.ocultarCliente);
+    const ocultarFiado = Boolean(config.ocultarFiado) || ocultarCliente;
+    const ocultarDesconto = Boolean(config.ocultarDesconto);
+
     if (config.abrirCaixaObrigatorio !== false) {
       const aberto = await caixaAbertoHoje();
       if (!aberto) {
@@ -196,9 +200,10 @@ export function instalarMegaPack(ctx) {
     }
 
     const subtotal = carrinho.obterSubtotal();
-    const desconto = carrinho.obterDesconto();
+    const desconto = ocultarDesconto ? 0 : carrinho.obterDesconto();
     const maxPct = Number(config.descontoMaxPct);
     if (
+      !ocultarDesconto &&
       Number.isFinite(maxPct) &&
       maxPct >= 0 &&
       subtotal > 0 &&
@@ -227,8 +232,11 @@ export function instalarMegaPack(ctx) {
     }
 
     const checkFiado = $("check-venda-fiado");
-    const clienteId = $("pdv-cliente")?.value || estado.clienteVendaAtual?.id;
-    if (checkFiado?.checked) {
+    const clienteId = ocultarCliente
+      ? null
+      : $("pdv-cliente")?.value || estado.clienteVendaAtual?.id;
+    const fiadoAtivo = !ocultarFiado && Boolean(checkFiado?.checked);
+    if (fiadoAtivo) {
       if (!clienteId) {
         notificar("Selecione um cliente para vender fiado.", "alerta");
         return { ok: false };
@@ -273,7 +281,7 @@ export function instalarMegaPack(ctx) {
       descontoExtra,
       cupomUsado,
       clienteId: clienteId || null,
-      foiFiado: Boolean(checkFiado?.checked),
+      foiFiado: fiadoAtivo,
     };
   }
 
@@ -417,15 +425,15 @@ export function instalarMegaPack(ctx) {
         document.body.classList.toggle("venda-rapida");
         const on = document.body.classList.contains("venda-rapida");
         notificar(
-          on ? "Modo venda rápida ON — Esc ou “Sair” para voltar" : "Modo venda rápida OFF",
+          on
+            ? "Venda rápida ON — use “Sair da venda rápida” ou Esc"
+            : "Venda rápida OFF",
           "sucesso"
         );
         if (on) setTimeout(() => $("busca-produto")?.focus(), 40);
         return;
       }
       if (e.target.closest("#btn-sair-venda-rapida")) {
-        document.body.classList.remove("venda-rapida");
-        notificar("Modo venda rápida OFF", "sucesso");
         return;
       }
     });
@@ -435,14 +443,6 @@ export function instalarMegaPack(ctx) {
       estado.clienteVendaAtual =
         estado.clientes.find((c) => c.id === id) || null;
       atualizarChipCliente();
-    });
-
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && document.body.classList.contains("venda-rapida")) {
-        e.preventDefault();
-        document.body.classList.remove("venda-rapida");
-        notificar("Modo venda rápida OFF", "sucesso");
-      }
     });
 
     window.addEventListener("cybhor-caixa-aberto", () => {

@@ -3,6 +3,7 @@ import {
   atualizarCargoFuncionario,
   alterarSenhaFuncionario,
   atualizarAreasFuncionario,
+  atualizarPermissoesFuncionario,
 } from "../services/authService.js";
 import {
   AREAS_EQUIPE,
@@ -15,6 +16,10 @@ import {
 } from "../services/areasEquipe.js";
 import { escapeHtml } from "../utils/escape.js";
 import { notificar } from "./notificacao.js";
+import {
+  htmlCheckboxesPermissoes,
+  lerPermissoesDoForm,
+} from "../services/permissoesOperador.js";
 
 const ROTULO_CARGO = {
   [CARGOS.ADMIN]: "Administrador",
@@ -90,6 +95,11 @@ export class PainelFuncionarios {
         this._salvarAreas(botaoAreas.dataset.salvarAreas);
         return;
       }
+      const botaoPerm = evento.target.closest("[data-salvar-permissoes]");
+      if (botaoPerm) {
+        this._salvarPermissoes(botaoPerm.dataset.salvarPermissoes);
+        return;
+      }
       const filtro = evento.target.closest("[data-filtro-area]");
       if (filtro) {
         this.filtroArea = filtro.dataset.filtroArea || "";
@@ -101,12 +111,20 @@ export class PainelFuncionarios {
       const check = evento.target.closest(
         'input[type="checkbox"][name^="areas-func-"]'
       );
-      if (!check) return;
-      const wrap = check.closest(".areas-edit");
-      wrap?.querySelectorAll(".area-chip").forEach((chip) => {
-        const input = chip.querySelector("input");
-        chip.classList.toggle("ativo", Boolean(input?.checked));
-      });
+      if (check) {
+        const wrap = check.closest(".areas-edit");
+        wrap?.querySelectorAll(".area-chip").forEach((chip) => {
+          const input = chip.querySelector("input");
+          chip.classList.toggle("ativo", Boolean(input?.checked));
+        });
+        return;
+      }
+      const perm = evento.target.closest(
+        'input[type="checkbox"][name^="perm-func-"]'
+      );
+      if (perm) {
+        perm.closest(".perm-chip")?.classList.toggle("ativo", perm.checked);
+      }
     });
 
     this.formAuth.addEventListener("submit", (e) => this._confirmarAlteracao(e));
@@ -265,12 +283,35 @@ export class PainelFuncionarios {
             <span class="areas-edit-titulo">Áreas (multi)</span>
             ${htmlCheckboxesAreas(`areas-func-${func.id}`, areas)}
           </div>
+          ${
+            cargoAtual === CARGOS.OPERADOR
+              ? `<div class="permissoes-edit" data-permissoes-wrap="${escapeHtml(
+                  func.id
+                )}">
+            <span class="areas-edit-titulo">Permissões do operador de caixa</span>
+            <p class="form-ajuda">O que este operador pode fazer no PDV. Vale no próximo login dele.</p>
+            <div class="permissoes-grid">
+              ${htmlCheckboxesPermissoes(
+                `perm-func-${func.id}`,
+                func.permissoes
+              )}
+            </div>
+          </div>`
+              : ""
+          }
           <div class="funcionario-acoes">
             <button type="button" class="btn btn-secundario btn-sm" data-salvar-areas="${escapeHtml(
               func.id
             )}">
               Salvar áreas
             </button>
+            ${
+              cargoAtual === CARGOS.OPERADOR
+                ? `<button type="button" class="btn btn-secundario btn-sm" data-salvar-permissoes="${escapeHtml(
+                    func.id
+                  )}">Salvar permissões</button>`
+                : ""
+            }
             <button type="button" class="btn btn-secundario btn-sm" data-salvar-cargo="${escapeHtml(
               func.id
             )}">
@@ -298,6 +339,22 @@ export class PainelFuncionarios {
       notificar(`Áreas atualizadas: ${formatarAreas(areas)}`, "sucesso");
     } catch (erro) {
       notificar(erro.message || "Falha ao salvar áreas.", "erro");
+    }
+  }
+
+  async _salvarPermissoes(funcionarioId) {
+    const wrap = this.listaEl.querySelector(
+      `[data-permissoes-wrap="${funcionarioId}"]`
+    );
+    if (!wrap) return;
+    const permissoes = lerPermissoesDoForm(wrap, `perm-func-${funcionarioId}`);
+    try {
+      await atualizarPermissoesFuncionario(funcionarioId, permissoes);
+      const func = this.funcionarios.find((f) => f.id === funcionarioId);
+      if (func) func.permissoes = permissoes;
+      notificar("Permissões do operador salvas. Valem no próximo login dele.", "sucesso");
+    } catch (erro) {
+      notificar(erro.message || "Falha ao salvar permissões.", "erro");
     }
   }
 

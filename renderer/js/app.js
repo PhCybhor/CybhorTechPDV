@@ -55,6 +55,13 @@ import { formatarMoeda } from "./utils/formato.js";
 import { debounce } from "./utils/debounce.js";
 import { escapeHtml } from "./utils/escape.js";
 import {
+  aplicarAparencia,
+  aplicarOpcoesCaixa,
+  aplicarCamposCadastroProduto,
+  moduloRotaAtivo,
+  MODULOS_LOJA,
+} from "./utils/aparencia.js";
+import {
   listarMaisUsados,
   alternarFavorito,
   registrarUsoProduto,
@@ -63,6 +70,7 @@ import {
   parseBuscaComQuantidade,
   DICAS_OPERADOR,
 } from "./services/caixaOperadorStore.js";
+import { pode } from "./services/permissoesOperador.js";
 import { instalarRevolucao } from "./revolucaoUi.js";
 import { instalarMegaPack } from "./megaPack.js";
 
@@ -79,7 +87,6 @@ const ROTAS = [
   "configuracoes",
 ];
 const ROTAS_SOMENTE_ADMIN = [
-  "produtos",
   "fornecedores",
   "clientes",
   "gestao",
@@ -222,10 +229,39 @@ function fecharModal(id) {
  * Navega entre rotas internas do app autenticado.
  * @param {string} rota
  */
+function podeAgora(chave) {
+  return pode(estado.funcionario, chave);
+}
+
+function podeAcessarRota(rota) {
+  const func = estado.funcionario;
+  if (!func) return false;
+  if (func.cargo === CARGOS.ADMIN) return true;
+  if (rota === "pdv") return true;
+  if (rota === "produtos") {
+    return (
+      podeAgora("cadastrarProduto") ||
+      podeAgora("editarProduto") ||
+      podeAgora("excluirProduto") ||
+      podeAgora("ajustarEstoque")
+    );
+  }
+  if (rota === "historico") return podeAgora("verHistorico");
+  if (rota === "clientes") return podeAgora("gerenciarClientes");
+  if (ROTAS_SOMENTE_ADMIN.includes(rota)) return false;
+  return true;
+}
+
 function navegarPara(rota) {
   if (!ROTAS.includes(rota)) return;
-  const ehAdmin = estado.funcionario?.cargo === CARGOS.ADMIN;
-  if (ROTAS_SOMENTE_ADMIN.includes(rota) && !ehAdmin) return;
+  if (!podeAcessarRota(rota)) {
+    notificar("Você não tem permissão para esta área.", "alerta");
+    return;
+  }
+  if (!moduloRotaAtivo(rota, estado.configLoja)) {
+    notificar("Este módulo está desativado nas configurações.", "alerta");
+    return;
+  }
 
   estado.rotaAtual = rota;
 
@@ -266,6 +302,14 @@ function navegarPara(rota) {
 async function iniciar() {
   registrarEventosGerais();
   mostrarTela("tela-carregando");
+
+  try {
+    const configInicial = await obterConfigApp();
+    estado.configLoja = configInicial;
+    aplicarPreferenciasInterface(configInicial);
+  } catch {
+    aplicarPreferenciasInterface(null);
+  }
 
   try {
     const licenca = await window.pdvAPI?.obterLicenca?.();
@@ -762,6 +806,7 @@ function iniciarHistorico() {
       inputFiltro: $("filtro-historico"),
       selectPeriodo: $("periodo-historico"),
       ehAdmin: estado.funcionario?.cargo === CARGOS.ADMIN,
+      podeCancelar: podeAgora("cancelarVenda"),
       funcionarioNome: estado.funcionario?.nome || "",
       onReimprimir: (venda) => reimprimirVenda(venda),
       formCancelar: $("form-cancelar-venda"),
@@ -771,6 +816,7 @@ function iniciarHistorico() {
     });
   }
   estado.painelHistorico.ehAdmin = estado.funcionario?.cargo === CARGOS.ADMIN;
+  estado.painelHistorico.podeCancelar = podeAgora("cancelarVenda");
   estado.painelHistorico.funcionarioNome = estado.funcionario?.nome || "";
   estado.painelHistorico.atualizar(estado.vendas);
 }
@@ -787,6 +833,7 @@ async function iniciarConfiguracoes() {
         estado.estoqueMinimo = Number(config.estoqueMinimo) || 5;
         estado.configLoja = config;
         estado.avisoFornecedoresIa = config.avisoFornecedoresIa !== false;
+        aplicarPreferenciasInterface(config);
         const metaVal = Number($("cfg-meta-dia")?.value) || 0;
         salvarMetaDia(estado.funcionario?.id, metaVal);
         estado.revolucao?.atualizarMetaCaixa?.();
@@ -795,6 +842,12 @@ async function iniciarConfiguracoes() {
           estado.painelProdutos.renderizar(true);
         }
         atualizarAlertaEstoque(estado.produtos);
+        if (
+          estado.rotaAtual &&
+          !moduloRotaAtivo(estado.rotaAtual, config)
+        ) {
+          navegarPara("pdv");
+        }
       },
     });
   }
@@ -853,6 +906,53 @@ async function iniciarFuncionarios() {
  * App autenticado
  * ------------------------------------------------------------------------- */
 
+/**
+ * Mostra/oculta itens do menu conforme cargo e módulos ativos.
+ */
+function atualizarVisibilidadeModulos() {
+  const ehAdmin = estado.funcionario?.cargo === CARGOS.ADMIN;
+  const cfg = estado.configLoja;
+
+  $("nav-configuracoes")?.classList.toggle("oculto", !ehAdmin);
+  $("btn-novo-produto-pdv")?.classList.toggle("oculto", !podeAgora("cadastrarProduto"));
+  $("btn-novo-produto")?.classList.toggle("oculto", !podeAgora("cadastrarProduto"));
+  $("btn-cadastrar-venda-rapida")?.classList.toggle(
+    "oculto",
+    !podeAgora("cadastrarProduto")
+  );
+  $("btn-sangria-pdv")?.classList.toggle("oculto", !podeAgora("fazerSangria"));
+  $("btn-corrigir-nomes-ia")?.classList.toggle("oculto", !ehAdmin);
+  document.querySelector(".btn-arquivo")?.classList.toggle("oculto", !ehAdmin);
+
+  for (const mod of MODULOS_LOJA) {
+    const nav = $(`nav-${mod.rota}`);
+    if (!nav) continue;
+    const ativo = moduloRotaAtivo(mod.rota, cfg);
+    const ocultar = !ativo || !podeAcessarRota(mod.rota);
+    nav.classList.toggle("oculto", ocultar);
+  }
+}
+
+/**
+ * Aplica tema, fonte, tamanho e opções do caixa na interface.
+ * @param {object | null | undefined} config
+ */
+function aplicarPreferenciasInterface(config) {
+  aplicarAparencia(config);
+  const cfgCaixa = { ...(config && typeof config === "object" ? config : {}) };
+  if (!podeAgora("aplicarDesconto")) cfgCaixa.ocultarDesconto = true;
+  if (!podeAgora("venderFiado")) cfgCaixa.ocultarFiado = true;
+  aplicarOpcoesCaixa(cfgCaixa);
+  aplicarCamposCadastroProduto(config);
+  atualizarVisibilidadeModulos();
+  if (cfgCaixa.ocultarCliente) {
+    estado.clienteVendaAtual = null;
+  }
+  estado.carrinho?.definirDescontoDesligado(
+    Boolean(cfgCaixa.ocultarDesconto) || !podeAgora("aplicarDesconto")
+  );
+}
+
 async function entrarNoApp() {
   const { nome, cargo } = estado.funcionario;
   const ehAdmin = cargo === CARGOS.ADMIN;
@@ -861,27 +961,21 @@ async function entrarNoApp() {
   const classeBadge =
     cargo === CARGOS.ADMIN ? "badge-cargo badge-cargo--admin" : "badge-cargo";
   $("app-funcionario").innerHTML = `<strong>${escapeHtml(nome)}</strong><span class="${classeBadge}">${escapeHtml(rotuloCargo)}</span>`;
-  $("nav-produtos").classList.toggle("oculto", !ehAdmin);
-  $("nav-fornecedores")?.classList.toggle("oculto", !ehAdmin);
-  $("nav-clientes")?.classList.toggle("oculto", !ehAdmin);
-  $("nav-gestao")?.classList.toggle("oculto", !ehAdmin);
-  $("nav-relatorios").classList.toggle("oculto", !ehAdmin);
-  $("nav-assistente")?.classList.toggle("oculto", !ehAdmin);
-  $("nav-funcionarios").classList.toggle("oculto", !ehAdmin);
-  $("nav-configuracoes").classList.toggle("oculto", !ehAdmin);
-  $("nav-historico").classList.remove("oculto");
-  $("btn-novo-produto-pdv")?.classList.toggle("oculto", !ehAdmin);
 
   try {
     const config = await obterConfigApp();
     estado.estoqueMinimo = Number(config.estoqueMinimo) || 5;
     estado.configLoja = config;
     estado.avisoFornecedoresIa = config.avisoFornecedoresIa !== false;
+    aplicarPreferenciasInterface(config);
   } catch {
     estado.estoqueMinimo = 5;
     estado.configLoja = null;
     estado.avisoFornecedoresIa = true;
+    aplicarPreferenciasInterface(null);
   }
+
+  atualizarVisibilidadeModulos();
 
   estado.assinaturaProdutos = "";
   estado.carrinho?.destruir();
@@ -900,24 +994,36 @@ async function entrarNoApp() {
     elementoTroco: $("carrinho-troco-valor"),
     elementoQtdItens: $("carrinho-qtd-itens"),
   });
+  aplicarPreferenciasInterface(estado.configLoja);
 
-  if (ehAdmin) {
-    estado.painelProdutos?.destruir();
-    estado.painelProdutos = new PainelProdutos({
-      container: $("lista-gestao-produtos"),
-      inputFiltro: $("filtro-produtos"),
-      estoqueMinimo: estado.estoqueMinimo,
-      onEditar: (produto) => abrirModalProduto({ produto }),
-      onExcluir: (produto) => abrirModalExcluir(produto),
-      onAjustarEstoque: async (produto, delta) => {
-        try {
-          await ajustarEstoque(produto.id, produto.estoque, delta);
-        } catch (erro) {
-          notificar(erro.message, "erro");
-        }
-      },
-    });
-  }
+  estado.painelProdutos?.destruir();
+  estado.painelProdutos = new PainelProdutos({
+    container: $("lista-gestao-produtos"),
+    inputFiltro: $("filtro-produtos"),
+    estoqueMinimo: estado.estoqueMinimo,
+    permitirExcluir: podeAgora("excluirProduto"),
+    permitirEditar: podeAgora("editarProduto"),
+    permitirAjustarEstoque: podeAgora("ajustarEstoque"),
+    onEditar: (produto) => abrirModalProduto({ produto }),
+    onExcluir: (produto) => {
+      if (!podeAgora("excluirProduto")) {
+        notificar("Você não tem permissão para excluir produtos.", "alerta");
+        return;
+      }
+      abrirModalExcluir(produto);
+    },
+    onAjustarEstoque: async (produto, delta) => {
+      if (!podeAgora("ajustarEstoque")) {
+        notificar("Você não tem permissão para ajustar estoque.", "alerta");
+        return;
+      }
+      try {
+        await ajustarEstoque(produto.id, produto.estoque, delta);
+      } catch (erro) {
+        notificar(erro.message, "erro");
+      }
+    },
+  });
 
   pararObservacaoProdutos();
   estado.cancelarObservacaoProdutos = await observarProdutos((produtos) => {
@@ -942,6 +1048,53 @@ async function entrarNoApp() {
   navegarPara("pdv");
   await obterRevolucao().aoEntrarSessao();
   await obterMega().aoEntrarMega();
+}
+
+const CHAVE_CATEGORIAS_RECOLHIDAS = "cybhor_pdv_categorias_recolhidas";
+
+function categoriasRecolhidas() {
+  try {
+    return localStorage.getItem(CHAVE_CATEGORIAS_RECOLHIDAS) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function aplicarEstadoCategorias() {
+  const wrap = $("wrap-categorias");
+  const btn = $("btn-toggle-categorias");
+  const recolhido = categoriasRecolhidas();
+  wrap?.classList.toggle("recolhido", recolhido);
+  if (btn) {
+    btn.setAttribute("aria-expanded", String(!recolhido));
+    btn.textContent = recolhido ? "Mostrar categorias" : "Ocultar categorias";
+  }
+}
+
+function fecharPainelSino() {
+  $("painel-sino-estoque")?.classList.add("oculto");
+  $("btn-sino-estoque")?.classList.remove("aberto");
+  $("btn-sino-estoque")?.setAttribute("aria-expanded", "false");
+}
+
+function abrirPainelSino() {
+  const painel = $("painel-sino-estoque");
+  const btn = $("btn-sino-estoque");
+  if (!painel || !btn) return;
+  const rect = btn.getBoundingClientRect();
+  painel.style.top = `${Math.round(rect.bottom + 8)}px`;
+  painel.style.right = `${Math.round(window.innerWidth - rect.right)}px`;
+  painel.classList.remove("oculto");
+  btn.classList.add("aberto");
+  btn.setAttribute("aria-expanded", "true");
+}
+
+function sairDaVendaRapida() {
+  if (!document.body.classList.contains("venda-rapida")) return false;
+  document.body.classList.remove("venda-rapida");
+  fecharPainelSino();
+  notificar("Saiu da venda rápida. Menu e cadastros estão visíveis.", "sucesso");
+  return true;
 }
 
 /**
@@ -1036,9 +1189,22 @@ function atualizarAlertaEstoque(produtos) {
       badge.textContent = String(baixos.length);
     }
   }
+
+  const sino = $("btn-sino-estoque");
+  const badgeSino = $("sino-estoque-badge");
+  if (sino) {
+    sino.classList.toggle("oculto", baixos.length === 0);
+    if (baixos.length === 0) fecharPainelSino();
+  }
+  if (badgeSino) {
+    badgeSino.textContent = String(baixos.length);
+    badgeSino.classList.toggle("oculto", baixos.length === 0);
+  }
 }
 
 function pedirSugestaoReposicaoIa() {
+  sairDaVendaRapida();
+  fecharPainelSino();
   if (estado.funcionario?.cargo !== CARGOS.ADMIN) {
     notificar("Somente administradores usam a CybhorIA.", "alerta");
     return;
@@ -1319,6 +1485,7 @@ async function reimprimirVenda(venda) {
  */
 function renderizarFiltrosCategoria(produtos) {
   const el = $("filtros-categoria");
+  const wrap = $("wrap-categorias");
   if (!el) return;
 
   const cats = [
@@ -1331,11 +1498,12 @@ function renderizarFiltrosCategoria(produtos) {
 
   if (cats.length === 0) {
     el.innerHTML = "";
-    el.classList.add("oculto");
+    wrap?.classList.add("oculto");
     return;
   }
 
-  el.classList.remove("oculto");
+  wrap?.classList.remove("oculto");
+  aplicarEstadoCategorias();
   const ativo = estado.categoriaFiltro;
   el.innerHTML =
     `<button type="button" class="filtro-chip ${
@@ -1406,6 +1574,8 @@ function renderizarGradeProdutos(produtos) {
     "|" +
     Array.from(favoritos).join(",") +
     "|" +
+    (podeAgora("editarProduto") ? "e1" : "e0") +
+    "|" +
     ordenados
       .map((p) => `${p.id}:${p.estoque}:${p.preco}:${p.nome}:${p.categoria || ""}`)
       .join("|");
@@ -1449,6 +1619,13 @@ function renderizarGradeProdutos(produtos) {
             produto.id
           )}" title="${ehFav ? "Remover dos favoritos" : "Fixar nos favoritos"}" aria-label="Favorito">★</button>
           ${
+            podeAgora("editarProduto")
+              ? `<button type="button" class="btn-editar-card" data-editar-produto="${escapeHtml(
+                  produto.id
+                )}" title="Editar produto" aria-label="Editar produto">✎</button>`
+              : ""
+          }
+          ${
             categoria
               ? `<span class="produto-categoria" title="${escapeHtml(
                   categoria
@@ -1474,10 +1651,7 @@ function adicionarAoCarrinho(produtoId, quantidade = 1) {
 
   let qtd = quantidade;
   if (String(produto.unidade || "un").toLowerCase() === "kg" && qtd === 1) {
-    const informado = window.prompt(
-      `Peso em kg — ${produto.nome}`,
-      "0.500"
-    );
+    const informado = window.prompt(`Peso em kg — ${produto.nome}`, "");
     if (informado === null) return;
     qtd = Number(String(informado).replace(",", "."));
     if (!Number.isFinite(qtd) || qtd <= 0) {
@@ -1596,25 +1770,21 @@ function atualizarSugestoes(termo) {
   painel.classList.remove("oculto");
 
   if (resultados.length === 0) {
-    const ehAdmin = estado.funcionario?.cargo === CARGOS.ADMIN;
-    painel.innerHTML = ehAdmin
-      ? `
+    const podeCadastrar = podeAgora("cadastrarProduto");
+    painel.innerHTML = `
       <div class="sugestao-vazia">
         <p>Nenhum produto para "<strong>${escapeHtml(consulta)}</strong>".</p>
-        <button type="button" class="btn btn-primario" id="btn-criar-da-busca">
+        ${
+          podeCadastrar
+            ? `<button type="button" class="btn btn-primario" id="btn-criar-da-busca">
           + Cadastrar "${escapeHtml(consulta)}"
-        </button>
-      </div>`
-      : `
-      <div class="sugestao-vazia">
-        <p>Nenhum produto para "<strong>${escapeHtml(consulta)}</strong>".</p>
-        <span>Peça ao administrador para cadastrar.</span>
+        </button>`
+            : ""
+        }
       </div>`;
-    if (ehAdmin) {
-      $("btn-criar-da-busca")?.addEventListener("click", () =>
-        abrirModalProduto({ nomeInicial: consulta })
-      );
-    }
+    $("btn-criar-da-busca")?.addEventListener("click", () =>
+      abrirModalProduto({ nomeInicial: consulta })
+    );
     return;
   }
 
@@ -1688,17 +1858,32 @@ function confirmarBusca(termo) {
  * @param {{nomeInicial?: string, produto?: object}} [opcoes]
  */
 function abrirModalProduto({ nomeInicial = "", produto = null } = {}) {
+  const editando = Boolean(produto);
+  if (editando && !podeAgora("editarProduto")) {
+    notificar("Você não tem permissão para editar produtos.", "alerta");
+    return;
+  }
+  if (!editando && !podeAgora("cadastrarProduto")) {
+    notificar("Você não tem permissão para cadastrar produtos.", "alerta");
+    return;
+  }
+
   $("form-produto").reset();
   setErro($("produto-erro"), "");
+  if ($("produto-explicacao")) $("produto-explicacao").value = "";
 
-  const editando = Boolean(produto);
+  const ehOperador = estado.funcionario?.cargo !== CARGOS.ADMIN;
+
   $("modal-produto-titulo").textContent = editando
     ? "Editar produto"
     : "Cadastrar produto";
   $("produto-id").value = produto?.id || "";
   $("produto-nome").value = produto?.nome || nomeInicial;
   $("produto-preco").value = produto ? String(produto.preco) : "";
-  $("produto-estoque").value = produto ? String(produto.estoque) : "1";
+  $("produto-estoque").value =
+    produto && produto.estoque !== null && produto.estoque !== undefined
+      ? String(produto.estoque)
+      : "";
   $("produto-codigo").value = produto?.codigoBarras || "";
   if ($("produto-codigo-interno")) {
     $("produto-codigo-interno").value = produto?.codigoInterno || "";
@@ -1733,6 +1918,8 @@ function abrirModalProduto({ nomeInicial = "", produto = null } = {}) {
   atualizarPreviewMargem();
   $("produto-adicionar-venda").checked = !editando;
   $("wrap-adicionar-venda").classList.toggle("oculto", editando);
+  $("wrap-produto-explicacao")?.classList.toggle("oculto", !editando || !ehOperador);
+  aplicarCamposCadastroProduto(estado.configLoja);
 
   abrirModal("modal-produto");
   (editando ? $("produto-nome") : $("produto-preco")).focus();
@@ -1766,24 +1953,78 @@ async function tratarCadastroProduto(evento) {
   setErro($("produto-erro"), "");
 
   const idExistente = $("produto-id").value.trim();
+  const ehOperador = estado.funcionario?.cargo !== CARGOS.ADMIN;
+
+  if (idExistente && !podeAgora("editarProduto")) {
+    setErro($("produto-erro"), "Você não tem permissão para editar produtos.");
+    return;
+  }
+  if (!idExistente && !podeAgora("cadastrarProduto")) {
+    setErro($("produto-erro"), "Você não tem permissão para cadastrar produtos.");
+    return;
+  }
+
+  const atual = idExistente
+    ? estado.produtos.find((p) => p.id === idExistente)
+    : null;
+  const cfg = estado.configLoja || {};
+  const visivel = (chave) => cfg[chave] !== false;
+
+  const explicacao = ($("produto-explicacao")?.value || "").trim();
+  if (idExistente && ehOperador && explicacao.length < 8) {
+    setErro(
+      $("produto-erro"),
+      "Informe a explicação da alteração (mínimo 8 caracteres)."
+    );
+    return;
+  }
+
   const payload = {
     nome: $("produto-nome").value,
     preco: $("produto-preco").value,
-    estoque: $("produto-estoque").value,
-    codigoBarras: $("produto-codigo").value,
-    codigoInterno: $("produto-codigo-interno")?.value || "",
-    categoria: $("produto-categoria").value,
-    custo: $("produto-custo").value,
-    unidade: $("produto-unidade")?.value || "un",
-    unidadesPorCaixa: $("produto-unidades-caixa")?.value || "",
-    validade: $("produto-validade")?.value || "",
-    precoPromocao: $("produto-preco-promo")?.value || "",
-    promoFim: $("produto-promo-fim")?.value || "",
+    estoque: $("produto-estoque").value === "" ? "0" : $("produto-estoque").value,
+    codigoBarras: visivel("campoProdutoCodigos")
+      ? $("produto-codigo").value
+      : atual?.codigoBarras || "",
+    codigoInterno: visivel("campoProdutoCodigos")
+      ? $("produto-codigo-interno")?.value || ""
+      : atual?.codigoInterno || "",
+    categoria: visivel("campoProdutoCategoria")
+      ? $("produto-categoria").value
+      : atual?.categoria || "",
+    custo: visivel("campoProdutoCusto")
+      ? $("produto-custo").value
+      : atual?.custo ?? "",
+    unidade: visivel("campoProdutoUnidade")
+      ? $("produto-unidade")?.value || "un"
+      : atual?.unidade || "un",
+    unidadesPorCaixa: visivel("campoProdutoCaixa")
+      ? $("produto-unidades-caixa")?.value || ""
+      : atual?.unidadesPorCaixa || "",
+    validade: visivel("campoProdutoValidade")
+      ? $("produto-validade")?.value || ""
+      : atual?.validade || "",
+    precoPromocao: visivel("campoProdutoPromocao")
+      ? $("produto-preco-promo")?.value || ""
+      : atual?.precoPromocao ?? "",
+    promoFim: visivel("campoProdutoPromocao")
+      ? $("produto-promo-fim")?.value || ""
+      : atual?.promoFim || "",
   };
 
   try {
     if (idExistente) {
       await atualizarProduto(idExistente, payload);
+      if (ehOperador || explicacao) {
+        await obterMega().registrarAuditoria({
+          tipo: "produto_editado",
+          mensagem: `${estado.funcionario?.nome || "Usuário"} alterou "${
+            payload.nome
+          }"${explicacao ? `: ${explicacao}` : ""}`,
+          funcionario: estado.funcionario,
+          meta: { produtoId: idExistente, explicacao },
+        });
+      }
       fecharModal("modal-produto");
       notificar("Produto atualizado.", "sucesso");
       obterMega().marcarPassoOnboarding("produto");
@@ -1822,6 +2063,10 @@ async function tratarCadastroProduto(evento) {
 
 async function confirmarExcluirProduto() {
   if (!estado.produtoExcluirId) return;
+  if (!podeAgora("excluirProduto")) {
+    notificar("Você não tem permissão para excluir produtos.", "alerta");
+    return;
+  }
   try {
     await excluirProduto(estado.produtoExcluirId);
     estado.produtoExcluirId = null;
@@ -2122,10 +2367,18 @@ function registrarEventosGerais() {
       return;
     }
     if (evento.target.closest("#btn-ir-fornecedores")) {
+      sairDaVendaRapida();
+      fecharPainelSino();
       if (estado.funcionario?.cargo === CARGOS.ADMIN) {
         navegarPara("fornecedores");
       }
       return;
+    }
+    if (
+      !evento.target.closest("#painel-sino-estoque") &&
+      !evento.target.closest("#btn-sino-estoque")
+    ) {
+      fecharPainelSino();
     }
     if (evento.target.closest("#btn-corrigir-nomes-ia")) {
       abrirCorrigirNomesComIa();
@@ -2172,6 +2425,32 @@ function registrarEventosGerais() {
   $("btn-limpar").addEventListener("click", limparCarrinhoComConfirmacao);
   $("btn-imprimir-cupom").addEventListener("click", imprimirUltimaVenda);
   $("btn-ajuda-caixa")?.addEventListener("click", abrirAjudaCaixa);
+  $("btn-toggle-categorias")?.addEventListener("click", () => {
+    try {
+      localStorage.setItem(
+        CHAVE_CATEGORIAS_RECOLHIDAS,
+        categoriasRecolhidas() ? "0" : "1"
+      );
+    } catch {
+      /* ignore */
+    }
+    aplicarEstadoCategorias();
+  });
+  $("btn-sino-estoque")?.addEventListener("click", (evento) => {
+    evento.stopPropagation();
+    const painel = $("painel-sino-estoque");
+    if (!painel) return;
+    if (painel.classList.contains("oculto")) abrirPainelSino();
+    else fecharPainelSino();
+  });
+  $("btn-fechar-sino")?.addEventListener("click", () => fecharPainelSino());
+  $("btn-sair-venda-rapida")?.addEventListener("click", () => {
+    sairDaVendaRapida();
+  });
+  $("btn-cadastrar-venda-rapida")?.addEventListener("click", () => {
+    sairDaVendaRapida();
+    abrirModalProduto();
+  });
 
   $("atalhos-pagamento")?.addEventListener("click", (evento) => {
     const botao = evento.target.closest("[data-pagamento]");
@@ -2289,6 +2568,21 @@ function registrarEventosGerais() {
       return;
     }
 
+    const editarBtn = evento.target.closest("[data-editar-produto]");
+    if (editarBtn) {
+      evento.preventDefault();
+      evento.stopPropagation();
+      if (!podeAgora("editarProduto")) {
+        notificar("Você não tem permissão para editar produtos.", "alerta");
+        return;
+      }
+      const produto = estado.produtos.find(
+        (p) => p.id === editarBtn.dataset.editarProduto
+      );
+      if (produto) abrirModalProduto({ produto });
+      return;
+    }
+
     const card = evento.target.closest(".produto-card[data-produto-id]");
     if (!card || card.classList.contains("sem-estoque")) return;
     adicionarAoCarrinho(card.dataset.produtoId);
@@ -2310,6 +2604,17 @@ function registrarEventosGerais() {
         alvo.isContentEditable);
 
     if (evento.key === "Escape") {
+      const painelSino = $("painel-sino-estoque");
+      if (painelSino && !painelSino.classList.contains("oculto")) {
+        fecharPainelSino();
+        evento.preventDefault();
+        return;
+      }
+      if (document.body.classList.contains("venda-rapida")) {
+        sairDaVendaRapida();
+        evento.preventDefault();
+        return;
+      }
       document.querySelectorAll(".modal:not(.oculto)").forEach((modal) => {
         modal.classList.add("oculto");
       });

@@ -4,10 +4,16 @@
     <meta charset="UTF-8" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https: http://127.0.0.1:* http://localhost:*; img-src 'self' data:;"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; connect-src 'self' https: http://127.0.0.1:* http://localhost:*; img-src 'self' data:;"
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>CybhorPDV 2.1</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=IBM+Plex+Sans:wght@400;500;600;700&family=Source+Sans+3:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
@@ -197,10 +203,19 @@
         <!-- PDV / Caixa -->
         <div id="rota-pdv" class="rota">
           <div class="venda-rapida-barra" aria-label="Modo venda rápida">
-            <strong>Venda rápida</strong>
-            <button type="button" id="btn-sair-venda-rapida" class="btn btn-secundario btn-sm">
-              Sair (Esc)
-            </button>
+            <div class="venda-rapida-barra-info">
+              <strong>Venda rápida</strong>
+              <span>Menu oculto — use o botão ao lado para cadastrar ou sair</span>
+            </div>
+            <div class="venda-rapida-barra-acoes">
+              <button type="button" id="btn-cadastrar-venda-rapida" class="btn btn-secundario">
+                Cadastrar produto
+              </button>
+              <button type="button" id="btn-sair-venda-rapida" class="btn btn-primario btn-sair-venda-rapida">
+                Sair da venda rápida
+                <kbd>Esc</kbd>
+              </button>
+            </div>
           </div>
           <header class="rota-cabecalho">
             <div>
@@ -238,7 +253,7 @@
 
           <div class="pdv-conteudo">
             <div class="pdv-catalogo">
-              <div class="busca">
+              <div class="busca busca-com-sino">
                 <input
                   type="text"
                   id="busca-produto"
@@ -246,6 +261,30 @@
                   placeholder="Nome, código ou categoria · use *qtd (ex.: água*3) · Enter adiciona"
                   autocomplete="off"
                 />
+                <button
+                  type="button"
+                  id="btn-sino-estoque"
+                  class="btn-sino oculto"
+                  aria-label="Alertas de estoque"
+                  aria-expanded="false"
+                  title="Alertas de estoque"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5"/>
+                    <path d="M9.9 17a2.1 2.1 0 0 0 4.2 0"/>
+                  </svg>
+                  <span id="sino-estoque-badge" class="sino-badge oculto">0</span>
+                </button>
+                <div id="painel-sino-estoque" class="painel-sino oculto" role="dialog" aria-label="Alertas de estoque">
+                  <div class="painel-sino-cabecalho">
+                    <strong>Alertas de estoque</strong>
+                    <button type="button" id="btn-fechar-sino" class="btn btn-texto btn-sm">Fechar</button>
+                  </div>
+                  <div class="pdv-alertas">
+                    <div id="alerta-estoque" class="alerta-estoque oculto" role="status"></div>
+                    <div id="alerta-fornecedores" class="alerta-fornecedores oculto" role="status"></div>
+                  </div>
+                </div>
                 <div id="busca-sugestoes" class="sugestoes oculto" role="listbox"></div>
               </div>
               <p class="busca-dica">
@@ -253,11 +292,13 @@
               </p>
 
               <div id="atalhos-rapidos" class="atalhos-rapidos" aria-label="Produtos rápidos"></div>
-              <div id="filtros-categoria" class="filtros-categoria" aria-label="Categorias"></div>
-
-              <div class="pdv-alertas">
-                <div id="alerta-estoque" class="alerta-estoque oculto" role="status"></div>
-                <div id="alerta-fornecedores" class="alerta-fornecedores oculto" role="status"></div>
+              <div id="wrap-categorias" class="wrap-categorias oculto">
+                <div class="categorias-toolbar">
+                  <button type="button" id="btn-toggle-categorias" class="btn btn-secundario btn-sm">
+                    Ocultar categorias
+                  </button>
+                </div>
+                <div id="filtros-categoria" class="filtros-categoria" aria-label="Categorias"></div>
               </div>
               <div id="lista-produtos" class="grade-produtos"></div>
             </div>
@@ -280,11 +321,14 @@
               <div id="upsell-carrinho" class="upsell-carrinho oculto" aria-label="Leva junto"></div>
               <div class="carrinho-rodape">
                 <div class="campo-bloco">
-                  <label class="campo-inline">Cliente
-                    <select id="pdv-cliente"></select>
-                  </label>
-                  <span id="pdv-cliente-chip" class="carrinho-badge oculto"></span>
-                  <label class="checkbox checkbox-dividir">
+                  <div id="bloco-pdv-cliente">
+                    <label class="campo-inline">Cliente
+                      <select id="pdv-cliente"></select>
+                    </label>
+                    <span id="pdv-cliente-chip" class="carrinho-badge oculto"></span>
+                    <button type="button" id="btn-limpar-cliente-pdv" class="btn btn-texto btn-sm">Limpar cliente</button>
+                  </div>
+                  <label class="checkbox checkbox-dividir" id="bloco-pdv-fiado">
                     <input type="checkbox" id="check-venda-fiado" />
                     Venda fiado (pagar depois)
                   </label>
@@ -305,19 +349,18 @@
                       <option value="1">1</option>
                     </select>
                   </label>
-                  <button type="button" id="btn-limpar-cliente-pdv" class="btn btn-texto btn-sm">Limpar cliente</button>
                 </div>
                 <div class="carrinho-linha">
                   <span>Subtotal</span>
                   <span id="carrinho-subtotal-valor">R$ 0,00</span>
                 </div>
-                <label class="campo-inline">Desconto (R$)
+                <label class="campo-inline" id="bloco-pdv-desconto">Desconto (R$)
                   <input
                     type="number"
                     id="carrinho-desconto"
                     min="0"
                     step="0.01"
-                    value="0"
+                    placeholder="0"
                   />
                 </label>
                 <div class="carrinho-total">
@@ -338,7 +381,7 @@
                   </label>
                   <div id="bloco-dividir-pagamento" class="bloco-dividir oculto">
                     <label class="campo-inline">Parte em dinheiro (R$)
-                      <input type="number" id="dividir-dinheiro" min="0" step="0.01" value="0" />
+                      <input type="number" id="dividir-dinheiro" min="0" step="0.01" placeholder="0" />
                     </label>
                     <label class="campo-inline">Resto em
                       <select id="dividir-resto-forma">
@@ -363,7 +406,7 @@
                       id="carrinho-recebido"
                       min="0"
                       step="0.01"
-                      value="0"
+                      placeholder="0"
                     />
                   </label>
                   <div class="atalhos-troco" id="atalhos-troco">
@@ -529,7 +572,7 @@
                 </div>
                 <div class="form-linha">
                   <label>Limite fiado (R$)
-                    <input type="number" id="cli-limite" min="0" step="0.01" value="0" />
+                    <input type="number" id="cli-limite" min="0" step="0.01" placeholder="0" />
                   </label>
                   <label>Observação
                     <input type="text" id="cli-obs" autocomplete="off" />
@@ -985,15 +1028,15 @@
                       <input type="number" id="folha-salario" min="0" step="0.01" placeholder="Ex.: 2500" />
                     </label>
                     <label>Dependentes (IR)
-                      <input type="number" id="folha-dependentes" min="0" step="1" value="0" />
+                      <input type="number" id="folha-dependentes" min="0" step="1" placeholder="0" />
                     </label>
                   </div>
                   <div class="form-linha">
                     <label>Vale-transporte total (R$)
-                      <input type="number" id="folha-vt" min="0" step="0.01" value="0" placeholder="Custo dos passes" />
+                      <input type="number" id="folha-vt" min="0" step="0.01" placeholder="Custo dos passes" />
                     </label>
                     <label>Outros descontos (R$)
-                      <input type="number" id="folha-outros" min="0" step="0.01" value="0" />
+                      <input type="number" id="folha-outros" min="0" step="0.01" placeholder="0" />
                     </label>
                   </div>
                   <label>Encargos patronais estimados (%)
@@ -1077,12 +1120,140 @@
           <header class="rota-cabecalho">
             <div>
               <h1 class="rota-titulo">Configurações</h1>
-              <p class="rota-sub">Dados da loja, impressora e alertas de estoque</p>
+              <p class="rota-sub">Aparência, módulos, loja, impressora e alertas</p>
             </div>
           </header>
 
           <div class="painel-conteudo">
             <form id="form-configuracoes" class="painel-grafico painel-solto form form-config">
+              <fieldset class="bloco">
+                <legend>Aparência</legend>
+                <div class="form-linha">
+                  <label>Tema
+                    <select id="cfg-tema">
+                      <option value="escuro">Escuro</option>
+                      <option value="claro">Claro (branco)</option>
+                    </select>
+                  </label>
+                  <label>Fonte da interface
+                    <select id="cfg-fonte-ui">
+                      <option value="sistema">Sistema (Segoe UI)</option>
+                      <option value="moderna">Moderna (DM Sans)</option>
+                      <option value="legivel">Alta legibilidade (Source Sans 3)</option>
+                      <option value="tecnica">Técnica (IBM Plex Sans)</option>
+                    </select>
+                  </label>
+                </div>
+                <div class="form-linha">
+                  <label>Densidade
+                    <select id="cfg-densidade-ui">
+                      <option value="confortavel">Confortável</option>
+                      <option value="compacta">Compacta</option>
+                    </select>
+                  </label>
+                  <label>Tamanho do texto
+                    <select id="cfg-tamanho-ui">
+                      <option value="pequeno">Pequeno</option>
+                      <option value="medio" selected>Médio</option>
+                      <option value="grande">Grande</option>
+                      <option value="enorme">Enorme</option>
+                    </select>
+                  </label>
+                </div>
+                <label class="checkbox">
+                  <input type="checkbox" id="cfg-reduzir-animacoes" />
+                  Reduzir animações
+                </label>
+                <p class="form-ajuda">Tema, fonte e tamanho valem na hora. Clique em Salvar para gravar no computador.</p>
+              </fieldset>
+
+              <fieldset class="bloco">
+                <legend>Recursos do caixa</legend>
+                <p class="form-ajuda">Marque para tirar do PDV. Cliente oculto também esconde o fiado e o menu Clientes.</p>
+                <label class="checkbox">
+                  <input type="checkbox" id="cfg-ocultar-fiado" />
+                  Remover venda fiado
+                </label>
+                <label class="checkbox">
+                  <input type="checkbox" id="cfg-ocultar-desconto" />
+                  Remover desconto
+                </label>
+                <label class="checkbox">
+                  <input type="checkbox" id="cfg-ocultar-cliente" />
+                  Remover cliente
+                </label>
+              </fieldset>
+
+              <fieldset class="bloco">
+                <legend>Campos do cadastro de produto</legend>
+                <p class="form-ajuda">Desmarque o que for opcional para não aparecer no formulário. Nome, preço e estoque continuam obrigatórios.</p>
+                <label class="checkbox">
+                  <input type="checkbox" id="cfg-campo-produto-custo" checked />
+                  Valor pago / custo e margem
+                </label>
+                <label class="checkbox">
+                  <input type="checkbox" id="cfg-campo-produto-codigos" checked />
+                  Código de barras e código interno
+                </label>
+                <label class="checkbox">
+                  <input type="checkbox" id="cfg-campo-produto-categoria" checked />
+                  Categoria
+                </label>
+                <label class="checkbox">
+                  <input type="checkbox" id="cfg-campo-produto-unidade" checked />
+                  Unidade (un / kg)
+                </label>
+                <label class="checkbox">
+                  <input type="checkbox" id="cfg-campo-produto-caixa" checked />
+                  Unidades por caixa
+                </label>
+                <label class="checkbox">
+                  <input type="checkbox" id="cfg-campo-produto-validade" checked />
+                  Validade
+                </label>
+                <label class="checkbox">
+                  <input type="checkbox" id="cfg-campo-produto-promocao" checked />
+                  Promoção
+                </label>
+              </fieldset>
+
+              <fieldset class="bloco">
+                <legend>Módulos do menu</legend>
+                <p class="form-ajuda">Desmarque para ocultar o item no menu e bloquear o acesso (PDV e Configurações ficam sempre ativos).</p>
+                <label class="checkbox">
+                  <input type="checkbox" id="cfg-modulo-produtos" checked />
+                  Produtos
+                </label>
+                <label class="checkbox">
+                  <input type="checkbox" id="cfg-modulo-historico" checked />
+                  Histórico de vendas
+                </label>
+                <label class="checkbox">
+                  <input type="checkbox" id="cfg-modulo-clientes" checked />
+                  Clientes
+                </label>
+                <label class="checkbox">
+                  <input type="checkbox" id="cfg-modulo-relatorios" checked />
+                  Relatórios
+                </label>
+                <label class="checkbox">
+                  <input type="checkbox" id="cfg-modulo-fornecedores" checked />
+                  Fornecedores
+                </label>
+                <label class="checkbox">
+                  <input type="checkbox" id="cfg-modulo-gestao" checked />
+                  Estoque e finanças
+                </label>
+                <label class="checkbox">
+                  <input type="checkbox" id="cfg-modulo-assistente" checked />
+                  Assistente CybhorIA
+                </label>
+                <label class="checkbox">
+                  <input type="checkbox" id="cfg-modulo-funcionarios" checked />
+                  Equipe / Folha
+                </label>
+              </fieldset>
+
               <fieldset class="bloco">
                 <legend>Dados da loja (cupom)</legend>
                 <label>Nome da loja
@@ -1142,7 +1313,7 @@
                   <input type="number" id="cfg-desconto-max" min="0" max="100" step="1" value="15" />
                 </label>
                 <label>Cashback por compra (%)
-                  <input type="number" id="cfg-cashback" min="0" max="50" step="0.1" value="0" />
+                  <input type="number" id="cfg-cashback" min="0" max="50" step="0.1" placeholder="0" />
                 </label>
                 <label>Som ao adicionar item
                   <select id="cfg-beep-modo">
@@ -1168,7 +1339,7 @@
               <fieldset class="bloco">
                 <legend>Meta do caixa (hoje)</legend>
                 <label>Meta de vendas do dia (R$)
-                  <input type="number" id="cfg-meta-dia" min="0" step="1" value="0" placeholder="Ex.: 1500" />
+                  <input type="number" id="cfg-meta-dia" min="0" step="1" placeholder="Ex.: 1500" />
                 </label>
                 <p class="form-ajuda">Aparece no Caixa como barra de progresso para motivar o operador.</p>
               </fieldset>
@@ -1237,10 +1408,10 @@
               <input type="number" id="produto-preco" step="0.01" min="0" required />
             </label>
             <label>Estoque
-              <input type="number" id="produto-estoque" min="0" value="1" required />
+              <input type="number" id="produto-estoque" min="0" required />
             </label>
           </div>
-          <div class="form-linha">
+          <div class="form-linha" id="wrap-produto-custo">
             <label>Quanto pagou / custo (R$) <span class="campo-opcional">opcional</span>
               <input
                 type="number"
@@ -1259,7 +1430,7 @@
               </div>
             </label>
           </div>
-          <div class="form-linha">
+          <div class="form-linha" id="wrap-produto-codigos">
             <label>Código de barras (EAN)
               <input type="text" id="produto-codigo" autocomplete="off" />
             </label>
@@ -1268,10 +1439,10 @@
             </label>
           </div>
           <div class="form-linha">
-            <label>Categoria
+            <label id="wrap-produto-categoria">Categoria
               <input type="text" id="produto-categoria" autocomplete="off" />
             </label>
-            <label>Unidade
+            <label id="wrap-produto-unidade">Unidade
               <select id="produto-unidade">
                 <option value="un">Unidade</option>
                 <option value="kg">Quilo (peso)</option>
@@ -1279,19 +1450,24 @@
             </label>
           </div>
           <div class="form-linha">
-            <label>Unidades por caixa
+            <label id="wrap-produto-caixa">Unidades por caixa
               <input type="number" id="produto-unidades-caixa" min="0" step="1" placeholder="Ex.: 12" />
             </label>
-            <label>Validade
+            <label id="wrap-produto-validade">Validade
               <input type="date" id="produto-validade" />
             </label>
           </div>
-          <div class="form-linha">
+          <div class="form-linha" id="wrap-produto-promo">
             <label>Preço promoção
               <input type="number" id="produto-preco-promo" min="0" step="0.01" />
             </label>
             <label>Promo até
               <input type="date" id="produto-promo-fim" />
+            </label>
+          </div>
+          <div id="wrap-produto-explicacao" class="oculto">
+            <label>Explicação da alteração
+              <textarea id="produto-explicacao" rows="3" placeholder="Obrigatório para o operador: descreva o que mudou e por quê."></textarea>
             </label>
           </div>
           <label class="checkbox" id="wrap-adicionar-venda">
