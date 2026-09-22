@@ -9,6 +9,15 @@ const carregandoEl = document.getElementById("pagamento-carregando");
 const brickEl = document.getElementById("paymentBrick_container");
 const listaMetodosEl = document.getElementById("lista-metodos-mp");
 
+function escapeHtml(texto) {
+  return String(texto ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 let brickController = null;
 let dadosPagamento = null;
 
@@ -30,7 +39,7 @@ function renderizarMetodos(metodosHabilitados, metodosDisponiveis) {
       (m.chave === "ticket" && idsMp.has("bolbradesco")) ||
       (m.chave === "bankTransfer" && idsMp.has("pix")) ||
       m.chave === "mercadoPago";
-    return `<li class="${ativo ? "" : "metodo-indisponivel"}">${m.rotulo}</li>`;
+    return `<li class="${ativo ? "" : "metodo-indisponivel"}">${escapeHtml(m.rotulo)}</li>`;
   });
 
   listaMetodosEl.innerHTML = linhas.join("");
@@ -187,7 +196,7 @@ async function iniciar() {
     if (titulo && dados.planoNome) titulo.textContent = `Plano ${dados.planoNome}`;
     const rotulo = dados.planoRotulo || "/mes";
     document.querySelector(".cadastro-preco").innerHTML =
-      `<span>R$</span>${Number(dados.valorMensal).toFixed(2).replace(".", ",")}<small>${rotulo}</small>`;
+      `<span>R$</span>${Number(dados.valorMensal).toFixed(2).replace(".", ",")}<small>${escapeHtml(rotulo)}</small>`;
 
     if (!dados.publicKey) {
       if (!dados.checkoutUrl) {

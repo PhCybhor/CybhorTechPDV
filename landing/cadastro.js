@@ -27,6 +27,15 @@ function formatarBRL(valor) {
   });
 }
 
+function escapeHtml(texto) {
+  return String(texto ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function mascaraCpf(valor) {
   const d = String(valor || "").replace(/\D/g, "").slice(0, 11);
   if (d.length <= 3) return d;
@@ -39,7 +48,7 @@ function aplicarPlano(plano) {
   planoAtual = plano.id;
   if (nomePlanoEl) nomePlanoEl.textContent = `Plano ${plano.nome}`;
   if (precoEl) {
-    precoEl.innerHTML = `<span>R$</span>${formatarBRL(plano.valor)}<small>${plano.rotuloPeriodo}</small>`;
+    precoEl.innerHTML = `<span>R$</span>${formatarBRL(plano.valor)}<small>${escapeHtml(plano.rotuloPeriodo)}</small>`;
   }
   document.querySelectorAll("#seletor-planos a").forEach((link) => {
     link.classList.toggle("ativo", link.dataset.plano === plano.id);
