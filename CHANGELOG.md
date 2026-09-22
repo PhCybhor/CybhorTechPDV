@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.1.12 — 2026-09-22
+
+- Webhook MP: log estruturado em falhas (`motivo`, `payment_id`, `status_http`) sem PII/corpo/segredo.
+- `/api/saude` faz ping `SELECT 1` no Postgres e responde 503 se o banco estiver inacessível.
+- README deploy: migrate `db/migrate-idx-pagamentos-loja-criado.sql` para bancos já existentes.
+
+
 ## 2.1.11 — 2026-09-22
 
 - Backend sob carga: pool psycopg2 configuravel (DB_POOL_MIN/MAX, padrao 2–20) com TCP keepalive.

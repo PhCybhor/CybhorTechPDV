@@ -81,6 +81,13 @@ python3 -m uvicorn app.main:app --host 0.0.0.0 --port 3333 --reload
 
 1. Instale Python 3.10+, PostgreSQL e nginx.
 2. Crie o banco e aplique `db/schema.sql`.
+   Em banco **já existente** (schema antigo), rode também o migrate do índice de pagamentos (idempotente):
+
+```bash
+psql "$DATABASE_URL" -f db/migrate-idx-pagamentos-loja-criado.sql
+```
+
+   Isso cria `idx_pagamentos_loja_criado` em `pagamentos (loja_id, criado_em)` — usado no detalhe admin.
 3. `pip install -r requirements.txt` (ou venv) e configure o `.env`.
 
    Em **produção** (`NODE_ENV=production`) o boot chama `validar_obrigatorias()` e **falha** se faltar:

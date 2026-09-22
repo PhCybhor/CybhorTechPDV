@@ -108,3 +108,13 @@ def transacao() -> Generator[psycopg2.extensions.cursor, None, None]:
         except Exception:
             conn.rollback()
             raise
+
+
+def ping() -> bool:
+    """SELECT 1 barato para readiness. Nao expoe erro/DSN."""
+    try:
+        rows = consultar("SELECT 1 AS ok")
+        return bool(rows)
+    except Exception:
+        return False
+
