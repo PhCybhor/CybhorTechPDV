@@ -46,7 +46,7 @@ function limparTextoEnv(texto) {
  */
 
 /**
- * Hosts permitidos para shell.openExternal (Mercado Pago + API oficial).
+ * Hosts permitidos para shell.openExternal (Mercado Pago, WhatsApp, API oficial).
  * @param {string} hostname
  * @returns {boolean}
  */
@@ -56,6 +56,8 @@ function hostExternoPermitido(hostname) {
     "mercadopago.com",
     "mercadopago.com.br",
     "mlstatic.com",
+    "wa.me",
+    "whatsapp.com",
   ];
   for (const s of sufixos) {
     if (host === s || host.endsWith("." + s)) return true;
@@ -244,6 +246,12 @@ ipcMain.handle("obter-config-app", () => {
 
 ipcMain.handle("salvar-config-app", (_evento, parcial) => {
   try {
+    if (
+      parcial != null &&
+      (typeof parcial !== "object" || Array.isArray(parcial))
+    ) {
+      return { ok: false, mensagem: "Configuração inválida." };
+    }
     const config = salvarConfigApp(parcial || {});
     return { ok: true, config };
   } catch (erro) {
@@ -280,6 +288,12 @@ ipcMain.handle("listar-impressoras", async () => {
 
 ipcMain.handle("imprimir-cupom", async (_evento, dadosVenda) => {
   try {
+    if (
+      dadosVenda != null &&
+      (typeof dadosVenda !== "object" || Array.isArray(dadosVenda))
+    ) {
+      return { ok: false, mensagem: "Dados de venda inválidos." };
+    }
     return await imprimirCupomVenda(dadosVenda || {});
   } catch (erro) {
     console.error("Falha na impressão do cupom:", erro);

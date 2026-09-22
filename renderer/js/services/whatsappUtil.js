@@ -1,5 +1,5 @@
 /**
- * Deep links WhatsApp (wa.me) — padrão de mercado que o PDV ainda não usava.
+ * Deep links WhatsApp (wa.me) — só abre hosts oficiais; no Electron passa pela allowlist do main.
  */
 
 /**
@@ -16,6 +16,19 @@ export function normalizarTelefoneWa(telefoneBruto) {
 }
 
 /**
+ * Hosts permitidos para deep link WhatsApp (espelha allowlist do Electron).
+ * @param {string} hostname
+ * @returns {boolean}
+ */
+export function hostWhatsAppPermitido(hostname) {
+  const host = String(hostname || "").toLowerCase().replace(/\.$/, "");
+  if (!host) return false;
+  if (host === "wa.me") return true;
+  if (host === "whatsapp.com" || host.endsWith(".whatsapp.com")) return true;
+  return false;
+}
+
+/**
  * @param {string} telefone
  * @param {string} [mensagem]
  * @returns {string | null}
@@ -29,15 +42,27 @@ export function urlWhatsApp(telefone, mensagem = "") {
 }
 
 /**
+ * Abre só URLs https do WhatsApp. No desktop usa pdvAPI.abrirExterno (allowlist);
+ * nunca faz window.open de URL arbitrária.
  * @param {string} url
  */
 export function abrirWhatsApp(url) {
   if (!url) return;
-  if (window.pdvAPI?.abrirExterno) {
-    window.pdvAPI.abrirExterno(url);
+  let parsed;
+  try {
+    parsed = new URL(String(url).trim());
+  } catch {
     return;
   }
-  window.open(url, "_blank", "noopener,noreferrer");
+  if (parsed.protocol !== "https:") return;
+  if (!hostWhatsAppPermitido(parsed.hostname)) return;
+
+  const href = parsed.href;
+  if (window.pdvAPI?.abrirExterno) {
+    Promise.resolve(window.pdvAPI.abrirExterno(href)).catch(() => {});
+    return;
+  }
+  window.open(href, "_blank", "noopener,noreferrer");
 }
 
 /**

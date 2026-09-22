@@ -23,6 +23,83 @@ const PALAVRAS_JETWAY = [
   "tanca",
 ];
 
+
+
+/**
+ * Só aceita porta serial/USB — bloqueia caminhos de arquivo arbitrários.
+ * Mantido espelhado com electron/configApp.js (normalizarPortaImpressora).
+ * @param {unknown} valor
+ * @returns {string}
+ */
+function normalizarPortaImpressora(valor) {
+  const p = String(valor ?? "").trim();
+  if (!p) return "";
+  if (p.length > 64) return "";
+  if (/^COM\d{1,3}$/i.test(p)) return p.toUpperCase();
+  if (/^\/dev\/(tty(USB|ACM|S|AMA)\d+|usb\/lp\d+)$/.test(p)) return p;
+  return "";
+}
+
+/**
+ * Valida/normaliza o payload IPC de impressão (tipo, limites).
+ * @param {unknown} bruto
+ * @returns {{ ok: true, dados: object } | { ok: false, mensagem: string }}
+ */
+function validarDadosVendaCupom(bruto) {
+  if (bruto == null) {
+    return { ok: true, dados: { itens: [] } };
+  }
+  if (typeof bruto !== "object" || Array.isArray(bruto)) {
+    return { ok: false, mensagem: "Dados de venda inválidos." };
+  }
+  const itensBrutos = bruto.itens;
+  if (itensBrutos != null && !Array.isArray(itensBrutos)) {
+    return { ok: false, mensagem: "Itens de venda inválidos." };
+  }
+  if (Array.isArray(itensBrutos) && itensBrutos.length > 500) {
+    return { ok: false, mensagem: "Cupom com demasiados itens." };
+  }
+  const cortar = (v, n) => String(v ?? "").slice(0, n);
+  const num = (v) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : 0;
+  };
+  const itens = (itensBrutos || []).map((item) => {
+    const row = item && typeof item === "object" ? item : {};
+    return {
+      nome: cortar(row.nome, 120),
+      quantidade: num(row.quantidade),
+      precoUnitario: num(row.precoUnitario),
+      subtotal: row.subtotal != null ? num(row.subtotal) : undefined,
+    };
+  });
+  const loja =
+    bruto.loja && typeof bruto.loja === "object" && !Array.isArray(bruto.loja)
+      ? {
+          nome: cortar(bruto.loja.nome, 120),
+          cnpj: cortar(bruto.loja.cnpj, 32),
+          endereco: cortar(bruto.loja.endereco, 200),
+          telefone: cortar(bruto.loja.telefone, 40),
+        }
+      : undefined;
+  return {
+    ok: true,
+    dados: {
+      id: cortar(bruto.id, 64),
+      criadoEm: bruto.criadoEm,
+      funcionarioNome: cortar(bruto.funcionarioNome, 80),
+      formaPagamento: cortar(bruto.formaPagamento, 32),
+      subtotal: num(bruto.subtotal),
+      desconto: num(bruto.desconto),
+      total: num(bruto.total),
+      valorRecebido: bruto.valorRecebido != null ? num(bruto.valorRecebido) : undefined,
+      troco: bruto.troco != null ? num(bruto.troco) : undefined,
+      itens,
+      loja,
+    },
+  };
+}
+
 /**
  * Dados da loja para o cabecalho do cupom.
  * Prioridade: perfil da loja enviado com a venda (multi-loja) > .env (legado).
@@ -127,8 +204,14 @@ function executar(comando, args) {
  * @param {Buffer} buffer
  */
 async function enviarViaPorta(porta, buffer) {
-  await fs.promises.writeFile(porta, buffer);
-  return { ok: true, impressora: porta, modo: "COM" };
+  const segura = normalizarPortaImpressora(porta);
+  if (!segura) {
+    throw new Error(
+      "Porta da impressora inválida. Use COMx (Windows) ou /dev/ttyUSB* / /dev/usb/lp* (Linux)."
+    );
+  }
+  await fs.promises.writeFile(segura, buffer);
+  return { ok: true, impressora: segura, modo: "COM" };
 }
 
 /**
@@ -295,7 +378,12 @@ async function gravarCupomTeste(buffer) {
     .replace(/\x1d/g, "<GS>")
     .replace(/\n/g, "\n");
   await fs.promises.writeFile(texto, legivel, "utf8");
-  return { ok: true, impressora: arquivo, modo: "TESTE", arquivo, texto };
+  // Não devolve caminhos absolutos ao renderer (evita vazar layout do disco).
+  return {
+    ok: true,
+    impressora: path.basename(arquivo),
+    modo: "TESTE",
+  };
 }
 
 /**
@@ -352,6 +440,11 @@ async function diagnosticarImpressoraWindows(nomeImpressora) {
  * @returns {Promise<{ok: boolean, impressora?: string, mensagem?: string, modo?: string}>}
  */
 async function imprimirCupomVenda(dadosVenda) {
+  const validacao = validarDadosVendaCupom(dadosVenda);
+  if (!validacao.ok) {
+    return { ok: false, mensagem: validacao.mensagem };
+  }
+  dadosVenda = validacao.dados;
   const loja = obterDadosLoja(dadosVenda.loja);
   const buffer = gerarBufferEscPos(dadosVenda, loja);
   const modoForcado = (process.env.IMPRESSORA_MODO || "").trim().toLowerCase();
@@ -360,7 +453,7 @@ async function imprimirCupomVenda(dadosVenda) {
     return gravarCupomTeste(buffer);
   }
 
-  const porta = (process.env.IMPRESSORA_PORTA || "").trim();
+  const porta = normalizarPortaImpressora(process.env.IMPRESSORA_PORTA || "");
   if (porta) {
     try {
       return await enviarViaPorta(porta, buffer);
@@ -426,6 +519,7 @@ async function imprimirCupomVenda(dadosVenda) {
 
 module.exports = {
   imprimirCupomVenda,
+  validarDadosVendaCupom,
   escolherImpressora,
   listarImpressoras,
   obterDadosLoja,

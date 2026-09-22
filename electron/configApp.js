@@ -55,6 +55,32 @@ const CAMPOS = [
  * @param {boolean} padrao
  * @returns {boolean}
  */
+
+/**
+ * Limita tamanho de strings persistidas (evita JSON gigante via IPC).
+ * @param {unknown} valor
+ * @param {number} max
+ * @returns {string}
+ */
+function textoLimitado(valor, max) {
+  return String(valor ?? "").trim().slice(0, max);
+}
+
+/**
+ * Só aceita porta serial/USB de impressora — bloqueia caminhos de arquivo
+ * arbitrários que o writeFile da impressão poderia sobrescrever.
+ * @param {unknown} valor
+ * @returns {string}
+ */
+function normalizarPortaImpressora(valor) {
+  const p = String(valor ?? "").trim();
+  if (!p) return "";
+  if (p.length > 64) return "";
+  if (/^COM\d{1,3}$/i.test(p)) return p.toUpperCase();
+  if (/^\/dev\/(tty(USB|ACM|S|AMA)\d+|usb\/lp\d+)$/.test(p)) return p;
+  return "";
+}
+
 function comoBool(valor, padrao = true) {
   if (
     valor === false ||
@@ -138,15 +164,15 @@ function normalizar(bruto) {
   const entrada = bruto && typeof bruto === "object" ? bruto : {};
   const estoque = Number(entrada.estoqueMinimo);
   return {
-    lojaNome: String(entrada.lojaNome ?? base.lojaNome).trim() || "CybhorPDV",
-    lojaCnpj: String(entrada.lojaCnpj ?? base.lojaCnpj).trim(),
-    lojaEndereco: String(entrada.lojaEndereco ?? base.lojaEndereco).trim(),
-    lojaTelefone: String(entrada.lojaTelefone ?? base.lojaTelefone).trim(),
-    impressoraNome: String(entrada.impressoraNome ?? base.impressoraNome).trim(),
-    impressoraModo: String(entrada.impressoraModo ?? base.impressoraModo).trim(),
-    impressoraPorta: String(
+    lojaNome: textoLimitado(entrada.lojaNome ?? base.lojaNome, 120) || "CybhorPDV",
+    lojaCnpj: textoLimitado(entrada.lojaCnpj ?? base.lojaCnpj, 32),
+    lojaEndereco: textoLimitado(entrada.lojaEndereco ?? base.lojaEndereco, 200),
+    lojaTelefone: textoLimitado(entrada.lojaTelefone ?? base.lojaTelefone, 40),
+    impressoraNome: textoLimitado(entrada.impressoraNome ?? base.impressoraNome, 120),
+    impressoraModo: textoLimitado(entrada.impressoraModo ?? base.impressoraModo, 32),
+    impressoraPorta: normalizarPortaImpressora(
       entrada.impressoraPorta ?? base.impressoraPorta
-    ).trim(),
+    ),
     estoqueMinimo:
       Number.isFinite(estoque) && estoque >= 0 ? Math.floor(estoque) : 5,
     avisoFornecedoresIa:
@@ -266,6 +292,9 @@ function obterConfigApp() {
  * @returns {object}
  */
 function salvarConfigApp(parcial) {
+  if (parcial != null && (typeof parcial !== "object" || Array.isArray(parcial))) {
+    throw new Error("Configuração inválida.");
+  }
   const atual = carregarConfigApp();
   const filtrado = {};
   for (const campo of CAMPOS) {
@@ -284,4 +313,5 @@ module.exports = {
   carregarConfigApp,
   obterConfigApp,
   salvarConfigApp,
+  normalizarPortaImpressora,
 };
