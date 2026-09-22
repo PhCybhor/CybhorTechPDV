@@ -1,14 +1,11 @@
-import { ref, push, update, get, onValue } from "../config/databaseClient.js";
+import { ref, get, onValue } from "../config/databaseClient.js";
 import { obterDatabase } from "../config/databaseClient.js";
 import { validarAdministrador } from "./authService.js";
 import { caminhoLoja } from "./tenantContext.js";
+import { apiRequest } from "../config/apiClient.js";
 
 function caminhoVendas() {
   return caminhoLoja("vendas");
-}
-
-function caminhoProdutos() {
-  return caminhoLoja("produtos");
 }
 
 /**
@@ -51,38 +48,6 @@ export async function observarVendas(callback) {
 }
 
 /**
- * Normaliza pagamento único ou dividido.
- * @param {string} formaPagamento
- * @param {Array<{ tipo: string, valor: number }> | null | undefined} formasPagamento
- * @param {number} total
- */
-function normalizarPagamentos(formaPagamento, formasPagamento, total) {
-  if (Array.isArray(formasPagamento) && formasPagamento.length >= 2) {
-    const partes = formasPagamento
-      .map((p) => ({
-        tipo: String(p.tipo || "").trim(),
-        valor: Math.round((Number(p.valor) || 0) * 100) / 100,
-      }))
-      .filter((p) => p.tipo && p.valor > 0);
-    const soma = partes.reduce((s, p) => s + p.valor, 0);
-    if (partes.length < 2) {
-      throw new Error("Pagamento dividido precisa de pelo menos 2 formas.");
-    }
-    if (Math.abs(soma - total) > 0.05) {
-      throw new Error(
-        `Soma das formas (${soma.toFixed(2)}) deve fechar o total (${total.toFixed(2)}).`
-      );
-    }
-    return { formaPagamento: "misto", formasPagamento: partes };
-  }
-  const forma = String(formaPagamento || "dinheiro").trim() || "dinheiro";
-  return {
-    formaPagamento: forma,
-    formasPagamento: [{ tipo: forma, valor: total }],
-  };
-}
-
-/**
  * Registra uma venda e dá baixa no estoque dos produtos de forma atômica.
  */
 export async function registrarVenda({
@@ -97,85 +62,47 @@ export async function registrarVenda({
 }) {
   if (!Array.isArray(itens) || itens.length === 0)
     throw new Error("Adicione ao menos um item para finalizar a venda.");
+  if (!funcionario?.id) throw new Error("Funcionário inválido.");
 
-  const db = await obterDatabase();
-  const pathVendas = caminhoVendas();
-  const pathProdutos = caminhoProdutos();
-
-  const subtotal = itens.reduce(
-    (soma, item) => soma + item.precoUnitario * item.quantidade,
-    0
-  );
-  const descontoAplicado = Math.min(Math.max(0, Number(desconto) || 0), subtotal);
-  const total = subtotal - descontoAplicado;
-  const pagamentos = normalizarPagamentos(
-    formaPagamento,
-    formasPagamento,
-    total
-  );
-
-  const referenciaVenda = push(ref(db, pathVendas));
-  if (!referenciaVenda?.key) {
-    throw new Error("Não foi possível gerar o identificador da venda.");
-  }
-  const atualizacoes = {};
-
-  const criadoEm = Date.now();
-  const itensVenda = itens.map((item) => {
-    const custoRaw = item.custoUnitario;
-    const custoUnitario =
-      custoRaw === null || custoRaw === undefined || custoRaw === ""
-        ? null
-        : Number(custoRaw);
-    return {
-      produtoId: item.produtoId,
-      nome: item.nome,
-      quantidade: item.quantidade,
-      precoUnitario: item.precoUnitario,
-      subtotal: item.precoUnitario * item.quantidade,
-      // Snapshot do custo no momento da venda (lucro histórico mesmo se o cadastro mudar)
-      custoUnitario:
-        custoUnitario !== null && Number.isFinite(custoUnitario)
-          ? custoUnitario
-          : null,
-    };
+  // Estoque é decrementado no servidor com lock — evita corrida entre caixas.
+  const venda = await apiRequest("/api/caixa/venda", {
+    method: "POST",
+    body: {
+      itens: itens.map((item) => ({
+        produtoId: item.produtoId,
+        nome: item.nome,
+        quantidade: item.quantidade,
+        precoUnitario: item.precoUnitario,
+        custoUnitario:
+          item.custoUnitario === null ||
+          item.custoUnitario === undefined ||
+          item.custoUnitario === ""
+            ? null
+            : Number(item.custoUnitario),
+      })),
+      desconto: Number(desconto) || 0,
+      formaPagamento,
+      formasPagamento,
+      clienteId: clienteId || null,
+      clienteNome: clienteNome || null,
+      fiado: Boolean(fiado),
+    },
   });
 
-  atualizacoes[`${pathVendas}/${referenciaVenda.key}`] = {
-    itens: itensVenda,
-    subtotal,
-    desconto: descontoAplicado,
-    total,
-    formaPagamento: fiado ? "fiado" : pagamentos.formaPagamento,
-    formasPagamento: fiado
-      ? [{ tipo: "fiado", valor: total }]
-      : pagamentos.formasPagamento,
-    funcionarioId: funcionario.id,
-    funcionarioNome: funcionario.nome,
-    clienteId: clienteId || null,
-    clienteNome: clienteNome || null,
-    fiado: Boolean(fiado),
-    criadoEm,
-  };
-
-  for (const item of itens) {
-    const novoEstoque = Math.max(0, item.estoqueAtual - item.quantidade);
-    atualizacoes[`${pathProdutos}/${item.produtoId}/estoque`] = novoEstoque;
-  }
-
-  await update(ref(db), atualizacoes);
-
   return {
-    id: referenciaVenda.key,
-    total,
-    subtotal,
-    desconto: descontoAplicado,
-    formaPagamento: pagamentos.formaPagamento,
-    formasPagamento: pagamentos.formasPagamento,
-    funcionarioNome: funcionario.nome,
-    itens: itensVenda,
-    criadoEm,
+    id: venda.id,
+    total: venda.total,
+    subtotal: venda.subtotal,
+    desconto: venda.desconto,
+    formaPagamento: venda.formaPagamento,
+    formasPagamento: venda.formasPagamento,
+    funcionarioNome: venda.funcionarioNome || funcionario.nome,
+    itens: venda.itens || [],
+    criadoEm: venda.criadoEm,
     cancelada: false,
+    clienteId: venda.clienteId || clienteId || null,
+    clienteNome: venda.clienteNome || clienteNome || null,
+    fiado: Boolean(venda.fiado ?? fiado),
   };
 }
 
@@ -194,38 +121,13 @@ export async function cancelarVenda({
   const adminOk = await validarAdministrador(adminUsuario, adminSenha);
   if (!adminOk) throw new Error("Credenciais de administrador inválidas.");
 
-  const db = await obterDatabase();
-  const pathVendas = caminhoVendas();
-  const pathProdutos = caminhoProdutos();
-  const referencia = ref(db, `${pathVendas}/${vendaId}`);
-  const snapshot = await get(referencia);
-  if (!snapshot.exists()) throw new Error("Venda não encontrada.");
-
-  const venda = snapshot.val();
-  if (venda.cancelada) throw new Error("Esta venda já está cancelada.");
-
-  const atualizacoes = {};
-  const itens = Array.isArray(venda.itens) ? venda.itens : [];
-
-  for (const item of itens) {
-    if (!item.produtoId) continue;
-    const refProduto = ref(db, `${pathProdutos}/${item.produtoId}`);
-    const snapProduto = await get(refProduto);
-    if (!snapProduto.exists()) continue;
-    const estoqueAtual = Number(snapProduto.val().estoque) || 0;
-    const qtd = Number(item.quantidade) || 0;
-    atualizacoes[`${pathProdutos}/${item.produtoId}/estoque`] =
-      estoqueAtual + qtd;
-  }
-
-  atualizacoes[`${pathVendas}/${vendaId}/cancelada`] = true;
-  atualizacoes[`${pathVendas}/${vendaId}/canceladoEm`] = Date.now();
-  atualizacoes[`${pathVendas}/${vendaId}/canceladoPor`] =
-    canceladoPorNome || "admin";
-  atualizacoes[`${pathVendas}/${vendaId}/motivoCancelamento`] = String(
-    motivo || ""
-  ).trim();
-
-  await update(ref(db), atualizacoes);
-  return { id: vendaId, ...venda, cancelada: true };
+  // Devolução de estoque no servidor com lock — sem corrida no cancelamento.
+  return apiRequest("/api/caixa/cancelar-venda", {
+    method: "POST",
+    body: {
+      vendaId,
+      motivo: String(motivo || "").trim(),
+      canceladoPorNome: canceladoPorNome || "admin",
+    },
+  });
 }

@@ -2236,6 +2236,7 @@ async function imprimirUltimaVenda() {
 
   const botao = $("btn-imprimir-cupom");
   const status = $("venda-sucesso-impressao-status");
+  if (!botao || !status) return;
   if (botao.dataset.imprimindo === "1") return;
   botao.dataset.imprimindo = "1";
   botao.disabled = true;
@@ -2244,15 +2245,20 @@ async function imprimirUltimaVenda() {
   status.textContent = "Enviando cupom…";
   status.classList.remove("oculto");
 
+  const liberarImpressao = (textoBotao) => {
+    botao.disabled = false;
+    botao.textContent = textoBotao;
+    delete botao.dataset.imprimindo;
+  };
+
   try {
     const impressao = await imprimirCupomVenda(venda);
-    if (!impressao.ok) {
+    if (!impressao?.ok) {
       status.textContent =
-        impressao.mensagem || "Impressora sem resposta — confira o cabo/energia.";
+        impressao?.mensagem || "Impressora sem resposta — confira o cabo/energia.";
       status.classList.add("erro");
       notificar("Falha na impressão — tente de novo.", "alerta");
-      botao.disabled = false;
-      botao.textContent = "Tentar imprimir de novo";
+      liberarImpressao("Tentar imprimir de novo");
       return;
     }
 
@@ -2261,16 +2267,17 @@ async function imprimirUltimaVenda() {
       : "Cupom enviado à impressora.";
     status.classList.add("ok");
     notificar("Cupom enviado.", "sucesso");
-    botao.textContent = "Imprimir novamente";
-    botao.disabled = false;
+    liberarImpressao("Imprimir novamente");
   } catch (erro) {
     status.textContent = erro.message || "Falha ao imprimir o cupom.";
     status.classList.add("erro");
     notificar("Falha na impressão — tente de novo.", "erro");
-    botao.disabled = false;
-    botao.textContent = "Tentar imprimir de novo";
+    liberarImpressao("Tentar imprimir de novo");
   } finally {
-    delete botao.dataset.imprimindo;
+    // Cinto e suspenders: nunca deixar o guard travado.
+    if (botao.dataset.imprimindo === "1") {
+      liberarImpressao("Tentar imprimir de novo");
+    }
   }
 }
 
