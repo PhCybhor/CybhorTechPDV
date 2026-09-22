@@ -2,6 +2,16 @@ import { ref, get, set, push, onValue, remove } from "../config/databaseClient.j
 import { obterDatabase } from "../config/databaseClient.js";
 import { caminhoLoja } from "./tenantContext.js";
 
+/** Evita 0.1+0.2 em somas de dinheiro do gaveteiro. */
+function paraCentavos(valor) {
+  return Math.round((Number(valor) || 0) * 100);
+}
+
+function deCentavos(centavos) {
+  return Math.round(Number(centavos) || 0) / 100;
+}
+
+
 /**
  * Ciclo de caixa: fundo inicial + suprimentos (entrada de dinheiro no gaveteiro).
  * Esperado em dinheiro = fundo + suprimentos + vendas dinheiro − sangrias.
@@ -46,7 +56,7 @@ export async function abrirCaixaDia({ fundoInicial, funcionario }) {
   const db = await obterDatabase();
   const { inicio } = inicioFimDoDia();
   await set(ref(db, caminhoEstado()), {
-    fundoInicial: valor,
+    fundoInicial: deCentavos(paraCentavos(valor)),
     abertoEm: Date.now(),
     abertoDiaInicio: inicio,
     abertoPorId: funcionario?.id || null,
@@ -76,7 +86,7 @@ export async function registrarSuprimento({ valor, motivo, funcionario }) {
   }
   const db = await obterDatabase();
   const refNovo = await push(ref(db, caminhoSuprimentos()), {
-    valor: v,
+    valor: deCentavos(paraCentavos(v)),
     motivo: String(motivo || "Suprimento de caixa").trim(),
     funcionarioId: funcionario?.id || null,
     funcionarioNome: funcionario?.nome || null,
@@ -112,12 +122,13 @@ export async function excluirSuprimento(id) {
  */
 export function somarSuprimentosDoDia(suprimentos, diaMs = Date.now()) {
   const { inicio, fim } = inicioFimDoDia(diaMs);
-  return (suprimentos || [])
+  const centavos = (suprimentos || [])
     .filter((s) => {
       const t = Number(s.criadoEm) || 0;
       return t >= inicio && t < fim;
     })
-    .reduce((soma, s) => soma + (Number(s.valor) || 0), 0);
+    .reduce((soma, s) => soma + paraCentavos(s.valor), 0);
+  return deCentavos(centavos);
 }
 
 /**
@@ -135,11 +146,11 @@ export function calcularDinheiroEsperado({
   vendasDinheiro = 0,
   sangriasDia = 0,
 }) {
-  return (
-    (Number(fundoInicial) || 0) +
-    (Number(suprimentosDia) || 0) +
-    (Number(vendasDinheiro) || 0) -
-    (Number(sangriasDia) || 0)
+  return deCentavos(
+    paraCentavos(fundoInicial) +
+      paraCentavos(suprimentosDia) +
+      paraCentavos(vendasDinheiro) -
+      paraCentavos(sangriasDia)
   );
 }
 
@@ -151,12 +162,13 @@ export function valorDinheiroDaVenda(venda) {
   if (!venda || venda.cancelada) return 0;
   const partes = venda.formasPagamento;
   if (Array.isArray(partes) && partes.length) {
-    return partes
+    const centavos = partes
       .filter((p) => p.tipo === "dinheiro")
-      .reduce((s, p) => s + (Number(p.valor) || 0), 0);
+      .reduce((s, p) => s + paraCentavos(p.valor), 0);
+    return deCentavos(centavos);
   }
   if (venda.formaPagamento === "dinheiro") {
-    return Number(venda.total) || 0;
+    return deCentavos(paraCentavos(venda.total));
   }
   return 0;
 }
@@ -167,11 +179,12 @@ export function valorDinheiroDaVenda(venda) {
  */
 export function somarVendasDinheiroDoDia(vendas, diaMs = Date.now()) {
   const { inicio, fim } = inicioFimDoDia(diaMs);
-  return (vendas || [])
+  const centavos = (vendas || [])
     .filter((v) => {
       if (v.cancelada) return false;
       const t = Number(v.criadoEm) || 0;
       return t >= inicio && t < fim;
     })
-    .reduce((s, v) => s + valorDinheiroDaVenda(v), 0);
+    .reduce((s, v) => s + paraCentavos(valorDinheiroDaVenda(v)), 0);
+  return deCentavos(centavos);
 }

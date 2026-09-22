@@ -2,6 +2,15 @@ import { ref, get, push, update, remove, onValue } from "../config/databaseClien
 import { obterDatabase } from "../config/databaseClient.js";
 import { caminhoLoja } from "./tenantContext.js";
 
+
+function paraCentavos(valor) {
+  return Math.round((Number(valor) || 0) * 100);
+}
+
+function deCentavos(centavos) {
+  return Math.round(Number(centavos) || 0) / 100;
+}
+
 function caminhoSangrias() {
   return caminhoLoja("sangrias");
 }
@@ -68,7 +77,7 @@ function normalizarSangria({
   }
 
   return {
-    valor: valorNumero,
+    valor: deCentavos(paraCentavos(valorNumero)),
     motivo: motivoLimpo,
     funcionarioId: String(funcionarioId || "").trim(),
     funcionarioNome: String(funcionarioNome || "").trim() || "—",
@@ -175,10 +184,11 @@ export function filtrarSangriasDaCompetencia(sangrias, competencia) {
  * @returns {number}
  */
 export function somarSangriasDoDia(sangrias, dia = new Date()) {
-  return filtrarSangriasDoDia(sangrias, dia).reduce(
-    (soma, s) => soma + (Number(s.valor) || 0),
+  const centavos = filtrarSangriasDoDia(sangrias, dia).reduce(
+    (soma, s) => soma + paraCentavos(s.valor),
     0
   );
+  return deCentavos(centavos);
 }
 
 /**
@@ -187,8 +197,9 @@ export function somarSangriasDoDia(sangrias, dia = new Date()) {
  * @returns {number}
  */
 export function somarSangriasCompetencia(sangrias, competencia) {
-  return filtrarSangriasDaCompetencia(sangrias, competencia).reduce(
-    (soma, s) => soma + (Number(s.valor) || 0),
+  const centavos = filtrarSangriasDaCompetencia(sangrias, competencia).reduce(
+    (soma, s) => soma + paraCentavos(s.valor),
     0
   );
+  return deCentavos(centavos);
 }
