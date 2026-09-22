@@ -43,3 +43,8 @@ Você **não precisa baixar o código-fonte**. Basta o instalador e o **código 
 
 Após entrar como admin: **Configurações** → escolha a impressora e salve.
 Também é possível ajustar nome da loja no cupom nessa tela.
+
+## API (quem hospeda o backend)
+
+Em `NODE_ENV=production` a API **exige** `MP_WEBHOOK_SECRET` no `.env` (além de `DATABASE_URL`, `JWT_SEGREDO`, `MP_ACCESS_TOKEN` e `URL_PUBLICA_API` https). Sem o segredo do webhook do Mercado Pago o processo **não sobe** (falha no boot). Detalhes: `backend/README.md` e `backend/.env.example`.
+

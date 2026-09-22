@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.1.9 — 2026-09-22
+
+- CORS em produção sempre ativo (inclui Electron `file://` / Origin null mesmo sem `CORS_ORIGENS`).
+- Documenta que `MP_WEBHOOK_SECRET` é obrigatório em produção (boot falha se ausente).
+
 ## 2.1.8 — 2026-09-22
 
 - Endurece pagamentos (#13): webhook MP exige segredo em produção, trava corrida no registro e restringe criação pública de loja.
