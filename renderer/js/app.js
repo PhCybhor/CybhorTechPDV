@@ -142,9 +142,23 @@ const estado = {
   suprimentos: [],
   revolucao: null,
   mega: null,
+  /** Evita double-click / F12 duplo na finalização. */
+  finalizandoVenda: false,
 };
 
 const $ = (id) => document.getElementById(id);
+
+/** Mantém o foco na busca do caixa (bip / digitação contínua). */
+function focarBuscaProduto(atrasoMs = 0) {
+  const aplicar = () => {
+    const input = $("busca-produto");
+    if (!input || estado.rotaAtual !== "pdv") return;
+    input.focus();
+  };
+  if (atrasoMs > 0) setTimeout(aplicar, atrasoMs);
+  else aplicar();
+}
+
 
 /** Features de mercado (Ctrl+K, pulso, split, etc.) — instalado uma vez. */
 function obterRevolucao() {
@@ -291,7 +305,7 @@ function navegarPara(rota) {
   }
 
   if (rota === "pdv") {
-    setTimeout(() => $("busca-produto")?.focus(), 50);
+    focarBuscaProduto(50);
   }
 }
 
@@ -1118,7 +1132,7 @@ function atualizarAlertaEstoque(produtos) {
         .join(" · ");
       const extra =
         baixos.length > 4 ? ` e mais ${baixos.length - 4}` : "";
-      alerta.innerHTML = `<strong>${baixos.length} com estoque baixo</strong><span>${nomes}${extra}</span>`;
+      alerta.innerHTML = `<strong>Estoque baixo (${baixos.length})</strong><span>${nomes}${extra}</span>`;
       alerta.classList.remove("oculto");
     }
   }
@@ -1455,28 +1469,23 @@ async function aplicarNomesAceitos() {
  */
 async function reimprimirVenda(venda) {
   if (!venda || venda.cancelada) {
-    notificar("Não é possível imprimir venda cancelada.", "alerta");
+    notificar("Venda cancelada — não imprime.", "alerta");
     return;
   }
   estado.ultimaVendaCupom = venda;
-  notificar("Enviando cupom...", "info");
+  notificar("Enviando cupom…", "info");
   try {
     const impressao = await imprimirCupomVenda(venda);
     if (!impressao.ok) {
       notificar(
-        impressao.mensagem || "Falha ao reimprimir o cupom.",
+        impressao.mensagem || "Falha na impressão — confira a impressora.",
         "alerta"
       );
       return;
     }
-    notificar(
-      impressao.impressora
-        ? `Cupom enviado para: ${impressao.impressora}`
-        : "Cupom reimpresso.",
-      "sucesso"
-    );
+    notificar("Cupom reimpresso.", "sucesso");
   } catch (erro) {
-    notificar(erro.message || "Falha ao reimprimir.", "erro");
+    notificar(erro.message || "Falha na impressão — tente de novo.", "erro");
   }
 }
 
@@ -1652,10 +1661,14 @@ function adicionarAoCarrinho(produtoId, quantidade = 1) {
   let qtd = quantidade;
   if (String(produto.unidade || "un").toLowerCase() === "kg" && qtd === 1) {
     const informado = window.prompt(`Peso em kg — ${produto.nome}`, "");
-    if (informado === null) return;
+    if (informado === null) {
+      focarBuscaProduto(30);
+      return;
+    }
     qtd = Number(String(informado).replace(",", "."));
     if (!Number.isFinite(qtd) || qtd <= 0) {
-      notificar("Peso inválido.", "alerta");
+      notificar("Peso inválido — digite de novo.", "alerta");
+      focarBuscaProduto(30);
       return;
     }
   }
@@ -1663,7 +1676,14 @@ function adicionarAoCarrinho(produtoId, quantidade = 1) {
   const paraCarrinho = obterMega().produtoParaCarrinho(produto, qtd);
   const adicionado = estado.carrinho.adicionar(paraCarrinho, qtd);
   if (!adicionado) {
-    notificar(`"${produto.nome}" sem estoque suficiente.`, "alerta");
+    const est = Number(produto.estoque) || 0;
+    notificar(
+      est < 1
+        ? `Sem estoque: ${produto.nome}`
+        : `Estoque baixo: ${produto.nome} (restam ${est})`,
+      "alerta"
+    );
+    focarBuscaProduto();
     return;
   }
 
@@ -1813,16 +1833,23 @@ function atualizarSugestoes(termo) {
  */
 function confirmarBusca(termo) {
   const { consulta, quantidade } = parseBuscaComQuantidade(termo);
+  const limparEFocar = () => {
+    const input = $("busca-produto");
+    if (input) input.value = "";
+    atualizarSugestoes("");
+    // Sempre devolve o foco (bip contínuo / digitação rápida).
+    focarBuscaProduto(estado.configLoja?.modoBarrasContinuo === false ? 0 : 20);
+  };
 
   if (!consulta && quantidade > 1) {
     const ultimo = estado.carrinho?.obterUltimoItem();
     if (ultimo?.produtoId) {
       adicionarAoCarrinho(ultimo.produtoId, quantidade);
-      $("busca-produto").value = "";
-      atualizarSugestoes("");
+      limparEFocar();
       return;
     }
-    notificar("Adicione um produto antes de usar só *quantidade.", "alerta");
+    notificar("Adicione um item antes de usar *quantidade.", "alerta");
+    focarBuscaProduto();
     return;
   }
 
@@ -1831,22 +1858,17 @@ function confirmarBusca(termo) {
   const porCodigo = encontrarPorCodigoBarras(estado.produtos, consulta);
   if (porCodigo) {
     adicionarAoCarrinho(porCodigo.id, quantidade);
-    $("busca-produto").value = "";
-    atualizarSugestoes("");
-    if (estado.configLoja?.modoBarrasContinuo !== false) {
-      setTimeout(() => $("busca-produto")?.focus(), 30);
-    }
+    limparEFocar();
     return;
   }
 
   const resultados = buscar(consulta);
   if (resultados.length > 0) {
     adicionarAoCarrinho(resultados[0].id, quantidade);
-    $("busca-produto").value = "";
-    atualizarSugestoes("");
-    if (estado.configLoja?.modoBarrasContinuo !== false) {
-      setTimeout(() => $("busca-produto")?.focus(), 30);
-    }
+    limparEFocar();
+  } else {
+    notificar(`Não encontrado: ${consulta}`, "alerta");
+    focarBuscaProduto();
   }
 }
 
@@ -2168,63 +2190,90 @@ function abrirModalVendaSucesso(venda, msgExtra = "") {
 async function imprimirUltimaVenda() {
   const venda = estado.ultimaVendaCupom;
   if (!venda) {
-    notificar("Nenhuma venda disponível para impressão.", "alerta");
+    notificar("Nada para imprimir.", "alerta");
     return;
   }
 
   const botao = $("btn-imprimir-cupom");
   const status = $("venda-sucesso-impressao-status");
+  if (botao.dataset.imprimindo === "1") return;
+  botao.dataset.imprimindo = "1";
   botao.disabled = true;
-  botao.textContent = "Imprimindo...";
+  botao.textContent = "Imprimindo…";
   status.className = "venda-impressao-status";
-  status.textContent = "Enviando cupom para a impressora...";
+  status.textContent = "Enviando cupom…";
   status.classList.remove("oculto");
 
   try {
     const impressao = await imprimirCupomVenda(venda);
     if (!impressao.ok) {
       status.textContent =
-        impressao.mensagem || "Impressora não respondeu. Verifique a Jetway JP-800.";
+        impressao.mensagem || "Impressora sem resposta — confira o cabo/energia.";
       status.classList.add("erro");
-      notificar(status.textContent, "alerta");
+      notificar("Falha na impressão — tente de novo.", "alerta");
       botao.disabled = false;
       botao.textContent = "Tentar imprimir de novo";
       return;
     }
 
     status.textContent = impressao.impressora
-      ? `Cupom enviado para: ${impressao.impressora}`
-      : "Cupom enviado para a impressora.";
+      ? `Cupom enviado: ${impressao.impressora}`
+      : "Cupom enviado à impressora.";
     status.classList.add("ok");
-    notificar("Cupom enviado para impressão.", "sucesso");
+    notificar("Cupom enviado.", "sucesso");
     botao.textContent = "Imprimir novamente";
     botao.disabled = false;
   } catch (erro) {
     status.textContent = erro.message || "Falha ao imprimir o cupom.";
     status.classList.add("erro");
-    notificar(status.textContent, "erro");
+    notificar("Falha na impressão — tente de novo.", "erro");
     botao.disabled = false;
     botao.textContent = "Tentar imprimir de novo";
+  } finally {
+    delete botao.dataset.imprimindo;
   }
 }
 
 async function finalizarVenda() {
-  const itens = estado.carrinho.obterItens();
+  if (estado.finalizandoVenda) return;
+  const itens = estado.carrinho?.obterItens() || [];
   if (itens.length === 0) return;
 
-  const mega = obterMega();
-  const validacao = await mega.validarAntesDeFinalizar(estado.carrinho);
-  if (!validacao.ok) return;
-
-  if (!validacao.foiFiado && !estado.carrinho.pagamentoDinheiroOk()) {
-    notificar("Valor recebido insuficiente para o troco.", "alerta");
-    return;
-  }
-
   const botao = $("btn-finalizar");
-  botao.disabled = true;
+  const textoBotao = botao?.textContent || "Finalizar venda (F12)";
+  estado.finalizandoVenda = true;
+  if (botao) {
+    botao.disabled = true;
+    botao.classList.add("is-carregando");
+    botao.textContent = "Finalizando…";
+  }
+  if (estado.carrinho) estado.carrinho.bloqueadoFinalizar = true;
+
+  const liberarBotao = () => {
+    estado.finalizandoVenda = false;
+    if (estado.carrinho) estado.carrinho.bloqueadoFinalizar = false;
+    if (!botao) return;
+    botao.classList.remove("is-carregando");
+    botao.textContent = textoBotao;
+    const temItens = (estado.carrinho?.obterItens() || []).length > 0;
+    botao.disabled = !temItens || !estado.carrinho?.pagamentoDinheiroOk();
+  };
 
   try {
+    const mega = obterMega();
+    const validacao = await mega.validarAntesDeFinalizar(estado.carrinho);
+    if (!validacao.ok) {
+      liberarBotao();
+      return;
+    }
+
+    if (!validacao.foiFiado && !estado.carrinho.pagamentoDinheiroOk()) {
+      notificar("Valor recebido insuficiente.", "alerta");
+      liberarBotao();
+      $("carrinho-recebido")?.focus();
+      return;
+    }
+
     const troco = validacao.foiFiado ? 0 : estado.carrinho.obterTroco();
     const valorRecebido = validacao.foiFiado
       ? 0
@@ -2234,11 +2283,8 @@ async function finalizarVenda() {
       ? null
       : estado.carrinho.obterFormasPagamento();
     if (!validacao.foiFiado && estado.carrinho.dividirPagamento && !formas) {
-      notificar(
-        "No pagamento dividido, informe a parte em dinheiro (menor que o total).",
-        "alerta"
-      );
-      botao.disabled = false;
+      notificar("Pagamento dividido: informe a parte em dinheiro.", "alerta");
+      liberarBotao();
       return;
     }
 
@@ -2265,20 +2311,18 @@ async function finalizarVenda() {
 
     const msgTroco =
       (forma === "dinheiro" || venda.formaPagamento === "misto") && troco > 0
-        ? ` · Troco: ${formatarMoeda(troco)}`
+        ? ` · Troco ${formatarMoeda(troco)}`
         : "";
-    const msgExtra = [
-      venda.formaPagamento === "misto" ? "pagamento dividido" : "",
-      validacao.foiFiado ? "fiado" : "",
-    ]
-      .filter(Boolean)
-      .map((x) => ` · ${x}`)
-      .join("");
+    const extras = [];
+    if (venda.formaPagamento === "misto") extras.push("dividido");
+    if (validacao.foiFiado) extras.push("fiado");
+    const msgExtra = extras.length ? ` · ${extras.join(", ")}` : "";
     notificar(
-      `Venda finalizada: ${formatarMoeda(venda.total)}${msgTroco}${msgExtra}`,
+      `Venda: ${formatarMoeda(venda.total)}${msgTroco}${msgExtra}`,
       "sucesso"
     );
     obterRevolucao().atualizarMetaCaixa();
+    liberarBotao();
     abrirModalVendaSucesso(
       {
         ...venda,
@@ -2289,8 +2333,8 @@ async function finalizarVenda() {
       msgTroco
     );
   } catch (erro) {
-    notificar(erro.message, "erro");
-    botao.disabled = false;
+    notificar(erro.message || "Falha ao finalizar — tente de novo.", "erro");
+    liberarBotao();
   }
 }
 
@@ -2466,7 +2510,7 @@ function registrarEventosGerais() {
     const botao = evento.target.closest("[data-produto-id]");
     if (!botao) return;
     adicionarAoCarrinho(botao.dataset.produtoId);
-    $("busca-produto")?.focus();
+    focarBuscaProduto();
   });
 
   $("filtros-categoria")?.addEventListener("click", (evento) => {
@@ -2504,7 +2548,7 @@ function registrarEventosGerais() {
       }
       if (id === "modal-venda-sucesso" || id === "modal-ajuda-caixa") {
         if (estado.rotaAtual === "pdv") {
-          setTimeout(() => $("busca-produto")?.focus(), 40);
+          focarBuscaProduto(40);
         }
       }
     });
@@ -2539,6 +2583,14 @@ function registrarEventosGerais() {
     if (e.key === "Enter") {
       e.preventDefault();
       confirmarBusca(e.target.value);
+      return;
+    }
+    if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
+      inputBusca.value = "";
+      atualizarSugestoes("");
+      focarBuscaProduto();
     }
   });
 
@@ -2548,7 +2600,7 @@ function registrarEventosGerais() {
     adicionarAoCarrinho(alvo.dataset.produtoId);
     inputBusca.value = "";
     atualizarSugestoes("");
-    inputBusca.focus();
+    focarBuscaProduto();
   });
 
   $("lista-produtos").addEventListener("click", (evento) => {
@@ -2586,6 +2638,7 @@ function registrarEventosGerais() {
     const card = evento.target.closest(".produto-card[data-produto-id]");
     if (!card || card.classList.contains("sem-estoque")) return;
     adicionarAoCarrinho(card.dataset.produtoId);
+    focarBuscaProduto();
   });
 
   document.addEventListener("click", (evento) => {
@@ -2623,8 +2676,10 @@ function registrarEventosGerais() {
       estado.painelHistorico?.fecharModalCancelar();
       $("busca-sugestoes")?.classList.add("oculto");
       if (estado.rotaAtual === "pdv") {
-        $("busca-produto").value = "";
+        const busca = $("busca-produto");
+        if (busca) busca.value = "";
         atualizarSugestoes("");
+        focarBuscaProduto();
       }
       return;
     }
@@ -2675,7 +2730,11 @@ function registrarEventosGerais() {
 
     if (evento.key === "F12") {
       evento.preventDefault();
-      if (estado.rotaAtual === "pdv" && !$("btn-finalizar").disabled) {
+      if (
+        estado.rotaAtual === "pdv" &&
+        !estado.finalizandoVenda &&
+        !$("btn-finalizar")?.disabled
+      ) {
         finalizarVenda();
       }
       return;
@@ -2704,7 +2763,8 @@ function registrarEventosGerais() {
       (evento.ctrlKey || evento.metaKey) &&
       evento.key === "Enter" &&
       estado.rotaAtual === "pdv" &&
-      !$("btn-finalizar").disabled
+      !estado.finalizandoVenda &&
+      !$("btn-finalizar")?.disabled
     ) {
       evento.preventDefault();
       finalizarVenda();

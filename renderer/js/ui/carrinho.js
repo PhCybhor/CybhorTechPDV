@@ -51,6 +51,8 @@ export class Carrinho {
     this.valorParteDinheiro = 0;
     this.formaRestante = "pix";
     this._destruido = false;
+    /** Quando true, o botão Finalizar permanece desabilitado (venda em curso). */
+    this.bloqueadoFinalizar = false;
     this._aoCliqueItens = (evento) => this._tratarCliqueItens(evento);
     this._aoDesconto = () => {
       if (this.descontoDesligado) {
@@ -295,13 +297,35 @@ export class Carrinho {
     return this.valorRecebido + 0.001 >= this.obterTotal();
   }
 
+  /**
+   * @param {object} item
+   * @returns {string}
+   */
+  _rotuloQuantidade(item) {
+    if (item.unidade === "kg") {
+      const q = Number(item.quantidade) || 0;
+      const texto = q % 1 === 0 ? String(q) : q.toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
+      return `${texto} kg`;
+    }
+    return String(item.quantidade);
+  }
+
   renderizar() {
     const itens = this.obterItens();
-    const qtdTotal = itens.reduce((soma, item) => soma + item.quantidade, 0);
+    const qtdLinhas = itens.length;
+    const qtdUnidades = itens.reduce((soma, item) => {
+      if (item.unidade === "kg") return soma + 1;
+      return soma + (Number(item.quantidade) || 0);
+    }, 0);
 
     if (this.elementoQtdItens) {
-      this.elementoQtdItens.textContent =
-        qtdTotal === 1 ? "1 item" : `${qtdTotal} itens`;
+      if (qtdLinhas === 0) {
+        this.elementoQtdItens.textContent = "0 itens";
+      } else if (qtdUnidades === 1) {
+        this.elementoQtdItens.textContent = "1 item";
+      } else {
+        this.elementoQtdItens.textContent = `${qtdUnidades} itens`;
+      }
     }
 
     if (itens.length === 0) {
@@ -311,26 +335,29 @@ export class Carrinho {
             <circle cx="9" cy="20" r="1.5"/><circle cx="17" cy="20" r="1.5"/>
             <path d="M3 4h2l2.4 11.2a2 2 0 0 0 2 1.6h7.8a2 2 0 0 0 2-1.5L21 8H7"/>
           </svg>
-          <p>Nenhum item adicionado</p>
-          <span>Clique em um produto ou use a busca</span>
+          <p>Sem itens</p>
+          <span>Bipe ou digite e Enter</span>
         </div>`;
     } else {
       this.containerItens.innerHTML = itens
-        .map(
-          (item) => `
+        .map((item) => {
+          const qtdLabel = this._rotuloQuantidade(item);
+          const unitario = formatarMoeda(item.precoUnitario);
+          return `
         <div class="item">
           <span class="item-nome" title="${escapeHtml(item.nome)}">${escapeHtml(item.nome)}</span>
           <span class="item-subtotal">${formatarMoeda(
             item.precoUnitario * item.quantidade
           )}</span>
+          <span class="item-detalhe">${escapeHtml(qtdLabel)} × ${unitario}</span>
           <div class="item-controles">
-            <button class="item-qtd-btn" data-acao="diminuir" data-id="${escapeHtml(item.produtoId)}" aria-label="Diminuir">−</button>
-            <span class="item-qtd">${item.quantidade}</span>
-            <button class="item-qtd-btn" data-acao="aumentar" data-id="${escapeHtml(item.produtoId)}" aria-label="Aumentar">+</button>
-            <button class="item-remover" data-acao="remover" data-id="${escapeHtml(item.produtoId)}">Remover</button>
+            <button type="button" class="item-qtd-btn" data-acao="diminuir" data-id="${escapeHtml(item.produtoId)}" aria-label="Diminuir">−</button>
+            <span class="item-qtd" title="Quantidade">${escapeHtml(qtdLabel)}</span>
+            <button type="button" class="item-qtd-btn" data-acao="aumentar" data-id="${escapeHtml(item.produtoId)}" aria-label="Aumentar">+</button>
+            <button type="button" class="item-remover" data-acao="remover" data-id="${escapeHtml(item.produtoId)}">Remover</button>
           </div>
-        </div>`
-        )
+        </div>`;
+        })
         .join("");
     }
 
@@ -351,7 +378,8 @@ export class Carrinho {
     }
 
     const temItens = this.itens.size > 0;
-    this.botaoFinalizar.disabled = !temItens || !this.pagamentoDinheiroOk();
+    this.botaoFinalizar.disabled =
+      this.bloqueadoFinalizar || !temItens || !this.pagamentoDinheiroOk();
 
     document.getElementById("bloco-dividir-pagamento")?.classList.toggle(
       "oculto",
