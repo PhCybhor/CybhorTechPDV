@@ -163,7 +163,9 @@ def _exigir_desconto_e_fiado(auth: AuthLoja, payload: Dict[str, Any]) -> None:
 @limiter.limit("20/15minutes")
 def criar_loja(request: Request, body: Dict[str, Any]) -> Dict[str, str]:
     settings = get_settings()
-    if settings.em_producao:
+    # Publico sem CPF/trial: so em development/test. Site e admin cobrem o resto.
+    ambiente = (settings.node_env or "").strip().lower()
+    if ambiente not in ("development", "dev", "test"):
         raise ErroNegocio("Cadastro de loja apenas pelo site ou pelo admin.", 403)
     aguardar = bool(body.get("aguardarPagamento"))
     return loja_service.criar_loja_com_admin(
