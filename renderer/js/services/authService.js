@@ -98,7 +98,11 @@ export async function autenticar(usuario, senha) {
     },
   });
   definirTokenSessao(resposta.token);
-  return resposta.funcionario;
+  const funcionario = resposta.funcionario || {};
+  if (resposta.assinatura) {
+    funcionario.assinatura = resposta.assinatura;
+  }
+  return funcionario;
 }
 
 /**

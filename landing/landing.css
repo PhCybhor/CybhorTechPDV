@@ -655,3 +655,20 @@ button.btn-suave {
   .hero { padding: 4rem 0 3.5rem; }
   .grade-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+
+.banner-assinatura-atraso {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  align-items: center;
+  padding: 0.85rem 1.1rem;
+  margin-bottom: 1.25rem;
+  border-radius: 12px;
+  background: rgba(251, 191, 36, 0.16);
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  color: #92400e;
+  font-size: 0.95rem;
+}
+.banner-assinatura-atraso.oculto { display: none; }
+.banner-assinatura-atraso strong { font-weight: 700; }

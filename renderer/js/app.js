@@ -473,7 +473,8 @@ async function iniciar() {
       "erro",
       6000
     );
-    mostrarTela("tela-login");
+    atualizarBannerAssinatura(null);
+  mostrarTela("tela-login");
   }
 }
 
@@ -1084,7 +1085,30 @@ function aplicarPreferenciasInterface(config) {
   );
 }
 
+
+function atualizarBannerAssinatura(assinatura) {
+  const banner = $("banner-assinatura-atraso");
+  if (!banner) return;
+  const atrasada = Boolean(assinatura && assinatura.atrasada);
+  banner.classList.toggle("oculto", !atrasada);
+  if (!atrasada) return;
+  const msg = banner.querySelector("span");
+  if (msg && assinatura.mensagem) {
+    msg.textContent = assinatura.mensagem;
+  }
+  const link = $("banner-assinatura-link");
+  if (link) {
+    const base =
+      (typeof API_BASE === "string" && API_BASE) ||
+      (window.cybhorConfig && window.cybhorConfig.siteUrl) ||
+      "";
+    link.href = base ? `${String(base).replace(/\/+$/, "")}/painel.html` : "#";
+  }
+}
+
 async function entrarNoApp() {
+  atualizarBannerAssinatura(estado.funcionario && estado.funcionario.assinatura);
+
   const { nome, cargo } = estado.funcionario;
   const ehAdmin = cargo === CARGOS.ADMIN;
 

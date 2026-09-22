@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import json
-from datetime import date
 from typing import Any, Dict, List
 
 from app import db
+from app.assinatura import avaliar_assinatura
 from app.deps import emitir_token
 from app.errors import ErroNegocio
 from app.security import (
@@ -15,23 +15,22 @@ from app.security import (
 )
 
 
-def _exigir_assinatura_valida(loja_id: str) -> None:
+def _situacao_assinatura_loja(loja_id: str) -> dict:
     rows = db.consultar(
         "SELECT status, valida_ate FROM assinaturas WHERE loja_id = %s",
         (loja_id,),
     )
     if not rows:
-        return
-    status = rows[0]["status"]
-    valida_ate = rows[0]["valida_ate"]
-    if status != "ativa":
-        raise ErroNegocio(
-            "Assinatura inativa. Regularize o pagamento para continuar.", 403
-        )
-    if valida_ate is not None and valida_ate < date.today():
-        raise ErroNegocio(
-            "Assinatura expirada. Renove o pagamento para continuar.", 403
-        )
+        return avaliar_assinatura(None, None)
+    return avaliar_assinatura(rows[0]["status"], rows[0]["valida_ate"])
+
+
+def _exigir_assinatura_valida(loja_id: str) -> dict:
+    """Garante acesso: atraso libera; pendente/cancelada bloqueia."""
+    situacao = _situacao_assinatura_loja(loja_id)
+    if situacao["bloqueada"]:
+        raise ErroNegocio(situacao["mensagem"], 403)
+    return situacao
 
 
 def _normalizar_chave(valor: str) -> str:
@@ -172,7 +171,7 @@ def login_loja(
             403,
         )
 
-    _exigir_assinatura_valida(str(conta["loja_id"]))
+    situacao = _exigir_assinatura_valida(str(conta["loja_id"]))
 
     extras = conta.get("dados") or {}
     if not isinstance(extras, dict):
@@ -200,6 +199,14 @@ def login_loja(
             "id": str(conta["loja_id"]),
             "nome": conta["loja_nome"],
             "codigo": conta["loja_codigo"],
+        },
+        "assinatura": {
+            "status": situacao.get("status"),
+            "statusExibicao": situacao.get("statusExibicao"),
+            "atrasada": situacao.get("atrasada"),
+            "validaAte": situacao.get("validaAte"),
+            "rotulo": situacao.get("rotulo"),
+            "mensagem": situacao.get("mensagem") or "",
         },
     }
 

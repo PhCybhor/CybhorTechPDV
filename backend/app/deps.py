@@ -8,6 +8,7 @@ from fastapi import Depends, Header, HTTPException
 from pydantic import BaseModel
 
 from app import db
+from app.assinatura import avaliar_assinatura
 from app.config import get_settings
 
 
@@ -87,18 +88,13 @@ def autenticar_loja(authorization: Optional[str] = Header(default=None)) -> Auth
     conta = rows[0]
     if not conta["ativa"]:
         raise HTTPException(status_code=403, detail="Loja desativada.")
-    status = conta.get("assinatura_status")
-    if status and status != "ativa":
-        raise HTTPException(
-            status_code=403,
-            detail="Assinatura inativa. Regularize o pagamento para continuar.",
-        )
-    valida_ate = conta.get("valida_ate")
-    if valida_ate is not None and valida_ate < date.today():
-        raise HTTPException(
-            status_code=403,
-            detail="Assinatura expirada. Renove o pagamento para continuar.",
-        )
+    # Atraso/inadimplente/vencida: libera com aviso (banner na loja + selo no admin).
+    # Bloqueia so pendente/cancelada/ausente.
+    situacao = avaliar_assinatura(
+        conta.get("assinatura_status"), conta.get("valida_ate")
+    )
+    if situacao["bloqueada"]:
+        raise HTTPException(status_code=403, detail=situacao["mensagem"])
     return AuthLoja(
         loja_id=str(conta["loja_id"]),
         funcionario_id=str(conta["id"]),

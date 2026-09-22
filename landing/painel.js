@@ -141,6 +141,15 @@ function preencherLoja(perfil, cache) {
       : data.toLocaleDateString("pt-BR");
     validadeEl.textContent = `Valido ate ${texto}. Mesmo login criado no cadastro.`;
   }
+  const banner = document.getElementById("banner-assinatura-atraso");
+  if (banner) {
+    const atrasada = Boolean(perfil.assinaturaAtrasada);
+    banner.classList.toggle("oculto", !atrasada);
+    const span = banner.querySelector("span");
+    if (span && perfil.assinaturaMensagem) {
+      span.textContent = perfil.assinaturaMensagem;
+    }
+  }
 }
 
 function renderizarKpis(vendas) {
