@@ -81,7 +81,12 @@
   const formatarReal = (valor) =>
     Number(valor || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-  function seloAssinatura(status) {
+  function seloAssinatura(loja) {
+    const status = typeof loja === "string" ? loja : loja?.assinaturaStatus;
+    const atrasada = Boolean(loja && loja.assinaturaAtrasada);
+    if (atrasada) {
+      return `<span class="selo selo-erro" title="Pagamento em atraso — loja ainda liberada com aviso">Atrasada</span>`;
+    }
     const mapa = {
       ativa: ["selo-ok", "Ativa"],
       pendente: ["selo-alerta", "Pendente"],
@@ -97,16 +102,18 @@
       (acc, l) => ({
         lojas: acc.lojas + 1,
         ativas: acc.ativas + (l.ativa ? 1 : 0),
+        atrasadas: acc.atrasadas + (l.assinaturaAtrasada ? 1 : 0),
         vendas: acc.vendas + Number(l.totalVendas || 0),
         faturamento: acc.faturamento + Number(l.faturamentoTotal || 0),
         bytes: acc.bytes + Number(l.usoBytes || 0),
       }),
-      { lojas: 0, ativas: 0, vendas: 0, faturamento: 0, bytes: 0 }
+      { lojas: 0, ativas: 0, atrasadas: 0, vendas: 0, faturamento: 0, bytes: 0 }
     );
 
     $("resumo-cards").innerHTML = [
       ["Lojas", totais.lojas],
       ["Lojas ativas", totais.ativas],
+      ["Assinaturas atrasadas", totais.atrasadas],
       ["Vendas registradas", totais.vendas],
       ["Faturamento das lojas", formatarReal(totais.faturamento)],
       ["Uso total de dados", formatarGB(totais.bytes)],
@@ -144,7 +151,7 @@
             <span>${escapeHtml(loja.codigo)}</span>
             <button type="button" class="btn-icone" data-copiar="${escapeHtml(loja.codigo)}" title="Copiar chave">Copiar</button>
           </td>
-          <td>${seloAssinatura(loja.assinaturaStatus)}</td>
+          <td>${seloAssinatura(loja)}</td>
           <td>${loja.totalFuncionarios}</td>
           <td>${loja.totalProdutos}</td>
           <td>${loja.totalVendas}</td>

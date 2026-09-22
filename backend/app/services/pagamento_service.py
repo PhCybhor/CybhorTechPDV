@@ -12,6 +12,7 @@ from urllib.parse import quote
 import httpx
 
 from app import db
+from app.assinatura import deve_estender_assinatura, deve_marcar_inadimplente
 from app.config import get_settings
 from app.errors import ErroNegocio
 from app.planos import obter_plano
@@ -131,6 +132,13 @@ def ativar_assinatura_loja(loja_id: str) -> None:
 
 
 def registrar_pagamento(loja_id: str, pagamento: Dict[str, Any]) -> None:
+    """Registra pagamento MP. So estende validade na 1a aprovacao do payment_id."""
+    mp_id = str(pagamento["id"])
+    status_novo = pagamento["status"]
+    anterior = db.consultar(
+        "SELECT status FROM pagamentos WHERE mp_payment_id = %s",
+        (mp_id,),
+    )
     db.executar(
         """
         INSERT INTO pagamentos (loja_id, mp_payment_id, status, valor, payload)
@@ -140,8 +148,8 @@ def registrar_pagamento(loja_id: str, pagamento: Dict[str, Any]) -> None:
         """,
         (
             loja_id,
-            str(pagamento["id"]),
-            pagamento["status"],
+            mp_id,
+            status_novo,
             pagamento.get("transaction_amount"),
             json.dumps(
                 {
@@ -152,8 +160,19 @@ def registrar_pagamento(loja_id: str, pagamento: Dict[str, Any]) -> None:
             ),
         ),
     )
-    if pagamento.get("status") == "approved":
+    status_anterior = anterior[0].get("status") if anterior else None
+    if deve_estender_assinatura(status_anterior, status_novo):
         ativar_assinatura_loja(loja_id)
+    elif deve_marcar_inadimplente(status_anterior, status_novo):
+        # Estorno/chargeback: marca inadimplente (acesso segue liberado com aviso).
+        db.executar(
+            """
+            UPDATE assinaturas
+            SET status = 'inadimplente', atualizado_em = now()
+            WHERE loja_id = %s AND status = 'ativa'
+            """,
+            (loja_id,),
+        )
 
 
 def sincronizar_pagamento_loja(loja_id: str) -> None:

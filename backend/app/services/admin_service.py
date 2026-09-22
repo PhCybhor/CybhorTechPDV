@@ -4,6 +4,7 @@ import hmac
 from typing import Any, Dict, List, Optional
 
 from app import db
+from app.assinatura import avaliar_assinatura
 from app.deps import emitir_token
 from app.errors import ErroNegocio
 from app.security import verificar_senha
@@ -89,6 +90,14 @@ def _metricas_lojas(loja_id: Optional[str] = None) -> List[Dict[str, Any]]:
         loja["faturamentoTotal"] = float(loja["faturamentoTotal"] or 0)
         loja["usoGB"] = round(uso_bytes / 1024**3, 6)
         loja["usoMB"] = round(uso_bytes / 1024**2, 3)
+        situacao = avaliar_assinatura(
+            loja.get("assinaturaStatus"), loja.get("assinaturaValidaAte")
+        )
+        if loja.get("assinaturaValidaAte") is not None:
+            loja["assinaturaValidaAte"] = str(loja["assinaturaValidaAte"])
+        loja["assinaturaAtrasada"] = situacao["atrasada"]
+        loja["assinaturaRotulo"] = situacao["rotulo"]
+        loja["assinaturaStatusExibicao"] = situacao["statusExibicao"]
         resultado.append(loja)
     return resultado
 

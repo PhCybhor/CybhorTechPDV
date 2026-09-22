@@ -6,6 +6,7 @@ from typing import Any, Dict
 import psycopg2
 
 from app import db
+from app.assinatura import avaliar_assinatura
 from app.errors import ErroNegocio
 from app.security import gerar_hash_senha, gerar_salt, validar_tamanho_senha
 
@@ -165,6 +166,12 @@ def obter_perfil(loja_id: str) -> Dict[str, Any]:
     row["id"] = str(row["id"])
     if row.get("validaAte") is not None:
         row["validaAte"] = str(row["validaAte"])
+    situacao = avaliar_assinatura(row.get("assinaturaStatus"), row.get("validaAte"))
+    row["assinaturaAtrasada"] = situacao["atrasada"]
+    row["assinaturaBloqueada"] = situacao["bloqueada"]
+    row["assinaturaRotulo"] = situacao["rotulo"]
+    row["assinaturaMensagem"] = situacao["mensagem"]
+    row["assinaturaStatusExibicao"] = situacao["statusExibicao"]
     return row
 
 
