@@ -25,7 +25,7 @@ Confirmar no `.env` da API (valores reais do ambiente, sem `*`):
 - `URL_PUBLICA_SITE`
 - `CORS_ORIGENS` — origens do site/admin (Electron `file://` já é tratado no código)
 
-## 4. Desktop ≥ 2.1.12
+## 4. Desktop ≥ 2.1.13
 
 Após o pull, rebuild/empacotar o instalador (`npm run dist:win10` / `dist:win7`) e republicar o release. Builds antigos não trazem os fixes do renderer/Electron.
 
