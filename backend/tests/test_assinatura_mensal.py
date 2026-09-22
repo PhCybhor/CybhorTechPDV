@@ -13,6 +13,7 @@ from app.assinatura import (  # noqa: E402
     avaliar_assinatura,
     deve_estender_assinatura,
     deve_marcar_inadimplente,
+    exigir_acesso_assinatura,
 )
 
 
@@ -41,6 +42,16 @@ class TestAvaliarAssinatura(unittest.TestCase):
 
     def test_ausente_bloqueia(self):
         self.assertTrue(avaliar_assinatura(None, None)["bloqueada"])
+
+
+class TestExigirAcessoAssinatura(unittest.TestCase):
+    def test_gate_libera_atraso_e_bloqueia_pendente(self):
+        s = exigir_acesso_assinatura("inadimplente", date(2099, 1, 1))
+        self.assertFalse(s["bloqueada"])
+        self.assertTrue(s["atrasada"])
+        with self.assertRaises(ValueError) as ctx:
+            exigir_acesso_assinatura("pendente", None)
+        self.assertIn("pendente", str(ctx.exception).lower())
 
 
 class TestPagamentoIdempotente(unittest.TestCase):

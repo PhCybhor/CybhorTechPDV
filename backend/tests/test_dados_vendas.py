@@ -70,18 +70,18 @@ class TestNormalizacaoVendas(unittest.TestCase):
 
 
 class TestAtualizarLoteVendas(unittest.TestCase):
-    def test_duas_vendas_acumulam_no_mesmo_recurso(self):
-        loja_id = "11111111-1111-1111-1111-111111111111"
-        estado = {"vendas": {}}
+    def setUp(self):
+        self.loja_id = "11111111-1111-1111-1111-111111111111"
+        self.estado = {"vendas": {}, "produtos": {}}
+        self._orig_transacao = dados_service.db.transacao
+        self._orig_carregar = dados_service._carregar_recurso
+        self._orig_salvar = dados_service._salvar_recurso
 
         class CursorFake:
             def execute(self, sql, params=None):
                 self.sql = sql
-                self.params = params
 
-            def fetchone(self):
-                if "SELECT dados" in self.sql:
-                    return {"dados": estado["vendas"]}
+            def fetchone(self_inner):
                 return None
 
         cur = CursorFake()
@@ -94,12 +94,20 @@ class TestAtualizarLoteVendas(unittest.TestCase):
                 return False
 
         dados_service.db.transacao = lambda: Tx()
+        dados_service._carregar_recurso = (
+            lambda _c, _l, recurso: self.estado.setdefault(recurso, {})
+        )
+        dados_service._salvar_recurso = (
+            lambda _c, _l, recurso, dados: self.estado.__setitem__(recurso, dados)
+        )
 
-        def salvar(_cur, _loja, recurso, dados):
-            estado[recurso] = dados
+    def tearDown(self):
+        dados_service.db.transacao = self._orig_transacao
+        dados_service._carregar_recurso = self._orig_carregar
+        dados_service._salvar_recurso = self._orig_salvar
 
-        dados_service._salvar_recurso = salvar
-
+    def test_duas_vendas_acumulam_no_mesmo_recurso(self):
+        loja_id = self.loja_id
         dados_service.atualizar_lote(
             loja_id,
             {
@@ -123,36 +131,13 @@ class TestAtualizarLoteVendas(unittest.TestCase):
             },
         )
 
-        self.assertEqual(set(estado["vendas"].keys()), {"venda1", "venda2"})
-        self.assertEqual(estado["vendas"]["venda1"]["total"], 10)
-        self.assertEqual(estado["vendas"]["venda2"]["total"], 20)
-        self.assertEqual(estado["produtos"]["p1"]["estoque"], 4)
+        self.assertEqual(set(self.estado["vendas"].keys()), {"venda1", "venda2"})
+        self.assertEqual(self.estado["vendas"]["venda1"]["total"], 10)
+        self.assertEqual(self.estado["vendas"]["venda2"]["total"], 20)
+        self.assertEqual(self.estado["produtos"]["p1"]["estoque"], 4)
 
     def test_chave_undefined_recebe_id_novo(self):
-        loja_id = "11111111-1111-1111-1111-111111111111"
-        estado = {"vendas": {}}
-
-        class CursorFake:
-            def execute(self, sql, params=None):
-                self.sql = sql
-
-            def fetchone(self):
-                if "SELECT dados" in getattr(self, "sql", ""):
-                    return {"dados": estado["vendas"]}
-                return None
-
-        class Tx:
-            def __enter__(self_inner):
-                return CursorFake()
-
-            def __exit__(self_inner, *args):
-                return False
-
-        dados_service.db.transacao = lambda: Tx()
-        dados_service._salvar_recurso = (
-            lambda _c, _l, recurso, dados: estado.__setitem__(recurso, dados)
-        )
-
+        loja_id = self.loja_id
         dados_service.atualizar_lote(
             loja_id,
             {
@@ -163,10 +148,10 @@ class TestAtualizarLoteVendas(unittest.TestCase):
                 }
             },
         )
-        self.assertEqual(len(estado["vendas"]), 1)
-        chave = next(iter(estado["vendas"]))
+        self.assertEqual(len(self.estado["vendas"]), 1)
+        chave = next(iter(self.estado["vendas"]))
         self.assertNotEqual(chave, "undefined")
-        self.assertEqual(estado["vendas"][chave]["total"], 33)
+        self.assertEqual(self.estado["vendas"][chave]["total"], 33)
 
 
 if __name__ == "__main__":
