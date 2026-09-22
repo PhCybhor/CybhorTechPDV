@@ -80,7 +80,8 @@ def _verificar_assinatura_webhook(
     segredo = (settings.mp_webhook_secret or "").strip()
     if not segredo:
         if settings.em_producao:
-            logger.warning("Webhook MP sem MP_WEBHOOK_SECRET; validando so o id.")
+            raise ErroNegocio("Webhook MP sem segredo configurado.", 503)
+        # Dev/local: aceita sem assinatura para facilitar testes do IPN.
         return
 
     partes: Dict[str, str] = {}
@@ -110,9 +111,12 @@ def _meses_plano_loja(loja_id: str) -> int:
     return int(obter_plano(plano_id)["meses"])
 
 
-def ativar_assinatura_loja(loja_id: str) -> None:
-    meses = _meses_plano_loja(loja_id)
-    db.executar(
+def _ativar_assinatura_no_cursor(cur: Any, loja_id: str) -> None:
+    cur.execute("SELECT plano FROM assinaturas WHERE loja_id = %s", (loja_id,))
+    row = cur.fetchone()
+    plano_id = row["plano"] if row else "mensal"
+    meses = int(obter_plano(plano_id)["meses"])
+    cur.execute(
         """
         UPDATE assinaturas
         SET status = 'ativa',
@@ -125,54 +129,74 @@ def ativar_assinatura_loja(loja_id: str) -> None:
         """,
         (meses, loja_id),
     )
-    db.executar(
+    cur.execute(
         "UPDATE lojas SET ativa = TRUE, atualizado_em = now() WHERE id = %s",
         (loja_id,),
     )
 
 
+def ativar_assinatura_loja(loja_id: str) -> None:
+    with db.transacao() as cur:
+        _ativar_assinatura_no_cursor(cur, loja_id)
+
+
 def registrar_pagamento(loja_id: str, pagamento: Dict[str, Any]) -> None:
-    """Registra pagamento MP. So estende validade na 1a aprovacao do payment_id."""
+    """Registra pagamento MP. So estende validade na 1a aprovacao do payment_id.
+
+    Serializa por mp_payment_id (advisory lock) para webhooks concorrentes nao
+    estenderem a assinatura duas vezes alem da idempotencia por status.
+    """
     mp_id = str(pagamento["id"])
     status_novo = pagamento["status"]
-    anterior = db.consultar(
-        "SELECT status FROM pagamentos WHERE mp_payment_id = %s",
-        (mp_id,),
+    payload = json.dumps(
+        {
+            "status": pagamento.get("status"),
+            "status_detail": pagamento.get("status_detail"),
+            "date_approved": pagamento.get("date_approved"),
+        }
     )
-    db.executar(
-        """
-        INSERT INTO pagamentos (loja_id, mp_payment_id, status, valor, payload)
-        VALUES (%s, %s, %s, %s, %s::jsonb)
-        ON CONFLICT (mp_payment_id)
-        DO UPDATE SET status = EXCLUDED.status, payload = EXCLUDED.payload
-        """,
-        (
-            loja_id,
-            mp_id,
-            status_novo,
-            pagamento.get("transaction_amount"),
-            json.dumps(
-                {
-                    "status": pagamento.get("status"),
-                    "status_detail": pagamento.get("status_detail"),
-                    "date_approved": pagamento.get("date_approved"),
-                }
-            ),
-        ),
-    )
-    status_anterior = anterior[0].get("status") if anterior else None
-    if deve_estender_assinatura(status_anterior, status_novo):
-        ativar_assinatura_loja(loja_id)
-    elif deve_marcar_inadimplente(status_anterior, status_novo):
-        # Estorno/chargeback: marca inadimplente (acesso segue liberado com aviso).
-        db.executar(
-            """
-            UPDATE assinaturas
-            SET status = 'inadimplente', atualizado_em = now()
-            WHERE loja_id = %s AND status = 'ativa'
-            """,
-            (loja_id,),
+    valor = pagamento.get("transaction_amount")
+
+    with db.transacao() as cur:
+        # hashtext + advisory lock: concorrencia no mesmo payment_id fica em fila.
+        cur.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", (mp_id,))
+        cur.execute(
+            "SELECT status FROM pagamentos WHERE mp_payment_id = %s",
+            (mp_id,),
         )
+        anterior = cur.fetchone()
+        status_anterior = anterior["status"] if anterior else None
+
+        if anterior is None:
+            cur.execute(
+                """
+                INSERT INTO pagamentos (loja_id, mp_payment_id, status, valor, payload)
+                VALUES (%s, %s, %s, %s, %s::jsonb)
+                """,
+                (loja_id, mp_id, status_novo, valor, payload),
+            )
+        else:
+            cur.execute(
+                """
+                UPDATE pagamentos
+                SET status = %s, payload = %s::jsonb
+                WHERE mp_payment_id = %s
+                """,
+                (status_novo, payload, mp_id),
+            )
+
+        if deve_estender_assinatura(status_anterior, status_novo):
+            _ativar_assinatura_no_cursor(cur, loja_id)
+        elif deve_marcar_inadimplente(status_anterior, status_novo):
+            # Estorno/chargeback: marca inadimplente (acesso segue liberado com aviso).
+            cur.execute(
+                """
+                UPDATE assinaturas
+                SET status = 'inadimplente', atualizado_em = now()
+                WHERE loja_id = %s AND status = 'ativa'
+                """,
+                (loja_id,),
+            )
 
 
 def sincronizar_pagamento_loja(loja_id: str) -> None:

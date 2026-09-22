@@ -58,6 +58,8 @@ class Settings(BaseSettings):
         if self.em_producao:
             if not self.mp_access_token:
                 faltando.append("MP_ACCESS_TOKEN")
+            if not (self.mp_webhook_secret or "").strip():
+                faltando.append("MP_WEBHOOK_SECRET")
             if not (self.url_publica_api or "").startswith("https://"):
                 faltando.append("URL_PUBLICA_API (https)")
         if faltando:
