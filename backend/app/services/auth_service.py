@@ -52,15 +52,46 @@ _PERMISSOES_OPERADOR = {
 }
 
 
+def _como_bool(valor: Any, padrao: bool) -> bool:
+    if valor is None:
+        return padrao
+    if isinstance(valor, bool):
+        return valor
+    if isinstance(valor, (int, float)):
+        return valor != 0
+    if isinstance(valor, str):
+        texto = valor.strip().lower()
+        if texto in ("", "0", "false", "nao", "não", "off", "no"):
+            return False
+        if texto in ("1", "true", "sim", "yes", "on"):
+            return True
+    return bool(valor)
+
+
 def _normalizar_permissoes(valor: Any) -> Dict[str, bool]:
     bruto = valor if isinstance(valor, dict) else {}
     saida: Dict[str, bool] = {}
     for chave, padrao in _PERMISSOES_OPERADOR.items():
         if chave in bruto:
-            saida[chave] = bool(bruto[chave])
+            saida[chave] = _como_bool(bruto[chave], padrao)
         else:
             saida[chave] = padrao
     return saida
+
+
+def obter_permissoes_funcionario(loja_id: str, funcionario_id: str) -> Dict[str, bool]:
+    rows = db.consultar(
+        "SELECT cargo, dados FROM funcionarios WHERE loja_id = %s AND id = %s",
+        (loja_id, funcionario_id),
+    )
+    if not rows:
+        return {chave: False for chave in _PERMISSOES_OPERADOR}
+    if rows[0].get("cargo") == "admin":
+        return {chave: True for chave in _PERMISSOES_OPERADOR}
+    extras = rows[0].get("dados") or {}
+    if not isinstance(extras, dict):
+        extras = {}
+    return _normalizar_permissoes(extras.get("permissoes"))
 
 
 def login_loja(

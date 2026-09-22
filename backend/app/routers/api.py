@@ -19,6 +19,7 @@ from app.config import get_settings
 from app.services import (
     admin_service,
     auth_service,
+    caixa_service,
     loja_service,
     pagamento_service,
     produto_service,
@@ -123,6 +124,17 @@ RECURSOS_OPERADOR_ESCRITA = frozenset(
 )
 
 
+def _permissoes_do_operador(auth: AuthLoja) -> Dict[str, bool]:
+    return auth_service.obter_permissoes_funcionario(auth.loja_id, auth.funcionario_id)
+
+
+def _exigir_perm(auth: AuthLoja, chave: str, mensagem: str) -> None:
+    if auth.cargo == "admin":
+        return
+    if not _permissoes_do_operador(auth).get(chave, False):
+        raise ErroNegocio(mensagem, 403)
+
+
 def _exigir_escrita_dados(auth: AuthLoja, caminho: str) -> None:
     if auth.cargo == "admin":
         return
@@ -131,6 +143,39 @@ def _exigir_escrita_dados(auth: AuthLoja, caminho: str) -> None:
         raise ErroNegocio(
             "Apenas o administrador da loja pode alterar este recurso.", 403
         )
+
+    partes = [p for p in str(caminho or "").strip("/").split("/") if p]
+    if len(partes) >= 2 and partes[0] == "lojas":
+        partes = partes[2:]
+    perms = _permissoes_do_operador(auth)
+
+    if recurso == "clientes" and not perms.get("gerenciarClientes", False):
+        raise ErroNegocio("Sem permissao para alterar clientes.", 403)
+    if recurso == "sangrias" and not perms.get("fazerSangria", False):
+        raise ErroNegocio("Sem permissao para sangria.", 403)
+    if recurso == "produtos":
+        # produtos/{id}/estoque → ajuste pontual; demais mutações → cadastro/edição
+        so_estoque = len(partes) >= 3 and partes[-1] == "estoque"
+        if so_estoque:
+            if not perms.get("ajustarEstoque", False):
+                raise ErroNegocio("Sem permissao para ajustar estoque.", 403)
+        else:
+            if not (
+                perms.get("cadastrarProduto", False)
+                or perms.get("editarProduto", False)
+            ):
+                raise ErroNegocio("Sem permissao para alterar produtos.", 403)
+
+
+def _exigir_remocao_dados(auth: AuthLoja, caminho: str) -> None:
+    _exigir_escrita_dados(auth, caminho)
+    if auth.cargo == "admin":
+        return
+    recurso = _recurso_do_caminho(caminho)
+    if recurso == "produtos" and not _permissoes_do_operador(auth).get(
+        "excluirProduto", False
+    ):
+        raise ErroNegocio("Sem permissao para excluir produtos.", 403)
 
 
 def _exigir_lote_dados(auth: AuthLoja, atualizacoes: Dict[str, Any]) -> None:
@@ -277,6 +322,39 @@ def listar_vendas(
     return venda_service.listar_vendas(auth.loja_id, limite=limite)
 
 
+# --- Caixa (documentos_loja): baixa de estoque atomica ---
+@api.post("/caixa/venda", status_code=status.HTTP_201_CREATED)
+def finalizar_venda_caixa(
+    body: Dict[str, Any], auth: AuthLoja = Depends(autenticar_loja)
+) -> Dict[str, Any]:
+    return caixa_service.finalizar_venda(
+        auth.loja_id,
+        {"id": auth.funcionario_id, "nome": auth.nome},
+        body or {},
+    )
+
+
+@api.post("/caixa/cancelar-venda")
+def cancelar_venda_caixa(
+    body: Dict[str, Any], auth: AuthLoja = Depends(autenticar_loja)
+) -> Dict[str, Any]:
+    # Cancelamento no caixa exige admin (senha validada no cliente) OU permissao.
+    if auth.cargo != "admin":
+        _exigir_perm(
+            auth,
+            "cancelarVenda",
+            "Sem permissao para cancelar venda.",
+        )
+    return caixa_service.cancelar_venda(
+        auth.loja_id,
+        venda_id=str((body or {}).get("vendaId") or ""),
+        motivo=str((body or {}).get("motivo") or ""),
+        cancelado_por_nome=str(
+            (body or {}).get("canceladoPorNome") or auth.nome or ""
+        ),
+    )
+
+
 # --- Documentos flexiveis dos modulos avancados do desktop ---
 @api.post("/dados/lote", status_code=status.HTTP_204_NO_CONTENT)
 def atualizar_dados_lote(
@@ -321,7 +399,7 @@ def mesclar_dados(
 def remover_dados(
     caminho: str, auth: AuthLoja = Depends(autenticar_loja)
 ) -> Response:
-    _exigir_escrita_dados(auth, caminho)
+    _exigir_remocao_dados(auth, caminho)
     dados_service.remover(auth.loja_id, caminho)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
