@@ -492,6 +492,7 @@ async function atualizarStatusConexao() {
         const resposta = await fetch(`${apiUrl}/api/saude`, {
           method: "GET",
           headers: { Accept: "application/json" },
+          credentials: "omit",
         });
         const dados = await resposta.json().catch(() => ({}));
         if (resposta.ok && dados?.ok) {

@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.1.10 — 2026-09-22
+
+- Renderer/Electron: `credentials: "omit"` no fetch (file:// → https, Bearer only).
+- Mapeamento de erro de rede no `apiClient` (DNS/SSL/timeout ≠ "sem conexão" genérico).
+- Empacotado: força `CYBHOR_MODO_DEV=0` e não carrega `.env` de desenvolvimento.
+
 ## 2.1.9 — 2026-09-22
 
 - CORS em produção sempre ativo (inclui Electron `file://` / Origin null mesmo sem `CORS_ORIGENS`).
