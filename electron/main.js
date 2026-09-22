@@ -22,8 +22,6 @@ const {
   hostsApiConfiaveis,
 } = require("./licencaApi");
 
-const { consultarAssistente } = require("./assistenteGemini");
-
 // Win7 / GPUs antigas: evita tela preta ou crash na abertura.
 try {
   app.disableHardwareAcceleration();
@@ -381,6 +379,8 @@ ipcMain.handle("limpar-licenca", () => {
 
 ipcMain.handle("consultar-assistente", async (_evento, payload) => {
   try {
+    // Carrega só quando o operador abre a IA — evita custo no boot.
+    const { consultarAssistente } = require("./assistenteGemini");
     return await consultarAssistente(payload || {});
   } catch (erro) {
     console.error("assistente:", erro);

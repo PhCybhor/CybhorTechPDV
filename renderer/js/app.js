@@ -28,7 +28,6 @@ import { atualizarIndice, buscar } from "./services/buscaFuzzy.js";
 import { observarDespesas } from "./services/despesaService.js";
 import { gerarResumo } from "./services/relatorioService.js";
 import { Carrinho } from "./ui/carrinho.js";
-import { Dashboard } from "./ui/dashboard.js";
 import { PainelFuncionarios } from "./ui/funcionarios.js";
 import { PainelProdutos } from "./ui/produtos.js";
 import { PainelHistorico } from "./ui/historico.js";
@@ -73,6 +72,41 @@ import {
 import { pode } from "./services/permissoesOperador.js";
 import { instalarRevolucao } from "./revolucaoUi.js";
 import { instalarMegaPack } from "./megaPack.js";
+
+/** @type {Promise<void> | null} */
+let carregandoRelatorios = null;
+
+/**
+ * Carrega o módulo de relatórios (chart.js / jspdf) sob demanda.
+ * @returns {Promise<typeof import("./ui/dashboard.js").Dashboard>}
+ */
+async function carregarClasseDashboard() {
+  if (globalThis.CybhorDashboard) return globalThis.CybhorDashboard;
+
+  if (!carregandoRelatorios) {
+    carregandoRelatorios = new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = "dist/relatorios.js";
+      script.async = true;
+      script.dataset.cybhorRelatorios = "1";
+      script.onload = () => resolve();
+      script.onerror = () => {
+        carregandoRelatorios = null;
+        reject(new Error("Falha ao carregar o módulo de relatórios."));
+      };
+      document.head.appendChild(script);
+    });
+  }
+
+  await carregandoRelatorios;
+
+  if (!globalThis.CybhorDashboard) {
+    carregandoRelatorios = null;
+    throw new Error("Módulo de relatórios não disponibilizou Dashboard.");
+  }
+  return globalThis.CybhorDashboard;
+}
+
 
 const ROTAS = [
   "pdv",
@@ -687,14 +721,20 @@ async function iniciarRelatorios() {
   await iniciarObservacaoSangrias();
 
   if (!estado.dashboard) {
-    estado.dashboard = new Dashboard({
-      raiz: $("rota-relatorios"),
-      obterFuncionario: () => estado.funcionario,
-      obterProdutos: () => estado.produtos,
-      obterDespesas: () => estado.despesas,
-      obterSangrias: () => estado.sangrias,
-      obterSuprimentos: () => estado.suprimentos,
-    });
+    try {
+      const Dashboard = await carregarClasseDashboard();
+      estado.dashboard = new Dashboard({
+        raiz: $("rota-relatorios"),
+        obterFuncionario: () => estado.funcionario,
+        obterProdutos: () => estado.produtos,
+        obterDespesas: () => estado.despesas,
+        obterSangrias: () => estado.sangrias,
+        obterSuprimentos: () => estado.suprimentos,
+      });
+    } catch {
+      notificar("Não foi possível carregar os relatórios.", "erro");
+      return;
+    }
   }
 
   if (!estado.painelDespesas) {
