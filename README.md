@@ -8,7 +8,9 @@ Sistema de ponto de venda (PDV) para loja, em desktop (Windows), construído com
 **Nao precisa baixar o codigo.** So o instalador:
 
 1. Acesse **[Releases](https://github.com/cybhortech/sistemaPDV/releases)**
-2. Baixe `CybhorPDV-Setup-2.0.0-x64.exe` (ou `-ia32.exe` em PCs 32 bits)
+2. Baixe o instalador da sua versao do Windows:
+   - **Windows 10/11:** `CybhorPDV-Setup-win10-x64.exe`
+   - **Windows 7:** `CybhorPDV-Setup-win7-x64.exe` (ou `...-win7-ia32.exe` em PCs 32 bits)
 3. Instale e abra o CybhorPDV
 
 Instrucoes detalhadas: [INSTALAR.md](INSTALAR.md)
@@ -102,12 +104,14 @@ npm run test:impressao
 O banco é compartilhado, mas cada registro/documento possui isolamento por
 `loja_id`, obtido exclusivamente do JWT:
 
-1. **Primeira instalação da loja**: abra o app → aba **Criar loja** → preencha
-   nome/CNPJ/endereço/telefone. O app gera um **código de loja** (ex.: `7KQ2MD`).
-2. **Caixas adicionais**: no novo PC, aba **Já tenho código** → digite o código.
-   O código fica visível para o admin na tela **Equipe**.
+1. **Cadastro no site**: a loja é criada no site (pagamento/assinatura). O painel
+   mostra o **código da loja** (ex.: `MP9S33`).
+2. **Primeira instalação / caixas adicionais**: no desktop, tela **Conectar sua
+   loja** → cole o código. O mesmo código serve em todos os PCs da loja.
 3. O cabeçalho do cupom impresso usa o **perfil da loja** (não mais o `.env`).
 4. A FastAPI valida o JWT e nunca aceita `loja_id` arbitrário nas operações.
+5. Assinatura vencida/inadimplente segue liberada com banner de atraso; pendente
+   e cancelada bloqueiam o acesso.
 
 ## Executar em desenvolvimento
 
@@ -124,8 +128,10 @@ faça login para abrir o PDV.
 npm run dist
 ```
 
-O instalador é gerado em `dist/CybhorPDV-Setup-<versão>.exe`. O arquivo `.env`
-é empacotado nos recursos do aplicativo.
+Os instaladores saem em `dist/`:
+`CybhorPDV-Setup-win10-x64.exe`, `CybhorPDV-Setup-win7-x64.exe` e
+`CybhorPDV-Setup-win7-ia32.exe`. O arquivo `.env` é empacotado nos recursos do
+aplicativo.
 
 ## GitHub Releases (distribuicao do instalador)
 
@@ -135,7 +141,7 @@ O instalador oficial e publicado automaticamente nas **Releases** do GitHub.
 
 Acesse: [github.com/cybhortech/sistemaPDV/releases](https://github.com/cybhortech/sistemaPDV/releases)
 
-Baixe o arquivo `CybhorPDV-Setup-x.x.x.exe` e execute para instalar.
+Baixe `CybhorPDV-Setup-win10-x64.exe` (ou o pacote **win7** correspondente) e execute para instalar.
 
 ### Publicar uma nova versao
 

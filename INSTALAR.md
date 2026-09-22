@@ -1,20 +1,20 @@
 # Como instalar o CybhorPDV
 
-Você **não precisa baixar o código-fonte**. Basta o instalador e a **chave de licença**.
+Você **não precisa baixar o código-fonte**. Basta o instalador e o **código da loja**.
 
 ## Passo a passo
 
-1. Compre a licença em sua página de vendas (Mercado Pago) e **guarde a chave** `CYB-…`.
+1. Cadastre-se / pague no site e **guarde o código da loja** (visível na Área do cliente após o pagamento).
 
 2. Baixe o instalador em:  
    [github.com/cybhortech/sistemaPDV/releases](https://github.com/cybhortech/sistemaPDV/releases)
 
-   - **Windows 10/11:** `CybhorPDV-*-win10-x64.zip` ou o Setup `.exe`
-   - **Windows 7:** pacote `win7` (x64 ou ia32)
+   - **Windows 10/11:** `CybhorPDV-Setup-win10-x64.exe`
+   - **Windows 7:** `CybhorPDV-Setup-win7-x64.exe` ou `CybhorPDV-Setup-win7-ia32.exe`
 
-3. Extraia/instale e abra o **CybhorPDV.exe**.
+3. Instale e abra o **CybhorPDV.exe**.
 
-4. Na tela **Ativar licença**, cole a chave da compra.
+4. Na tela **Conectar sua loja**, cole o código da loja.
 
 5. No **primeiro acesso desta loja**, crie a conta de **administrador**.
 
@@ -23,20 +23,21 @@ Você **não precisa baixar o código-fonte**. Basta o instalador e a **chave de
 ## Requisitos
 
 - Windows 10/11 (pacote **win10**) **ou** Windows 7 SP1 (pacote **win7** — nunca use o win10 no Windows 7)
-- No Windows 7: baixe `CybhorPDV-Setup-win7-x64.exe` (64 bits) ou `...-win7-ia32.exe` (32 bits)
-- Conexão com a internet (ativar licença e sincronizar dados)
-- Uma chave de licença válida (1 chave = 1 loja)
+- No Windows 7: baixe `CybhorPDV-Setup-win7-x64.exe` (64 bits) ou `CybhorPDV-Setup-win7-ia32.exe` (32 bits)
+- Conexão com a internet (ativar a loja e sincronizar dados)
+- Um código de loja válido (1 código = 1 loja; use o mesmo código nos outros caixas)
 
 ## Problemas comuns
 
 | Problema | Solução |
 |----------|---------|
-| "Licença inválida" | Confira a chave, internet e se a API de vendas está no ar |
+| "Loja não encontrada" / código inválido | Confira o código, a internet e se a API está no ar |
 | "Falha ao conectar ao banco de dados" | Verifique a internet e reinstale com o instalador mais recente |
+| Assinatura pendente ou cancelada | Conclua o pagamento no site (Área do cliente) — vencida/inadimplente segue liberada com aviso |
 | Antivírus bloqueou | Permita o CybhorPDV nas exceções do antivírus |
 | Não abre no Windows 7 | Use o instalador **win7** (não o win10), confirme Windows 7 **SP1**, reinstale e abra como administrador |
 | Não abre após instalar | Execute o `.exe` como administrador |
-| Quero outra loja | Compre outra licença — cada chave cria um espaço separado |
+| Quero outra loja | Cadastre outra loja no site — cada código cria um espaço separado |
 
 ## Impressora térmica (Jetway JP-800)
 
