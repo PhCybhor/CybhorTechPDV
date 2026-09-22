@@ -3421,7 +3421,7 @@ html[data-tema="claro"] .app-principal {
   gap: 0.5rem 1rem;
   padding: 0.65rem 1rem;
   background: var(--cor-alerta-bg, rgba(251, 191, 36, 0.14));
-  color: #92400e;
+  color: var(--cor-alerta);
   border-bottom: 1px solid rgba(245, 158, 11, 0.45);
   font-size: 0.92rem;
   grid-column: 1 / -1;
@@ -3430,7 +3430,7 @@ html[data-tema="claro"] .app-principal {
 .banner-assinatura-atraso strong { font-weight: 700; }
 .banner-assinatura-link {
   margin-left: auto;
-  color: #92400e;
+  color: var(--cor-alerta);
   font-weight: 600;
   text-decoration: underline;
 }

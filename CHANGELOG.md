@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.1.7 — 2026-09-22
+
+- Aviso de atraso na assinatura mensal: loja vencida/inadimplente segue liberada com banner; pendente e cancelada continuam bloqueadas.
+- Banner de atraso com contraste legível no tema escuro (desktop e landing).
+- Admin: listagem prioriza assinaturas atrasadas e permite filtrar só elas.
+
 ## 2.1.6 — 2026-09-22
 
 - Endurece segurança do Electron e da landing (sandbox, allowlist de openExternal, XSS e comparação de senha em tempo constante).

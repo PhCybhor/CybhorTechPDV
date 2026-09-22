@@ -156,6 +156,12 @@ tbody tr:hover { background: rgba(56, 189, 248, 0.05); }
 .selo-alerta { background: rgba(251, 191, 36, 0.15); color: var(--alerta); }
 .selo-erro { background: rgba(248, 113, 113, 0.15); color: var(--erro); }
 
+.btn-filtro-ativo {
+  border-color: var(--alerta);
+  color: var(--alerta);
+  background: rgba(251, 191, 36, 0.12);
+}
+
 .codigo { font-family: monospace; letter-spacing: 0.1em; color: var(--acento); }
 
 .bloco-provisionar {

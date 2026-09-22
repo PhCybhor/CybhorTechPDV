@@ -8,6 +8,32 @@
 (() => {
   const $ = (id) => document.getElementById(id);
   const CHAVE_TOKEN = "cybhor-admin-token";
+  let lojasCache = [];
+  let filtroSoAtrasadas = false;
+
+  function ordenarLojas(lojas) {
+    return [...lojas].sort((a, b) => {
+      const da = a.assinaturaAtrasada ? 1 : 0;
+      const db = b.assinaturaAtrasada ? 1 : 0;
+      if (db !== da) return db - da;
+      return String(a.nome || "").localeCompare(String(b.nome || ""), "pt-BR");
+    });
+  }
+
+  function lojasVisiveis() {
+    const base = ordenarLojas(lojasCache);
+    if (!filtroSoAtrasadas) return base;
+    return base.filter((l) => l.assinaturaAtrasada);
+  }
+
+  function atualizarBotaoFiltro() {
+    const botao = $("btn-filtro-atrasadas");
+    if (!botao) return;
+    botao.setAttribute("aria-pressed", filtroSoAtrasadas ? "true" : "false");
+    botao.classList.toggle("btn-filtro-ativo", filtroSoAtrasadas);
+    botao.textContent = filtroSoAtrasadas ? "Ver todas" : "Só atrasadas";
+  }
+
 
   const obterToken = () => sessionStorage.getItem(CHAVE_TOKEN) || "";
 
@@ -218,9 +244,10 @@
   }
 
   async function carregarLojas() {
-    const lojas = await chamarApi("/admin/lojas");
-    renderizarResumo(lojas);
-    renderizarTabela(lojas);
+    lojasCache = await chamarApi("/admin/lojas");
+    renderizarResumo(lojasCache);
+    renderizarTabela(lojasVisiveis());
+    atualizarBotaoFiltro();
   }
 
   $("form-login").addEventListener("submit", async (evento) => {
@@ -325,6 +352,12 @@
       }
     }
   }
+
+  $("btn-filtro-atrasadas").addEventListener("click", () => {
+    filtroSoAtrasadas = !filtroSoAtrasadas;
+    renderizarTabela(lojasVisiveis());
+    atualizarBotaoFiltro();
+  });
 
   void restaurarSessao();
 })();
