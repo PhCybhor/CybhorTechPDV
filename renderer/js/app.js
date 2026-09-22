@@ -135,6 +135,82 @@ const ROTULO_CARGO = {
   [CARGOS.OPERADOR]: "Operador",
 };
 
+const CHAVE_CARRINHO_PENDENTE = "cybhor:carrinho-pendente";
+/** Janela anti-duplo bipe do mesmo código (scanners às vezes reenviam Enter). */
+const BIPE_DEDUP_MS = 280;
+let ultimoBipeChave = "";
+let ultimoBipeEm = 0;
+
+/**
+ * @returns {boolean} true se havia itens e o snapshot foi gravado
+ */
+function capturarCarrinhoPendente() {
+  const itens = estado.carrinho?.obterItens?.() || [];
+  if (!itens.length) return false;
+  try {
+    const snapshot = {
+      itens,
+      desconto: Number(estado.carrinho?.obterDesconto?.()) || 0,
+      forma: $("forma-pagamento")?.value || "dinheiro",
+      recebido: Number(estado.carrinho?.obterValorRecebido?.()) || 0,
+      em: Date.now(),
+    };
+    sessionStorage.setItem(CHAVE_CARRINHO_PENDENTE, JSON.stringify(snapshot));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function limparCarrinhoPendente() {
+  try {
+    sessionStorage.removeItem(CHAVE_CARRINHO_PENDENTE);
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * Após re-login, devolve itens capturados na expiração da sessão.
+ * @returns {number} quantidade de itens restaurados
+ */
+function tentarRestaurarCarrinhoPendente() {
+  let bruto;
+  try {
+    bruto = sessionStorage.getItem(CHAVE_CARRINHO_PENDENTE);
+  } catch {
+    return 0;
+  }
+  if (!bruto) return 0;
+  limparCarrinhoPendente();
+  let snapshot;
+  try {
+    snapshot = JSON.parse(bruto);
+  } catch {
+    return 0;
+  }
+  const itens = Array.isArray(snapshot?.itens) ? snapshot.itens : [];
+  if (!itens.length || !estado.carrinho?.restaurarDeSnapshot) return 0;
+  // Descarta snapshot velho (>12h) — evita surpresa no dia seguinte.
+  if (snapshot.em && Date.now() - Number(snapshot.em) > 12 * 60 * 60 * 1000) {
+    return 0;
+  }
+  estado.carrinho.restaurarDeSnapshot(itens);
+  if (snapshot.desconto > 0 && estado.carrinho.inputDesconto) {
+    estado.carrinho.desconto = Number(snapshot.desconto) || 0;
+    estado.carrinho.inputDesconto.value = String(estado.carrinho.desconto);
+  }
+  if (snapshot.forma) {
+    definirFormaPagamento(snapshot.forma);
+  }
+  if (snapshot.recebido > 0 && estado.carrinho.inputRecebido) {
+    estado.carrinho.valorRecebido = Number(snapshot.recebido) || 0;
+    estado.carrinho.inputRecebido.value = String(estado.carrinho.valorRecebido);
+  }
+  estado.carrinho._atualizarTotais?.();
+  return itens.length;
+}
+
 /** Estado global mínimo da aplicação. */
 const estado = {
   funcionario: null,
@@ -519,7 +595,8 @@ async function tratarLogin(evento) {
   }
 }
 
-function sair() {
+function sair({ preservarCarrinho = false } = {}) {
+  if (!preservarCarrinho) limparCarrinhoPendente();
   encerrarSessao();
   estado.funcionario = null;
   estado.carrinho?.destruir();
@@ -1048,6 +1125,14 @@ async function entrarNoApp() {
     elementoTroco: $("carrinho-troco-valor"),
     elementoQtdItens: $("carrinho-qtd-itens"),
   });
+  const restaurados = tentarRestaurarCarrinhoPendente();
+  if (restaurados > 0) {
+    notificar(
+      `Carrinho restaurado (${restaurados} item${restaurados > 1 ? "s" : ""}). Sessão anterior expirou.`,
+      "alerta",
+      6000
+    );
+  }
   aplicarPreferenciasInterface(estado.configLoja);
 
   estado.painelProdutos?.destruir();
@@ -1880,6 +1965,19 @@ function confirmarBusca(termo) {
     // Sempre devolve o foco (bip contínuo / digitação rápida).
     focarBuscaProduto(estado.configLoja?.modoBarrasContinuo === false ? 0 : 20);
   };
+
+  // Dedup só do mesmo código+qtd em janela curta (Enter duplicado do scanner).
+  // Códigos diferentes passam imediatamente — não atrasa bipagem rápida.
+  if (consulta) {
+    const chave = `${consulta}\0${quantidade}`;
+    const agora = Date.now();
+    if (chave === ultimoBipeChave && agora - ultimoBipeEm < BIPE_DEDUP_MS) {
+      limparEFocar();
+      return;
+    }
+    ultimoBipeChave = chave;
+    ultimoBipeEm = agora;
+  }
 
   if (!consulta && quantidade > 1) {
     const ultimo = estado.carrinho?.obterUltimoItem();
@@ -2820,10 +2918,16 @@ function registrarEventosGerais() {
 }
 
 window.addEventListener(EVENTO_SESSAO_EXPIRADA, () => {
-  if (estado.funcionario) {
-    sair();
-    notificar("Sessão expirada. Faça login novamente.", "alerta", 5000);
-  }
+  if (!estado.funcionario) return;
+  const preservou = capturarCarrinhoPendente();
+  sair({ preservarCarrinho: true });
+  notificar(
+    preservou
+      ? "Sessão expirada no meio da venda. Faça login — o carrinho será restaurado."
+      : "Sessão expirada. Faça login novamente.",
+    "alerta",
+    7000
+  );
 });
 
 iniciar();

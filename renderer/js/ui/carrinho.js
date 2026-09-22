@@ -249,6 +249,43 @@ export class Carrinho {
     return Array.from(this.itens.values());
   }
 
+  /**
+   * Restaura itens capturados antes de logout por sessão expirada.
+   * Não revalida estoque — o operador já tinha esses itens no caixa.
+   * @param {Array<object>} itens
+   */
+  restaurarDeSnapshot(itens) {
+    this.itens.clear();
+    for (const bruto of itens || []) {
+      if (!bruto || !bruto.produtoId) continue;
+      const porPeso = String(bruto.unidade || "un").toLowerCase() === "kg";
+      const qtd = porPeso
+        ? Math.max(0.001, Number(bruto.quantidade) || 0.001)
+        : Math.max(1, Math.floor(Number(bruto.quantidade) || 1));
+      const custoRaw = bruto.custoUnitario;
+      const custoUnitario =
+        custoRaw === null || custoRaw === undefined || custoRaw === ""
+          ? null
+          : Number(custoRaw);
+      this.itens.set(bruto.produtoId, {
+        produtoId: bruto.produtoId,
+        nome: String(bruto.nome || ""),
+        precoUnitario: Number(bruto.precoUnitario) || 0,
+        estoqueAtual: Math.max(
+          Number(bruto.estoqueAtual) || 0,
+          porPeso ? qtd : qtd
+        ),
+        quantidade: porPeso ? Number(qtd.toFixed(3)) : qtd,
+        unidade: porPeso ? "kg" : "un",
+        custoUnitario:
+          custoUnitario !== null && Number.isFinite(custoUnitario)
+            ? custoUnitario
+            : null,
+      });
+    }
+    this.renderizar();
+  }
+
   /** @returns {number} */
   obterSubtotal() {
     return this.obterItens().reduce(

@@ -3,6 +3,7 @@
 const { app, BrowserWindow, ipcMain, shell, dialog } = require("electron");
 const path = require("path");
 const fs = require("fs");
+const { pathToFileURL } = require("url");
 const { imprimirCupomVenda } = require("./impressao/imprimirCupom");
 const {
   carregarConfigApp,
@@ -166,6 +167,36 @@ function carregarVariaveisDeAmbiente() {
   }
 }
 
+
+/**
+ * URL file:// do index do renderer — única navegação permitida na janela principal.
+ * @returns {string}
+ */
+function urlRendererIndex() {
+  return pathToFileURL(
+    path.join(__dirname, "..", "renderer", "index.html")
+  ).href;
+}
+
+/**
+ * True se a URL aponta para um arquivo dentro de renderer/ (mesma origem do app).
+ * @param {string} url
+ */
+function navegacaoRendererPermitida(url) {
+  const texto = String(url || "");
+  if (!texto || texto === "about:blank") return true;
+  let parsed;
+  try {
+    parsed = new URL(texto);
+  } catch {
+    return false;
+  }
+  if (parsed.protocol !== "file:") return false;
+  const raiz = pathToFileURL(path.join(__dirname, "..", "renderer") + path.sep)
+    .href;
+  return parsed.href === urlRendererIndex() || parsed.href.startsWith(raiz);
+}
+
 function criarJanela() {
   const config = obterConfigApp();
   const janela = new BrowserWindow({
@@ -188,6 +219,24 @@ function criarJanela() {
   janela.setMenuBarVisibility(false);
   janela.setTitle("CybhorPDV 2.1");
   janela.loadFile(path.join(__dirname, "..", "renderer", "index.html"));
+
+  // Bloqueia navegação/popup inesperados (phishing via conteúdo remoto ou XSS).
+  janela.webContents.on("will-navigate", (evento, url) => {
+    if (navegacaoRendererPermitida(url)) return;
+    evento.preventDefault();
+    console.warn("Navegação bloqueada:", url);
+  });
+  janela.webContents.setWindowOpenHandler(({ url }) => {
+    const validacao = validarUrlExterna(url);
+    if (validacao.ok) {
+      shell.openExternal(validacao.url).catch((erro) => {
+        console.error("Falha ao abrir URL externa:", erro);
+      });
+    } else {
+      console.warn("Nova janela bloqueada:", url, validacao.mensagem);
+    }
+    return { action: "deny" };
+  });
 
   let mostrou = false;
   const exibir = () => {
