@@ -378,3 +378,122 @@ def atualizar_funcionario(
             """,
             (json.dumps(extras), funcionario_id, loja_id),
         )
+
+
+# --- Gates de escrita em /dados (operador vs admin) ---
+
+# Vendas novas/cancelamento passam por /caixa/*; operador nao grava vendas via /dados
+# (evita bypass de cancelarVenda / baixa de estoque).
+RECURSOS_OPERADOR_ESCRITA = frozenset(
+    {
+        "produtos",
+        "sangrias",
+        "caixaEstado",
+        "suprimentos",
+        "clientes",
+        "fechamentos",
+    }
+)
+
+
+def recurso_do_caminho(caminho: str) -> str:
+    partes = [p for p in str(caminho or "").strip("/").split("/") if p]
+    if len(partes) >= 2 and partes[0] == "lojas":
+        partes = partes[2:]
+    return partes[0] if partes else ""
+
+
+def _partes_caminho(caminho: str) -> List[str]:
+    partes = [p for p in str(caminho or "").strip("/").split("/") if p]
+    if len(partes) >= 2 and partes[0] == "lojas":
+        partes = partes[2:]
+    return partes
+
+
+def exigir_perm(
+    *,
+    cargo: str,
+    loja_id: str,
+    funcionario_id: str,
+    chave: str,
+    mensagem: str,
+) -> None:
+    if cargo == "admin":
+        return
+    if not obter_permissoes_funcionario(loja_id, funcionario_id).get(chave, False):
+        raise ErroNegocio(mensagem, 403)
+
+
+def exigir_escrita_dados(
+    *,
+    cargo: str,
+    loja_id: str,
+    funcionario_id: str,
+    caminho: str,
+) -> None:
+    if cargo == "admin":
+        return
+    recurso = recurso_do_caminho(caminho)
+    if recurso not in RECURSOS_OPERADOR_ESCRITA:
+        raise ErroNegocio(
+            "Apenas o administrador da loja pode alterar este recurso.", 403
+        )
+
+    partes = _partes_caminho(caminho)
+    perms = obter_permissoes_funcionario(loja_id, funcionario_id)
+
+    if recurso == "clientes" and not perms.get("gerenciarClientes", False):
+        raise ErroNegocio("Sem permissao para alterar clientes.", 403)
+    if recurso == "sangrias" and not perms.get("fazerSangria", False):
+        raise ErroNegocio("Sem permissao para sangria.", 403)
+    if recurso == "produtos":
+        so_estoque = len(partes) >= 3 and partes[-1] == "estoque"
+        if so_estoque:
+            if not perms.get("ajustarEstoque", False):
+                raise ErroNegocio("Sem permissao para ajustar estoque.", 403)
+        else:
+            if not (
+                perms.get("cadastrarProduto", False)
+                or perms.get("editarProduto", False)
+            ):
+                raise ErroNegocio("Sem permissao para alterar produtos.", 403)
+
+
+def exigir_remocao_dados(
+    *,
+    cargo: str,
+    loja_id: str,
+    funcionario_id: str,
+    caminho: str,
+) -> None:
+    exigir_escrita_dados(
+        cargo=cargo,
+        loja_id=loja_id,
+        funcionario_id=funcionario_id,
+        caminho=caminho,
+    )
+    if cargo == "admin":
+        return
+    recurso = recurso_do_caminho(caminho)
+    if recurso == "produtos" and not obter_permissoes_funcionario(
+        loja_id, funcionario_id
+    ).get("excluirProduto", False):
+        raise ErroNegocio("Sem permissao para excluir produtos.", 403)
+
+
+def exigir_lote_dados(
+    *,
+    cargo: str,
+    loja_id: str,
+    funcionario_id: str,
+    atualizacoes: Dict[str, Any],
+) -> None:
+    if cargo == "admin":
+        return
+    for caminho in atualizacoes or {}:
+        exigir_escrita_dados(
+            cargo=cargo,
+            loja_id=loja_id,
+            funcionario_id=funcionario_id,
+            caminho=caminho,
+        )
