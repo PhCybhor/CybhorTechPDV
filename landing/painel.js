@@ -173,7 +173,7 @@ async function renovarAssinatura(evento) {
       },
     });
     const dados = await resposta.json().catch(() => ({}));
-    if (resposta.status === 401 || resposta.status === 403) {
+    if (resposta.status === 401) {
       limparSessao();
       throw new Error(dados.erro || "Sessao expirada. Entre novamente.");
     }

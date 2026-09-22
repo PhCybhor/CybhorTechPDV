@@ -3,7 +3,7 @@
 ## 2.1.8 — 2026-09-22
 
 - Endurece pagamentos (#13): webhook MP exige segredo em produção, trava corrida no registro e restringe criação pública de loja.
-- Banner de atraso com CTA Renovar (desktop → área do cliente; landing → checkout da assinatura).
+- Banner de atraso com CTA Renovar (desktop → área do cliente via API configurada; landing → checkout da assinatura).
 
 
 ## 2.1.7 — 2026-09-22

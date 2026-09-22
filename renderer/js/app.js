@@ -1086,7 +1086,7 @@ function aplicarPreferenciasInterface(config) {
 }
 
 
-function atualizarBannerAssinatura(assinatura) {
+async function atualizarBannerAssinatura(assinatura) {
   const banner = $("banner-assinatura-atraso");
   if (!banner) return;
   const atrasada = Boolean(assinatura && assinatura.atrasada);
@@ -1098,10 +1098,7 @@ function atualizarBannerAssinatura(assinatura) {
   }
   const link = $("banner-assinatura-link");
   if (link) {
-    const base =
-      (typeof API_BASE === "string" && API_BASE) ||
-      (window.cybhorConfig && window.cybhorConfig.siteUrl) ||
-      "";
+    const base = await obterApiUrl().catch(() => "");
     link.href = base ? `${String(base).replace(/\/+$/, "")}/painel.html` : "#";
   }
 }
