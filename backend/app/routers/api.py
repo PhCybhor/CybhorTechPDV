@@ -5,7 +5,6 @@ from typing import Any, Dict, Optional
 from fastapi import APIRouter, Depends, Query, Request, Response, status
 from fastapi.responses import FileResponse
 from slowapi import Limiter
-from slowapi.util import get_remote_address
 
 from app.deps import (
     AuthAdminSistema,
@@ -16,6 +15,7 @@ from app.deps import (
 )
 from app.errors import ErroNegocio
 from app.config import get_settings
+from app.http_seguranca import chave_rate_limit
 from app.services import (
     admin_service,
     auth_service,
@@ -28,7 +28,7 @@ from app.services import (
     dados_service,
 )
 
-limiter = Limiter(key_func=get_remote_address)
+limiter = Limiter(key_func=chave_rate_limit)
 api = APIRouter()
 
 

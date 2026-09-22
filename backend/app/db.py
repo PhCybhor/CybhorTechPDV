@@ -13,11 +13,26 @@ from app.config import get_settings
 _pool: Optional[ThreadedConnectionPool] = None
 
 
+def _limites_pool(settings) -> tuple[int, int]:
+    minimo = max(1, int(settings.db_pool_min or 1))
+    maximo = max(minimo, int(settings.db_pool_max or minimo))
+    return minimo, maximo
+
+
 def init_pool() -> None:
     global _pool
     if _pool is None:
         settings = get_settings()
-        _pool = ThreadedConnectionPool(1, 10, dsn=settings.database_url)
+        minimo, maximo = _limites_pool(settings)
+        _pool = ThreadedConnectionPool(
+            minimo,
+            maximo,
+            dsn=settings.database_url,
+            keepalives=1,
+            keepalives_idle=30,
+            keepalives_interval=10,
+            keepalives_count=5,
+        )
 
 
 def close_pool() -> None:
@@ -34,6 +49,10 @@ def obter_conexao() -> Generator[PgConnection, None, None]:
     assert _pool is not None
     conn = _pool.getconn()
     try:
+        # Conexao morta (firewall/idle) nao volta ao pool.
+        if getattr(conn, "closed", 0):
+            _pool.putconn(conn, close=True)
+            conn = _pool.getconn()
         yield conn
     except Exception:
         # Evita devolver conexão em estado "aborted" ao pool.

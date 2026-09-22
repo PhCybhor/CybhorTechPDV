@@ -11,7 +11,6 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
-from slowapi.middleware import SlowAPIMiddleware
 
 from app.config import get_settings
 from app.db import close_pool, init_pool
@@ -54,7 +53,6 @@ def criar_app() -> FastAPI:
     )
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
-    app.add_middleware(SlowAPIMiddleware)
     app.add_middleware(CabecalhosSeguranca)
 
     origens = list(settings.cors_lista)
