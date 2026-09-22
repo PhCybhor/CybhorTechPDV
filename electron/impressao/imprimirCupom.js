@@ -96,6 +96,7 @@ function validarDadosVendaCupom(bruto) {
       troco: bruto.troco != null ? num(bruto.troco) : undefined,
       itens,
       loja,
+      abrirGaveta: Boolean(bruto.abrirGaveta),
     },
   };
 }
@@ -166,11 +167,64 @@ function escolherImpressora(impressoras) {
   return padrao?.name || impressoras[0]?.name || null;
 }
 
+/**
+ * Lista impressoras via WMI (Win7+) quando Chromium devolve lista vazia.
+ * @returns {Promise<Array<{name: string, isDefault?: boolean, status?: number}>>}
+ */
+async function listarImpressorasWinspool() {
+  if (process.platform !== "win32") return [];
+  const ps = [
+    "$ErrorActionPreference = 'SilentlyContinue';",
+    "Get-WmiObject Win32_Printer | ForEach-Object {",
+    "  $def = if ($_.Default) { '1' } else { '0' };",
+    "  Write-Output ($_.Name + '`t' + $def + '`t' + $_.PrinterStatus)",
+    "}",
+  ].join(" ");
+  const resultado = await executar("powershell.exe", [
+    "-NoProfile",
+    "-ExecutionPolicy",
+    "Bypass",
+    "-Command",
+    ps,
+  ]);
+  if (resultado.code !== 0) return [];
+  return (resultado.stdout || "")
+    .split(/\r?\n/)
+    .map((linha) => linha.trim())
+    .filter(Boolean)
+    .map((linha) => {
+      const [nome, def, status] = linha.split("\t");
+      if (!nome) return null;
+      return {
+        name: nome,
+        isDefault: def === "1",
+        status: Number(status) || 0,
+      };
+    })
+    .filter(Boolean);
+}
+
 async function listarImpressoras() {
   const janela =
     BrowserWindow.getFocusedWindow() || BrowserWindow.getAllWindows()[0];
-  if (!janela) return [];
-  return janela.webContents.getPrintersAsync();
+  let lista = [];
+  if (janela) {
+    try {
+      if (typeof janela.webContents.getPrintersAsync === "function") {
+        lista = await janela.webContents.getPrintersAsync();
+      } else if (typeof janela.webContents.getPrinters === "function") {
+        lista = janela.webContents.getPrinters();
+      }
+    } catch (erro) {
+      console.warn("getPrinters falhou:", erro?.message || erro);
+      lista = [];
+    }
+  }
+  if ((!lista || lista.length === 0) && process.platform === "win32") {
+    const viaSpool = await listarImpressorasWinspool();
+    if (viaSpool.length > 0) return viaSpool;
+  }
+  return Array.isArray(lista) ? lista : [];
 }
 
 /**
@@ -178,11 +232,34 @@ async function listarImpressoras() {
  * @param {string[]} args
  * @returns {Promise<{code: number, stdout: string, stderr: string}>}
  */
-function executar(comando, args) {
+const TIMEOUT_COMANDO_MS = 15000;
+
+function executar(comando, args, timeoutMs = TIMEOUT_COMANDO_MS) {
   return new Promise((resolve) => {
     const filho = spawn(comando, args, { windowsHide: true });
     let stdout = "";
     let stderr = "";
+    let finalizado = false;
+    const timer = setTimeout(() => {
+      if (finalizado) return;
+      finalizado = true;
+      try {
+        filho.kill();
+      } catch (_) {
+        /* ignore */
+      }
+      resolve({
+        code: 1,
+        stdout,
+        stderr: (stderr || "") + `Timeout após ${timeoutMs}ms`,
+      });
+    }, timeoutMs);
+    const concluir = (payload) => {
+      if (finalizado) return;
+      finalizado = true;
+      clearTimeout(timer);
+      resolve(payload);
+    };
     filho.stdout.on("data", (d) => {
       stdout += d.toString();
     });
@@ -190,10 +267,10 @@ function executar(comando, args) {
       stderr += d.toString();
     });
     filho.on("error", (erro) => {
-      resolve({ code: 1, stdout, stderr: erro.message });
+      concluir({ code: 1, stdout, stderr: erro.message });
     });
     filho.on("close", (code) => {
-      resolve({ code: code ?? 1, stdout, stderr });
+      concluir({ code: code ?? 1, stdout, stderr });
     });
   });
 }
@@ -392,10 +469,13 @@ async function gravarCupomTeste(buffer) {
  * @returns {Promise<{problema: boolean, mensagem?: string} | null>}
  */
 async function diagnosticarImpressoraWindows(nomeImpressora) {
+  // Get-Printer é Win8+; Win32_Printer via WMI funciona no Windows 7 SP1.
+  const nomeEsc = String(nomeImpressora).replace(/'/g, "''");
   const ps = [
-    `$p = Get-Printer -Name '${String(nomeImpressora).replace(/'/g, "''")}' -ErrorAction SilentlyContinue;`,
-    `if (-not $p) { Write-Output 'MISSING'; exit 0 };`,
-    `Write-Output ("STATUS=" + $p.PrinterStatus + ";PORT=" + $p.PortName)`,
+    "$ErrorActionPreference = 'SilentlyContinue';",
+    `$p = Get-WmiObject Win32_Printer | Where-Object { $_.Name -eq '${nomeEsc}' } | Select-Object -First 1;`,
+    "if (-not $p) { Write-Output 'MISSING'; exit 0 };",
+    "Write-Output ('STATUS=' + $p.PrinterStatus + ';PORT=' + $p.PortName + ';WORKOFFLINE=' + $p.WorkOffline)",
   ].join(" ");
 
   const resultado = await executar("powershell.exe", [
@@ -407,6 +487,10 @@ async function diagnosticarImpressoraWindows(nomeImpressora) {
   ]);
 
   const saida = `${resultado.stdout || ""}${resultado.stderr || ""}`.trim();
+  if (!saida || /Get-WmiObject|Win32_Printer|não reconhecido|not recognized/i.test(saida)) {
+    // Diagnóstico indisponível — não fingir que está tudo ok.
+    return null;
+  }
   if (saida.includes("MISSING")) {
     return {
       problema: true,
@@ -416,12 +500,17 @@ async function diagnosticarImpressoraWindows(nomeImpressora) {
   }
 
   const statusMatch = /STATUS=([^;]+)/i.exec(saida);
-  const status = (statusMatch?.[1] || "").trim().toLowerCase();
-  if (status.includes("error") || status.includes("offline") || status.includes("door") || status.includes("paper")) {
+  const offlineMatch = /WORKOFFLINE=([^;\s]+)/i.exec(saida);
+  const statusNum = Number(statusMatch?.[1]);
+  const workOffline = String(offlineMatch?.[1] || "").toLowerCase() === "true";
+  // PrinterStatus CIM: 7=Offline, 1=Other; WorkOffline=true também bloqueia.
+  const statusRuim = workOffline || statusNum === 7 || statusNum === 1;
+  if (statusRuim) {
+    const rotulo = workOffline ? "offline" : statusMatch?.[1] || "erro";
     return {
       problema: true,
       mensagem:
-        `A impressora "${nomeImpressora}" esta com status "${statusMatch?.[1] || status}" no Windows. ` +
+        `A impressora "${nomeImpressora}" esta com status "${rotulo}" no Windows. ` +
         `Verifique cabo USB, energia, papel e tampa. Remova impressoras Jetway duplicadas e rode scripts\\reparar-jp800.ps1.`,
     };
   }
