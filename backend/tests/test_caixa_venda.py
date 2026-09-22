@@ -45,6 +45,9 @@ class TestFinalizarVendaAtomica(unittest.TestCase):
             },
             "vendas": {},
         }
+        self._orig_transacao = dados_service.db.transacao
+        self._orig_carregar = dados_service._carregar_recurso
+        self._orig_salvar = dados_service._salvar_recurso
 
         class CursorFake:
             def execute(self, sql, params=None):
@@ -69,6 +72,11 @@ class TestFinalizarVendaAtomica(unittest.TestCase):
         dados_service._salvar_recurso = (
             lambda _c, _l, recurso, dados: self.estado.__setitem__(recurso, dados)
         )
+
+    def tearDown(self):
+        dados_service.db.transacao = self._orig_transacao
+        dados_service._carregar_recurso = self._orig_carregar
+        dados_service._salvar_recurso = self._orig_salvar
 
     def test_baixa_estoque_e_registra_venda(self):
         venda = caixa_service.finalizar_venda(
@@ -143,6 +151,31 @@ class TestFinalizarVendaAtomica(unittest.TestCase):
         )
         self.assertEqual(self.estado["produtos"]["p1"]["estoque"], 5)
         self.assertTrue(self.estado["vendas"][venda["id"]]["cancelada"])
+
+    def test_cancelar_duas_vezes_nao_duplica_estoque(self):
+        venda = caixa_service.finalizar_venda(
+            self.loja,
+            {"id": "f1", "nome": "A"},
+            {
+                "itens": [{"produtoId": "p1", "quantidade": 2, "precoUnitario": 10}],
+                "formaPagamento": "dinheiro",
+            },
+        )
+        caixa_service.cancelar_venda(
+            self.loja,
+            venda_id=venda["id"],
+            motivo="1",
+            cancelado_por_nome="admin",
+        )
+        self.assertEqual(self.estado["produtos"]["p1"]["estoque"], 5)
+        with self.assertRaises(ErroNegocio):
+            caixa_service.cancelar_venda(
+                self.loja,
+                venda_id=venda["id"],
+                motivo="2",
+                cancelado_por_nome="admin",
+            )
+        self.assertEqual(self.estado["produtos"]["p1"]["estoque"], 5)
 
 
 if __name__ == "__main__":
