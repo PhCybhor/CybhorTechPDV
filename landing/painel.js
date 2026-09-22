@@ -149,6 +149,42 @@ function preencherLoja(perfil, cache) {
     if (span && perfil.assinaturaMensagem) {
       span.textContent = perfil.assinaturaMensagem;
     }
+    const link = document.getElementById("banner-assinatura-link");
+    if (link && !link.dataset.bound) {
+      link.dataset.bound = "1";
+      link.addEventListener("click", renovarAssinatura);
+    }
+  }
+}
+
+async function renovarAssinatura(evento) {
+  evento.preventDefault();
+  const link = evento.currentTarget;
+  if (link.dataset.busy === "1") return;
+  const rotulo = link.textContent;
+  link.dataset.busy = "1";
+  link.textContent = "Abrindo...";
+  try {
+    const resposta = await fetch(`${API_BASE}/api/pagamentos/checkout`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${tokenAtual()}`,
+      },
+    });
+    const dados = await resposta.json().catch(() => ({}));
+    if (resposta.status === 401 || resposta.status === 403) {
+      limparSessao();
+      throw new Error(dados.erro || "Sessao expirada. Entre novamente.");
+    }
+    if (!resposta.ok || !dados.checkoutUrl) {
+      throw new Error(dados.erro || "Nao foi possivel abrir o pagamento.");
+    }
+    window.location.href = dados.checkoutUrl;
+  } catch (erro) {
+    alert(erro.message || "Falha ao renovar.");
+    link.textContent = rotulo;
+    link.dataset.busy = "0";
   }
 }
 

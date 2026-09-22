@@ -17,7 +17,7 @@ STATUS_BLOQUEADOS = frozenset({"pendente", "cancelada"})
 STATUS_ATRASADOS = frozenset({"inadimplente"})
 
 MENSAGEM_ATRASO = (
-    "Assinatura em atraso. Regularize o pagamento — o acesso sera bloqueado em breve."
+    "Assinatura atrasada. Renove para evitar bloqueio."
 )
 MENSAGEM_PENDENTE = (
     "Assinatura pendente. Conclua o pagamento para liberar o sistema."

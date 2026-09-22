@@ -672,3 +672,10 @@ button.btn-suave {
 }
 .banner-assinatura-atraso.oculto { display: none; }
 .banner-assinatura-atraso strong { font-weight: 700; }
+.banner-assinatura-link {
+  margin-left: auto;
+  color: #fbbf24;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
