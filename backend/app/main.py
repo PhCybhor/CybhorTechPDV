@@ -65,15 +65,15 @@ def criar_app() -> FastAPI:
         if site and site not in origens:
             origens.append(site)
         # Sem cookies: Bearer only. Electron file:// envia Origin null.
-        if origens:
-            app.add_middleware(
-                CORSMiddleware,
-                allow_origins=origens,
-                allow_origin_regex=r"^null$",
-                allow_credentials=False,
-                allow_methods=metodos,
-                allow_headers=cabecalhos,
-            )
+        # Sempre registra CORS em produção (mesmo sem CORS_ORIGENS) para o desktop.
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=origens,
+            allow_origin_regex=r"^null$",
+            allow_credentials=False,
+            allow_methods=metodos,
+            allow_headers=cabecalhos,
+        )
     elif origens:
         app.add_middleware(
             CORSMiddleware,

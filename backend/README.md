@@ -74,12 +74,23 @@ python3 -m uvicorn app.main:app --host 0.0.0.0 --port 3333 --reload
 - Erros retornam `{ "erro": "..." }`; o stack trace fica só no log do servidor.
 - O total da venda é recalculado no servidor — o cliente não dita preços.
 - Webhook do Mercado Pago reconsulta o pagamento na API do MP antes de ativar.
+- Em produção o webhook exige `MP_WEBHOOK_SECRET` (assinatura `x-signature`); ausente → a API não inicia.
+- CORS: origens em `CORS_ORIGENS` + site público; Electron `file://` (`Origin: null`) é permitido por regex — não use `*` em produção.
 
 ## Deploy na VPS (Ubuntu + nginx + HTTPS)
 
 1. Instale Python 3.10+, PostgreSQL e nginx.
 2. Crie o banco e aplique `db/schema.sql`.
 3. `pip install -r requirements.txt` (ou venv) e configure o `.env`.
+
+   Em **produção** (`NODE_ENV=production`) o boot chama `validar_obrigatorias()` e **falha** se faltar:
+   - `DATABASE_URL`
+   - `JWT_SEGREDO` (≥ 32 caracteres)
+   - `MP_ACCESS_TOKEN`
+   - **`MP_WEBHOOK_SECRET`** (segredo do webhook no painel Mercado Pago; sem isto a API não sobe — PR #13)
+   - `URL_PUBLICA_API` começando com `https://`
+
+   Modelo: `backend/.env.example`. Nunca versione o `.env` real.
 4. Rode com systemd/uvicorn ou PM2:
 
 ```bash
