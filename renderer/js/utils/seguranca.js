@@ -63,7 +63,26 @@ export async function gerarHashSenha(senha, salt) {
  * @param {string} hashEsperado
  * @returns {Promise<boolean>}
  */
+/**
+ * Compara duas strings em tempo (aproximadamente) constante.
+ * @param {string} a
+ * @param {string} b
+ * @returns {boolean}
+ */
+function compararConstante(a, b) {
+  const sa = String(a ?? "");
+  const sb = String(b ?? "");
+  const len = Math.max(sa.length, sb.length);
+  let diff = sa.length ^ sb.length;
+  for (let i = 0; i < len; i += 1) {
+    const ca = i < sa.length ? sa.charCodeAt(i) : 0;
+    const cb = i < sb.length ? sb.charCodeAt(i) : 0;
+    diff |= ca ^ cb;
+  }
+  return diff === 0;
+}
+
 export async function verificarSenha(senha, salt, hashEsperado) {
   const hash = await gerarHashSenha(senha, salt);
-  return hash === hashEsperado;
+  return compararConstante(hash, hashEsperado);
 }

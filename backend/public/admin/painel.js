@@ -89,7 +89,7 @@
       cancelada: ["selo-erro", "Cancelada"],
     };
     const [classe, rotulo] = mapa[status] || ["selo-alerta", status || "—"];
-    return `<span class="selo ${classe}">${rotulo}</span>`;
+    return `<span class="selo ${classe}">${escapeHtml(rotulo)}</span>`;
   }
 
   function renderizarResumo(lojas) {

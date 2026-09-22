@@ -22,8 +22,6 @@ const {
   hostsApiConfiaveis,
 } = require("./licencaApi");
 
-const { consultarAssistente } = require("./assistenteGemini");
-
 // Win7 / GPUs antigas: evita tela preta ou crash na abertura.
 try {
   app.disableHardwareAcceleration();
@@ -46,6 +44,94 @@ function limparTextoEnv(texto) {
 /**
  * Carrega as variáveis de ambiente do arquivo .env (dev ou resources do instalador).
  */
+
+/**
+ * Hosts permitidos para shell.openExternal (Mercado Pago + API oficial).
+ * @param {string} hostname
+ * @returns {boolean}
+ */
+function hostExternoPermitido(hostname) {
+  const host = String(hostname || "").toLowerCase().replace(/\.$/, "");
+  const sufixos = [
+    "mercadopago.com",
+    "mercadopago.com.br",
+    "mlstatic.com",
+  ];
+  for (const s of sufixos) {
+    if (host === s || host.endsWith("." + s)) return true;
+  }
+  try {
+    for (const h of hostsApiConfiaveis()) {
+      const ok = String(h || "").toLowerCase();
+      if (ok && (host === ok || host.endsWith("." + ok))) return true;
+    }
+  } catch {
+    /* ignore */
+  }
+  return false;
+}
+
+/**
+ * Valida URL antes de abrir no navegador do sistema.
+ * @param {string} url
+ * @returns {{ ok: true, url: string } | { ok: false, mensagem: string }}
+ */
+function validarUrlExterna(url) {
+  const texto = String(url || "").trim();
+  if (!/^https?:\/\//i.test(texto)) {
+    return { ok: false, mensagem: "URL inválida." };
+  }
+  let parsed;
+  try {
+    parsed = new URL(texto);
+  } catch {
+    return { ok: false, mensagem: "URL inválida." };
+  }
+  const proto = parsed.protocol.toLowerCase();
+  const host = parsed.hostname.toLowerCase();
+
+  if (proto === "http:") {
+    const empacotado = (() => {
+      try {
+        return Boolean(app.isPackaged);
+      } catch {
+        return true;
+      }
+    })();
+    if (
+      !empacotado &&
+      (host === "localhost" || host === "127.0.0.1")
+    ) {
+      return { ok: true, url: parsed.href };
+    }
+    return {
+      ok: false,
+      mensagem: "URL HTTP só é permitida em desenvolvimento (localhost).",
+    };
+  }
+
+  if (proto !== "https:") {
+    return { ok: false, mensagem: "Apenas URLs HTTP(S) são permitidas." };
+  }
+
+  if (!hostExternoPermitido(host)) {
+    return {
+      ok: false,
+      mensagem: "Domínio não permitido para abertura externa.",
+    };
+  }
+  return { ok: true, url: parsed.href };
+}
+
+/**
+ * Electron 22 (Win7) precisa do bypass de certificado; Electron 23+ usa verificação normal.
+ * @returns {boolean}
+ */
+function precisaBypassCertificadoLegacy() {
+  const major = Number.parseInt(String(process.versions.electron || "0").split(".")[0], 10);
+  return Number.isFinite(major) && major <= 22;
+}
+
 function carregarVariaveisDeAmbiente() {
   const candidatos = [
     path.join(__dirname, "..", ".env"),
@@ -92,7 +178,7 @@ function criarJanela() {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false,
+      sandbox: true,
       backgroundThrottling: false,
     },
   });
@@ -293,6 +379,8 @@ ipcMain.handle("limpar-licenca", () => {
 
 ipcMain.handle("consultar-assistente", async (_evento, payload) => {
   try {
+    // Carrega só quando o operador abre a IA — evita custo no boot.
+    const { consultarAssistente } = require("./assistenteGemini");
     return await consultarAssistente(payload || {});
   } catch (erro) {
     console.error("assistente:", erro);
@@ -304,31 +392,33 @@ ipcMain.handle("consultar-assistente", async (_evento, payload) => {
 });
 
 ipcMain.handle("abrir-externo", async (_evento, url) => {
-  const texto = String(url || "").trim();
-  if (!/^https?:\/\//i.test(texto)) {
-    return { ok: false, mensagem: "URL inválida." };
+  const validacao = validarUrlExterna(url);
+  if (!validacao.ok) {
+    return { ok: false, mensagem: validacao.mensagem };
   }
-  await shell.openExternal(texto);
+  await shell.openExternal(validacao.url);
   return { ok: true };
 });
 
 app.whenReady().then(() => {
-  // Win7 + Electron 22: cadeias novas da Let's Encrypt (YE/YR) podem falhar
-  // na verificacao do Chromium antigo. Aceita so o host oficial da API.
-  try {
-    const { session } = require("electron");
-    const confiaveis = hostsApiConfiaveis();
-    session.defaultSession.setCertificateVerifyProc((pedido, callback) => {
-      const host = String(pedido.hostname || "");
-      if (confiaveis.has(host)) {
-        callback(0);
-        return;
-      }
-      // -3 = usa o resultado padrao do Chromium
-      callback(-3);
-    });
-  } catch (erro) {
-    console.error("Falha ao configurar verificacao de certificado:", erro);
+  // Bypass de certificado só no Electron legado (<=22 / Win7). No 23+
+  // (Win10) a verificação normal do Chromium já cobre Let's Encrypt.
+  if (precisaBypassCertificadoLegacy()) {
+    try {
+      const { session } = require("electron");
+      const confiaveis = hostsApiConfiaveis();
+      session.defaultSession.setCertificateVerifyProc((pedido, callback) => {
+        const host = String(pedido.hostname || "");
+        if (confiaveis.has(host)) {
+          callback(0);
+          return;
+        }
+        // -3 = usa o resultado padrao do Chromium
+        callback(-3);
+      });
+    } catch (erro) {
+      console.error("Falha ao configurar verificacao de certificado:", erro);
+    }
   }
 
   carregarConfigApp();

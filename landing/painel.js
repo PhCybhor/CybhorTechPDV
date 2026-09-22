@@ -204,10 +204,12 @@ function renderizarGraficoDias(vendas, periodo) {
   elGraficoDias.innerHTML = dias
     .map((d) => {
       const altura = Math.max(4, Math.round((d.total / max) * 100));
+      const label = escapeHtml(d.label);
+      const titulo = escapeHtml(`${d.label}: ${formatarBRL(d.total)}`);
       return `
-        <div class="barra-dia" title="${d.label}: ${formatarBRL(d.total)}">
+        <div class="barra-dia" title="${titulo}">
           <div class="barra-coluna" style="height:${altura}%"></div>
-          <span>${d.label}</span>
+          <span>${label}</span>
         </div>
       `;
     })
