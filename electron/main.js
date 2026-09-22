@@ -4,7 +4,7 @@ const { app, BrowserWindow, ipcMain, shell, dialog } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const { pathToFileURL } = require("url");
-const { imprimirCupomVenda } = require("./impressao/imprimirCupom");
+const { imprimirCupomVenda, listarImpressoras } = require("./impressao/imprimirCupom");
 const {
   carregarConfigApp,
   obterConfigApp,
@@ -325,10 +325,7 @@ ipcMain.handle("salvar-config-app", (_evento, parcial) => {
 
 ipcMain.handle("listar-impressoras", async () => {
   try {
-    const janela =
-      BrowserWindow.getFocusedWindow() || BrowserWindow.getAllWindows()[0];
-    if (!janela) return { ok: true, impressoras: [] };
-    const lista = await janela.webContents.getPrintersAsync();
+    const lista = await listarImpressoras();
     return {
       ok: true,
       impressoras: (lista || []).map((p) => ({
@@ -346,7 +343,17 @@ ipcMain.handle("listar-impressoras", async () => {
   }
 });
 
+/** Evita cupom duplicado se o renderer estourar timeout e o operador clicar de novo. */
+let impressaoCupomEmAndamento = false;
+
 ipcMain.handle("imprimir-cupom", async (_evento, dadosVenda) => {
+  if (impressaoCupomEmAndamento) {
+    return {
+      ok: false,
+      mensagem: "Já há uma impressão em andamento. Aguarde terminar.",
+    };
+  }
+  impressaoCupomEmAndamento = true;
   try {
     if (
       dadosVenda != null &&
@@ -361,6 +368,8 @@ ipcMain.handle("imprimir-cupom", async (_evento, dadosVenda) => {
       ok: false,
       mensagem: erro?.message || "Não foi possível imprimir o cupom.",
     };
+  } finally {
+    impressaoCupomEmAndamento = false;
   }
 });
 
