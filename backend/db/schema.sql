@@ -113,6 +113,8 @@ CREATE TABLE IF NOT EXISTS pagamentos (
   criado_em TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_pagamentos_loja ON pagamentos (loja_id);
+-- detalhar_loja: WHERE loja_id ORDER BY criado_em DESC
+CREATE INDEX IF NOT EXISTS idx_pagamentos_loja_criado ON pagamentos (loja_id, criado_em DESC);
 
 -- Um teste gratis de 30 dias por CPF (primeira compra).
 CREATE TABLE IF NOT EXISTS trials_cpf (

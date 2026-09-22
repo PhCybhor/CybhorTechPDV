@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     )
 
     database_url: str = Field(default="", alias="DATABASE_URL")
+    # Pool psycopg2: sob carga (varios caixas) 1–10 estoura facil.
+    db_pool_min: int = Field(default=2, alias="DB_POOL_MIN")
+    db_pool_max: int = Field(default=20, alias="DB_POOL_MAX")
     porta: int = Field(default=3333, alias="PORT")
     jwt_segredo: str = Field(default="", alias="JWT_SEGREDO")
     jwt_expiracao: str = Field(default="12h", alias="JWT_EXPIRACAO")

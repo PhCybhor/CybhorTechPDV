@@ -6,6 +6,24 @@ from starlette.responses import JSONResponse, Response
 
 from app.config import get_settings
 
+def chave_rate_limit(request: Request) -> str:
+    """IP do cliente atras do nginx (X-Forwarded-For), senao peer direto.
+
+    get_remote_address ignora o proxy: no Docker todos caem no mesmo IP do
+    bridge e o rate limit vira global. Pega o primeiro hop do XFF.
+    """
+    encaminhado = request.headers.get("x-forwarded-for") or request.headers.get(
+        "x-real-ip"
+    )
+    if encaminhado:
+        primeiro = encaminhado.split(",")[0].strip()
+        if primeiro:
+            return primeiro
+    if request.client and request.client.host:
+        return request.client.host
+    return "127.0.0.1"
+
+
 TAMANHO_MAX_REQUISICAO = 512 * 1024
 
 CSP = (

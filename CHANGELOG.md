@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.1.11 — 2026-09-22
+
+- Backend sob carga: pool psycopg2 configuravel (DB_POOL_MIN/MAX, padrao 2–20) com TCP keepalive.
+- Indice `pagamentos (loja_id, criado_em)` para o detalhe admin; rate limit por X-Forwarded-For e sem middleware global do slowapi.
+
+
 ## 2.1.10 — 2026-09-22
 
 - Renderer/Electron: `credentials: "omit"` no fetch (file:// → https, Bearer only).
