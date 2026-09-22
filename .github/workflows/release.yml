@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Versao do release (ex: 2.1.3)"
-        required: true
-        default: "2.1.3"
+        description: "Versao do release (vazio = package.json). Ex: 2.1.7"
+        required: false
+        default: ""
 
 env:
   CSC_IDENTITY_AUTO_DISCOVERY: "false"
@@ -85,11 +85,19 @@ jobs:
         id: versao
         shell: pwsh
         run: |
+          $pkgVersion = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          if (-not $pkgVersion) { throw "package.json sem version" }
           if ("${{ github.ref_type }}" -eq "tag") {
-            $tag = "${{ github.ref_name }}"
-            $version = $tag -replace '^v', ''
+            $version = ("${{ github.ref_name }}" -replace '^v', '')
+            if ($version -ne $pkgVersion) {
+              throw "Tag v$version difere de package.json ($pkgVersion). Atualize um dos dois."
+            }
           } else {
-            $version = "${{ inputs.version }}"
+            $inputVersion = "${{ inputs.version }}".Trim()
+            $version = if ($inputVersion) { $inputVersion } else { $pkgVersion }
+            if ($version -ne $pkgVersion) {
+              throw "inputs.version ($version) difere de package.json ($pkgVersion). Ajuste o input ou o package.json."
+            }
           }
           echo "version=$version" >> $env:GITHUB_OUTPUT
           echo "tag=v$version" >> $env:GITHUB_OUTPUT
