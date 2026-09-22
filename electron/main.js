@@ -217,7 +217,7 @@ function criarJanela() {
   });
 
   janela.setMenuBarVisibility(false);
-  janela.setTitle("CybhorPDV 2.1.6");
+  janela.setTitle("CybhorPDV 2.1.7");
   janela.loadFile(path.join(__dirname, "..", "renderer", "index.html"));
 
   // Bloqueia navegação/popup inesperados (phishing via conteúdo remoto ou XSS).
