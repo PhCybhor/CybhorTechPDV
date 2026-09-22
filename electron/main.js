@@ -136,11 +136,17 @@ function precisaBypassCertificadoLegacy() {
 }
 
 function carregarVariaveisDeAmbiente() {
-  const candidatos = [
-    path.join(__dirname, "..", ".env"),
-    path.join(process.resourcesPath || "", ".env"),
-    path.join(__dirname, "..", "build", "env.producao"),
-  ];
+  // Empacotado: só resources/.env (cópia de build/env.producao) e o fallback no asar.
+  // Dev: .env na raiz do projeto primeiro.
+  const candidatos = app.isPackaged
+    ? [
+        path.join(process.resourcesPath || "", ".env"),
+        path.join(__dirname, "..", "build", "env.producao"),
+      ]
+    : [
+        path.join(__dirname, "..", ".env"),
+        path.join(__dirname, "..", "build", "env.producao"),
+      ];
 
   for (const caminho of candidatos) {
     if (!caminho || !fs.existsSync(caminho)) continue;
@@ -164,6 +170,11 @@ function carregarVariaveisDeAmbiente() {
 
   if (!String(process.env.CYBHOR_API_URL || "").trim() && app.isPackaged) {
     process.env.CYBHOR_API_URL = API_URL_PRODUCAO;
+  }
+
+  // Instalador nunca herda CYBHOR_MODO_DEV=1 do ambiente da máquina ou de .env errado.
+  if (app.isPackaged) {
+    process.env.CYBHOR_MODO_DEV = "0";
   }
 }
 
@@ -217,7 +228,7 @@ function criarJanela() {
   });
 
   janela.setMenuBarVisibility(false);
-  janela.setTitle("CybhorPDV 2.1.9");
+  janela.setTitle("CybhorPDV 2.1.10");
   janela.loadFile(path.join(__dirname, "..", "renderer", "index.html"));
 
   // Bloqueia navegação/popup inesperados (phishing via conteúdo remoto ou XSS).
@@ -355,7 +366,7 @@ ipcMain.handle("imprimir-cupom", async (_evento, dadosVenda) => {
 
 ipcMain.handle("obter-licenca", async () => {
   let local = lerLicenca();
-  if (!local && process.env.CYBHOR_MODO_DEV === "1") {
+  if (!local && !app.isPackaged && process.env.CYBHOR_MODO_DEV === "1") {
     const dev = await validarLicencaRemota("DEV-LOCAL");
     if (dev.ok) {
       salvarLicenca({
@@ -383,6 +394,7 @@ ipcMain.handle("obter-licenca", async () => {
     if (
       remota.lojaId &&
       remota.lojaId !== local.lojaId &&
+      !app.isPackaged &&
       process.env.CYBHOR_MODO_DEV === "1"
     ) {
       salvarLicenca({

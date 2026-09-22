@@ -30,6 +30,7 @@ async function requisitarJson(url, opcoes = {}) {
       const resposta = await fetch(url, {
         method: opcoes.method || "GET",
         headers: opcoes.headers || {},
+        credentials: "omit",
         body: opcoes.body,
       });
       const dados = await resposta.json().catch(() => ({}));
