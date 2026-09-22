@@ -51,16 +51,39 @@ def _chamar_mercado_pago(
         dados = {}
 
     if resposta.is_error:
-        logger.error("Mercado Pago respondeu erro: %s %s", resposta.status_code, dados)
-        msg = None
+        codigo = "-"
         if isinstance(dados, dict):
-            msg = dados.get("message")
-            if not msg:
-                cause = dados.get("cause") or []
-                if cause:
-                    msg = cause[0].get("description")
+            codigo = str(dados.get("error") or dados.get("code") or "-")[:64]
+        # Sem corpo MP no log (PII / detalhes internos).
+        logger.error(
+            "mp_api_erro http=%s codigo=%s method=%s",
+            resposta.status_code,
+            codigo,
+            method,
+        )
         raise ErroNegocio("Falha ao comunicar com o Mercado Pago.", 502)
     return dados
+
+
+
+def _payment_id_para_log(valor: Any) -> str:
+    texto = str(valor or "").strip()
+    return texto if re.fullmatch(r"\d{6,24}", texto) else "-"
+
+
+def _log_webhook_falha(
+    motivo: str,
+    *,
+    payment_id: Any = "",
+    status_http: int = 0,
+) -> None:
+    """Log estruturado de falha no webhook — sem PII, assinatura ou corpo MP."""
+    logger.warning(
+        "webhook_mp_falha motivo=%s payment_id=%s status_http=%s",
+        motivo,
+        _payment_id_para_log(payment_id),
+        status_http or "-",
+    )
 
 
 def _payment_id_seguro(valor: Any) -> str:
@@ -455,30 +478,51 @@ def processar_webhook(
 ) -> Dict[str, Any]:
     tipo = (notificacao.get("type") or notificacao.get("topic") or "").strip().lower()
     data = notificacao.get("data") if isinstance(notificacao.get("data"), dict) else {}
-    payment_id = data.get("id") or notificacao.get("id") or notificacao.get("data.id")
-    if tipo not in ("payment", "") or not payment_id:
-        if (notificacao.get("topic") or "").lower() != "payment":
+    payment_id_bruto = data.get("id") or notificacao.get("id") or notificacao.get("data.id")
+    payment_id: Any = payment_id_bruto
+    try:
+        if tipo not in ("payment", "") or not payment_id:
+            if (notificacao.get("topic") or "").lower() != "payment":
+                return {"ignorado": True}
+            payment_id = notificacao.get("id")
+            if not payment_id:
+                return {"ignorado": True}
+
+        payment_id = _payment_id_seguro(payment_id)
+        _verificar_assinatura_webhook(
+            payment_id=payment_id,
+            assinatura=assinatura,
+            request_id=request_id,
+        )
+
+        pagamento = _chamar_mercado_pago(f"/v1/payments/{payment_id}")
+        if not isinstance(pagamento, dict):
+            _log_webhook_falha("resposta_mp_invalida", payment_id=payment_id)
             return {"ignorado": True}
-        payment_id = notificacao.get("id")
-        if not payment_id:
+        loja_id = pagamento.get("external_reference")
+        if not loja_id:
+            _log_webhook_falha("sem_external_reference", payment_id=payment_id)
             return {"ignorado": True}
 
-    payment_id = _payment_id_seguro(payment_id)
-    _verificar_assinatura_webhook(
-        payment_id=payment_id,
-        assinatura=assinatura,
-        request_id=request_id,
-    )
-
-    pagamento = _chamar_mercado_pago(f"/v1/payments/{payment_id}")
-    if not isinstance(pagamento, dict):
-        return {"ignorado": True}
-    loja_id = pagamento.get("external_reference")
-    if not loja_id:
-        return {"ignorado": True}
-
-    registrar_pagamento(loja_id, pagamento)
-    return {"processado": True, "status": pagamento.get("status")}
+        registrar_pagamento(loja_id, pagamento)
+        return {"processado": True, "status": pagamento.get("status")}
+    except ErroNegocio as erro:
+        msg = erro.mensagem.lower()
+        if erro.status == 401:
+            motivo = "assinatura"
+        elif "notificacao de pagamento" in msg:
+            motivo = "payment_id_invalido"
+        elif "segredo" in msg:
+            motivo = "segredo_ausente"
+        elif "mercado pago" in msg:
+            motivo = "mp_api"
+        else:
+            motivo = "erro_negocio"
+        _log_webhook_falha(motivo, payment_id=payment_id, status_http=erro.status)
+        raise
+    except Exception:
+        _log_webhook_falha("excecao", payment_id=payment_id, status_http=500)
+        raise
 
 
 def obter_assinatura(loja_id: str) -> Dict[str, Any]:

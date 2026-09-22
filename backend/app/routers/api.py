@@ -14,6 +14,7 @@ from app.deps import (
     exigir_admin_loja,
 )
 from app.errors import ErroNegocio
+from app import db
 from app.config import get_settings
 from app.http_seguranca import chave_rate_limit
 from app.services import (
@@ -33,8 +34,12 @@ api = APIRouter()
 
 
 @api.get("/saude")
-def saude() -> Dict[str, bool]:
-    return {"ok": True}
+def saude(response: Response) -> Dict[str, bool]:
+    """Liveness + ping barato no Postgres. Sem detalhes internos no corpo."""
+    db_ok = db.ping()
+    if not db_ok:
+        response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+    return {"ok": db_ok, "db": db_ok}
 
 
 # --- Site ---
