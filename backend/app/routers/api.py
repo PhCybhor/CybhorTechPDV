@@ -102,87 +102,60 @@ def site_ativacao(token: str = Query(...)) -> Dict[str, Any]:
     return site_service.consultar_ativacao(token)
 
 
-def _recurso_do_caminho(caminho: str) -> str:
-    partes = [p for p in str(caminho or "").strip("/").split("/") if p]
-    if len(partes) >= 2 and partes[0] == "lojas":
-        partes = partes[2:]
-    return partes[0] if partes else ""
-
-
-# Recursos que o operador do caixa pode gravar (vendas, estoque, sangria, etc.).
-# Demais mutações exigem admin da loja.
-RECURSOS_OPERADOR_ESCRITA = frozenset(
-    {
-        "vendas",
-        "produtos",
-        "sangrias",
-        "caixaEstado",
-        "suprimentos",
-        "clientes",
-        "fechamentos",
-    }
-)
-
-
-def _permissoes_do_operador(auth: AuthLoja) -> Dict[str, bool]:
-    return auth_service.obter_permissoes_funcionario(auth.loja_id, auth.funcionario_id)
-
-
 def _exigir_perm(auth: AuthLoja, chave: str, mensagem: str) -> None:
-    if auth.cargo == "admin":
-        return
-    if not _permissoes_do_operador(auth).get(chave, False):
-        raise ErroNegocio(mensagem, 403)
+    auth_service.exigir_perm(
+        cargo=auth.cargo,
+        loja_id=auth.loja_id,
+        funcionario_id=auth.funcionario_id,
+        chave=chave,
+        mensagem=mensagem,
+    )
 
 
 def _exigir_escrita_dados(auth: AuthLoja, caminho: str) -> None:
-    if auth.cargo == "admin":
-        return
-    recurso = _recurso_do_caminho(caminho)
-    if recurso not in RECURSOS_OPERADOR_ESCRITA:
-        raise ErroNegocio(
-            "Apenas o administrador da loja pode alterar este recurso.", 403
-        )
-
-    partes = [p for p in str(caminho or "").strip("/").split("/") if p]
-    if len(partes) >= 2 and partes[0] == "lojas":
-        partes = partes[2:]
-    perms = _permissoes_do_operador(auth)
-
-    if recurso == "clientes" and not perms.get("gerenciarClientes", False):
-        raise ErroNegocio("Sem permissao para alterar clientes.", 403)
-    if recurso == "sangrias" and not perms.get("fazerSangria", False):
-        raise ErroNegocio("Sem permissao para sangria.", 403)
-    if recurso == "produtos":
-        # produtos/{id}/estoque → ajuste pontual; demais mutações → cadastro/edição
-        so_estoque = len(partes) >= 3 and partes[-1] == "estoque"
-        if so_estoque:
-            if not perms.get("ajustarEstoque", False):
-                raise ErroNegocio("Sem permissao para ajustar estoque.", 403)
-        else:
-            if not (
-                perms.get("cadastrarProduto", False)
-                or perms.get("editarProduto", False)
-            ):
-                raise ErroNegocio("Sem permissao para alterar produtos.", 403)
+    auth_service.exigir_escrita_dados(
+        cargo=auth.cargo,
+        loja_id=auth.loja_id,
+        funcionario_id=auth.funcionario_id,
+        caminho=caminho,
+    )
 
 
 def _exigir_remocao_dados(auth: AuthLoja, caminho: str) -> None:
-    _exigir_escrita_dados(auth, caminho)
-    if auth.cargo == "admin":
-        return
-    recurso = _recurso_do_caminho(caminho)
-    if recurso == "produtos" and not _permissoes_do_operador(auth).get(
-        "excluirProduto", False
-    ):
-        raise ErroNegocio("Sem permissao para excluir produtos.", 403)
+    auth_service.exigir_remocao_dados(
+        cargo=auth.cargo,
+        loja_id=auth.loja_id,
+        funcionario_id=auth.funcionario_id,
+        caminho=caminho,
+    )
 
 
 def _exigir_lote_dados(auth: AuthLoja, atualizacoes: Dict[str, Any]) -> None:
-    if auth.cargo == "admin":
-        return
-    for caminho in (atualizacoes or {}):
-        _exigir_escrita_dados(auth, caminho)
+    auth_service.exigir_lote_dados(
+        cargo=auth.cargo,
+        loja_id=auth.loja_id,
+        funcionario_id=auth.funcionario_id,
+        atualizacoes=atualizacoes or {},
+    )
+
+
+def _exigir_desconto_e_fiado(auth: AuthLoja, payload: Dict[str, Any]) -> None:
+    try:
+        desconto = float((payload or {}).get("desconto") or 0)
+    except (TypeError, ValueError):
+        desconto = 0.0
+    if desconto > 0:
+        _exigir_perm(
+            auth,
+            "aplicarDesconto",
+            "Sem permissao para aplicar desconto.",
+        )
+    if (payload or {}).get("fiado"):
+        _exigir_perm(
+            auth,
+            "venderFiado",
+            "Sem permissao para venda fiado.",
+        )
 
 
 # --- Lojas ---
@@ -238,7 +211,7 @@ def perfil_loja(auth: AuthLoja = Depends(autenticar_loja)) -> Dict[str, Any]:
 
 # --- Auth / equipe ---
 @api.post("/auth/login")
-@limiter.limit("20/15minutes")
+@limiter.limit("10/15minutes")
 def login(request: Request, body: Dict[str, Any]) -> Dict[str, Any]:
     return auth_service.login_loja(
         codigo_loja=body.get("codigoLoja") or "",
@@ -307,10 +280,12 @@ def remover_produto(
 def registrar_venda(
     body: Dict[str, Any], auth: AuthLoja = Depends(autenticar_loja)
 ) -> Dict[str, Any]:
+    payload = body or {}
+    _exigir_desconto_e_fiado(auth, payload)
     return venda_service.registrar_venda(
         auth.loja_id,
         {"id": auth.funcionario_id, "nome": auth.nome},
-        body,
+        payload,
     )
 
 
@@ -327,10 +302,12 @@ def listar_vendas(
 def finalizar_venda_caixa(
     body: Dict[str, Any], auth: AuthLoja = Depends(autenticar_loja)
 ) -> Dict[str, Any]:
+    payload = body or {}
+    _exigir_desconto_e_fiado(auth, payload)
     return caixa_service.finalizar_venda(
         auth.loja_id,
         {"id": auth.funcionario_id, "nome": auth.nome},
-        body or {},
+        payload,
     )
 
 
@@ -449,7 +426,7 @@ def admin_bootstrap(request: Request, body: Dict[str, Any]) -> Dict[str, str]:
 
 
 @api.post("/admin/login")
-@limiter.limit("20/15minutes")
+@limiter.limit("10/15minutes")
 def admin_login(request: Request, body: Dict[str, Any]) -> Dict[str, Any]:
     return admin_service.login_admin_sistema(
         email=body.get("email") or "", senha=body.get("senha") or ""
