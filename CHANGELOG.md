@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.1.13 — 2026-09-22
+
+- Impressão: mutex no IPC evita reimpressão enquanto o job ainda roda após o timeout do renderer; spawn de PowerShell/copy com timeout.
+- Win7: lista/diagnóstico de impressoras via Win32_Printer (Get-Printer é Win8+).
+- Payload de cupom deixa de engolir `abrirGaveta`.
+
 ## 2.1.12 — 2026-09-22
 
 - Webhook MP: log estruturado em falhas (`motivo`, `payment_id`, `status_http`) sem PII/corpo/segredo.
