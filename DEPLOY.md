@@ -25,9 +25,11 @@ Confirmar no `.env` da API (valores reais do ambiente, sem `*`):
 - `URL_PUBLICA_SITE`
 - `CORS_ORIGENS` — origens do site/admin (Electron `file://` já é tratado no código)
 
-## 4. Desktop ≥ 2.1.13
+## 4. Deploy automático
 
-Após o pull, rebuild/empacotar o instalador (`npm run dist:win10` / `dist:win7`) e republicar o release. Builds antigos não trazem os fixes do renderer/Electron.
+- **API + landing:** push na `main` em `backend/` ou `landing/` roda `.github/workflows/deploy-vps.yml` (testes → build → checagem do `.env` → troca do container, com rollback). Script na VPS: `backend/deploy/vps-deploy.sh`.
+- **App desktop:** push na `main` em `electron/`, `renderer/`, `build/`, `package.json`… roda `.github/workflows/release.yml`. A versão sobe sozinha (próximo patch da última tag); para minor/major, suba o `version` do `package.json`. Os instaladores vão para o GitHub Releases e para o painel do cliente (`backend/deploy/vps-publicar-instaladores.sh`), com a versão nova em destaque e as 4 anteriores abaixo.
+- **Republicar uma versão antiga no painel:** Actions → "Publicar instaladores na VPS" → informar a versão.
 
 ## 5. Smoke pós-subir
 

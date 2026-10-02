@@ -1,0 +1,90 @@
+name: Publicar instaladores na VPS
+
+# Chamado pelo release ao fim de cada build; o disparo manual republica uma
+# versao que ja esta no GitHub Releases (ex.: recolocar uma antiga no painel).
+on:
+  workflow_call:
+    inputs:
+      versao:
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      versao:
+        description: "Versao ja publicada no GitHub Releases. Ex: 2.1.13"
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publicar-instaladores
+  cancel-in-progress: false
+
+env:
+  URL_PRODUCAO: https://pdv.vps10229.panel.icontainer.run
+  VERSAO: ${{ inputs.versao }}
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Validar versao
+        run: |
+          if [[ ! "$VERSAO" =~ ^[0-9]{1,3}\.[0-9]{1,4}\.[0-9]{1,4}$ ]]; then
+            echo "::error::Versao invalida."
+            exit 1
+          fi
+
+      - name: Baixar instaladores do release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir instaladores
+          gh release download "v$VERSAO" -R "$GITHUB_REPOSITORY" -D instaladores \
+            -p CybhorPDV-Setup-win10-x64.exe \
+            -p CybhorPDV-Setup-win7-x64.exe \
+            -p CybhorPDV-Setup-win7-ia32.exe
+          cd instaladores
+          sha256sum CybhorPDV-Setup-*.exe > SHA256SUMS
+          cat SHA256SUMS
+          tar -cf ../instaladores.tar CybhorPDV-Setup-*.exe SHA256SUMS
+          ls -lh ../instaladores.tar
+
+      - name: Configurar SSH
+        env:
+          VPS_SSH_KEY: ${{ secrets.VPS_INSTALADORES_SSH_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/instaladores_key
+          chmod 600 ~/.ssh/instaladores_key
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      - name: Enviar para a VPS
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+        run: |
+          # A chave so executa o script de publicacao; a versao vai como comando e o .tar pelo stdin.
+          ssh -i ~/.ssh/instaladores_key \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            -o ServerAliveInterval=15 \
+            "$VPS_USER@$VPS_HOST" "$VERSAO" < instaladores.tar
+
+      - name: Conferir painel do cliente
+        run: |
+          resposta=$(curl -fsS --max-time 15 "$URL_PRODUCAO/api/site/downloads")
+          if ! jq -e 'has("atual")' <<< "$resposta" > /dev/null; then
+            echo "::warning::API em producao ainda sem listagem por versao; arquivos publicados mesmo assim."
+            exit 0
+          fi
+          jq -e --arg v "$VERSAO" '[.atual, .anteriores[]] | map(select(. != null) | .versao) | index($v) != null' \
+            <<< "$resposta" > /dev/null || { echo "::error::Versao $VERSAO nao aparece no painel."; exit 1; }
+          jq -r '"Painel: atual \(.atual.versao), anteriores: \([.anteriores[].versao] | join(", "))"' <<< "$resposta"
+
+      - name: Remover chave
+        if: always()
+        run: rm -f ~/.ssh/instaladores_key

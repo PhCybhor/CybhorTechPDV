@@ -218,6 +218,63 @@ button.btn-destaque:disabled {
   font-size: 0.78rem;
   margin-top: 0.2rem;
 }
+.download-versao-atual {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin: 0;
+}
+.download-versao-atual small,
+.versao-anterior-titulo small {
+  color: var(--texto-suave);
+  font-size: 0.78rem;
+}
+.selo-versao {
+  padding: 0.2rem 0.7rem;
+  border-radius: 999px;
+  background: rgba(56, 189, 248, 0.18);
+  color: var(--acento);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.versoes-anteriores {
+  margin-top: 0.5rem;
+  border-top: 1px solid var(--borda);
+  padding-top: 0.75rem;
+}
+.versoes-anteriores summary {
+  cursor: pointer;
+  color: var(--texto-suave);
+  font-size: 0.9rem;
+}
+.versoes-anteriores summary:hover { color: var(--acento); }
+.versao-anterior {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  padding: 0.65rem 0;
+  border-bottom: 1px solid var(--borda);
+}
+.versao-anterior:last-child { border-bottom: 0; }
+.versao-anterior-titulo {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+.versao-anterior-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.9rem;
+}
+.link-download-anterior {
+  color: var(--acento);
+  font-size: 0.85rem;
+  text-decoration: none;
+}
+.link-download-anterior:hover { text-decoration: underline; }
 .secao-downloads { margin-top: 1.2rem; }
 .sucesso-downloads { text-align: left; margin-top: 1.6rem; }
 .plano-selo {
