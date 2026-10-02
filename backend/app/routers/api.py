@@ -21,6 +21,7 @@ from app.services import (
     admin_service,
     auth_service,
     caixa_service,
+    instaladores_service,
     loja_service,
     pagamento_service,
     produto_service,
@@ -75,16 +76,28 @@ def site_comprar(request: Request, body: Dict[str, Any]) -> Dict[str, Any]:
 
 @api.get("/site/downloads")
 def site_downloads() -> Dict[str, Any]:
-    return site_service.listar_instaladores()
+    return instaladores_service.listar_instaladores()
 
 
 @api.get("/site/baixar/{arquivo}")
 @limiter.limit("30/hour")
 def site_baixar(request: Request, arquivo: str) -> FileResponse:
-    caminho = site_service.caminho_instalador(arquivo)
+    caminho = instaladores_service.caminho_instalador(arquivo)
     return FileResponse(
         path=str(caminho),
         filename=caminho.name,
+        media_type="application/octet-stream",
+    )
+
+
+@api.get("/site/baixar/{versao}/{arquivo}")
+@limiter.limit("30/hour")
+def site_baixar_versao(request: Request, versao: str, arquivo: str) -> FileResponse:
+    caminho = instaladores_service.caminho_instalador(arquivo, versao)
+    # Nome com a versao para o cliente distinguir setups antigos na pasta Downloads.
+    return FileResponse(
+        path=str(caminho),
+        filename=f"{caminho.stem}-v{versao}{caminho.suffix}",
         media_type="application/octet-stream",
     )
 

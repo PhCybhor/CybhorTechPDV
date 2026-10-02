@@ -1,26 +1,95 @@
 name: Release CybhorPDV
 
+# Toda alteracao do app desktop na main gera uma versao nova, publica no GitHub
+# Releases e coloca os instaladores no painel do cliente (anteriores ficam abaixo).
 on:
   push:
     tags:
       - "v*"
+    branches:
+      - main
+    paths:
+      - "electron/**"
+      - "renderer/**"
+      - "build/**"
+      - "vendor/**"
+      - "scripts/build-renderer.mjs"
+      - "scripts/dist-win7.mjs"
+      - "package.json"
+      - "package-lock.json"
+      - "electron-builder.win7.json"
   workflow_dispatch:
     inputs:
       version:
-        description: "Versao do release (vazio = package.json). Ex: 2.1.7"
+        description: "Versao do release (vazio = automatica). Ex: 2.2.0"
         required: false
         default: ""
+
+# Releases em fila: o proximo so calcula a versao depois que o anterior criou a tag.
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 env:
   CSC_IDENTITY_AUTO_DISCOVERY: "false"
   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
+  versao:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.calcular.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Calcular versao
+        id: calcular
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          pkg=$(node -p "require('./package.json').version")
+          tags=$(git ls-remote --tags --refs origin 'v*' | sed 's#.*refs/tags/v##' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' || true)
+          ultima=$(sort -V <<< "$tags" | tail -n 1)
+
+          # package.json acima da ultima tag = salto manual (minor/major); senao, proximo patch.
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            version="${GITHUB_REF_NAME#v}"
+            if [[ "$version" != "$pkg" ]]; then
+              echo "::error::Tag v$version difere de package.json ($pkg)."
+              exit 1
+            fi
+          elif [[ -n "$INPUT_VERSION" ]]; then
+            version="$INPUT_VERSION"
+          elif [[ -z "$ultima" || ( "$pkg" != "$ultima" && "$(printf '%s\n' "$ultima" "$pkg" | sort -V | tail -n 1)" == "$pkg" ) ]]; then
+            version="$pkg"
+          else
+            IFS=. read -r maior menor patch <<< "$ultima"
+            version="$maior.$menor.$((patch + 1))"
+          fi
+
+          if [[ ! "$version" =~ ^[0-9]{1,3}\.[0-9]{1,4}\.[0-9]{1,4}$ ]]; then
+            echo "::error::Versao invalida: $version"
+            exit 1
+          fi
+          if [[ "$GITHUB_REF_TYPE" != "tag" ]] && grep -qx "$version" <<< "$tags"; then
+            echo "::error::A versao $version ja foi lancada."
+            exit 1
+          fi
+          echo "Versao do release: $version (package.json $pkg, ultima tag ${ultima:-nenhuma})"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
   build-windows:
+    needs: versao
     runs-on: windows-latest
 
     permissions:
       contents: write
+
+    env:
+      VERSAO: ${{ needs.versao.outputs.version }}
 
     steps:
       - name: Checkout
@@ -34,6 +103,9 @@ jobs:
 
       - name: Instalar dependencias
         run: npm ci
+
+      - name: Aplicar versao no app
+        run: npm version "$env:VERSAO" --no-git-tag-version --allow-same-version
 
       - name: Garantir .env de producao no instalador
         shell: pwsh
@@ -81,32 +153,12 @@ jobs:
       - name: Instalador Windows 7
         run: npm run dist:win7
 
-      - name: Definir versao do release
-        id: versao
-        shell: pwsh
-        run: |
-          $pkgVersion = (Get-Content package.json -Raw | ConvertFrom-Json).version
-          if (-not $pkgVersion) { throw "package.json sem version" }
-          if ("${{ github.ref_type }}" -eq "tag") {
-            $version = ("${{ github.ref_name }}" -replace '^v', '')
-            if ($version -ne $pkgVersion) {
-              throw "Tag v$version difere de package.json ($pkgVersion). Atualize um dos dois."
-            }
-          } else {
-            $inputVersion = "${{ inputs.version }}".Trim()
-            $version = if ($inputVersion) { $inputVersion } else { $pkgVersion }
-            if ($version -ne $pkgVersion) {
-              throw "inputs.version ($version) difere de package.json ($pkgVersion). Ajuste o input ou o package.json."
-            }
-          }
-          echo "version=$version" >> $env:GITHUB_OUTPUT
-          echo "tag=v$version" >> $env:GITHUB_OUTPUT
-
       - name: Publicar GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.versao.outputs.tag }}
-          name: CybhorPDV ${{ steps.versao.outputs.version }}
+          tag_name: v${{ env.VERSAO }}
+          target_commitish: ${{ github.sha }}
+          name: CybhorPDV ${{ env.VERSAO }}
           generate_release_notes: true
           fail_on_unmatched_files: true
           files: |
@@ -115,3 +167,12 @@ jobs:
             dist/CybhorPDV-Setup-win7-ia32.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  publicar-vps:
+    needs: [versao, build-windows]
+    permissions:
+      contents: read
+    uses: ./.github/workflows/publicar-instaladores.yml
+    with:
+      versao: ${{ needs.versao.outputs.version }}
+    secrets: inherit
