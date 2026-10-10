@@ -1,0 +1,44 @@
+name: Teste impressao Windows
+
+on:
+  pull_request:
+    paths:
+      - "electron/impressao/**"
+      - "scripts/testar-servidor-impressao.js"
+      - ".github/workflows/teste-impressao-windows.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  impressao:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Criar impressoras de teste (RAW gravando em arquivo)
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+          Start-Service Spooler
+          $saida = Join-Path $env:RUNNER_TEMP "cupom.prn"
+          Add-PrinterDriver -Name "Generic / Text Only"
+          Add-PrinterPort -Name $saida
+          Add-Printer -Name "CybhorPDV Teste" -DriverName "Generic / Text Only" -PortName $saida
+          # Nome com apostrofo e acento montado por codigo para nao depender da codificacao do script.
+          $nomeAcento = "Caixa d'" + [char]0x00C1 + "gua JP-800"
+          Add-Printer -Name $nomeAcento -DriverName "Generic / Text Only" -PortName $saida
+          Get-Printer | Format-Table Name, DriverName, PortName -AutoSize
+          $linhas = "IMPRESSORA_TESTE=CybhorPDV Teste`nIMPRESSORA_TESTE_ACENTO=$nomeAcento`nIMPRESSORA_TESTE_SAIDA=$saida`n"
+          [IO.File]::AppendAllText($env:GITHUB_ENV, $linhas, (New-Object Text.UTF8Encoding $false))
+
+      - name: Testar servidor de impressao
+        run: node scripts/testar-servidor-impressao.js

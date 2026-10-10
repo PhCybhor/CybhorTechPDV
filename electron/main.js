@@ -4,7 +4,12 @@ const { app, BrowserWindow, ipcMain, shell, dialog } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const { pathToFileURL } = require("url");
-const { imprimirCupomVenda, listarImpressoras } = require("./impressao/imprimirCupom");
+const {
+  imprimirCupomVenda,
+  listarImpressoras,
+  prepararImpressao,
+  encerrarImpressao,
+} = require("./impressao/imprimirCupom");
 const {
   carregarConfigApp,
   obterConfigApp,
@@ -228,7 +233,7 @@ function criarJanela() {
   });
 
   janela.setMenuBarVisibility(false);
-  janela.setTitle("CybhorPDV 2.1.13");
+  janela.setTitle(`CybhorPDV ${app.getVersion()}`);
   janela.loadFile(path.join(__dirname, "..", "renderer", "index.html"));
 
   // Bloqueia navegação/popup inesperados (phishing via conteúdo remoto ou XSS).
@@ -322,6 +327,8 @@ ipcMain.handle("salvar-config-app", (_evento, parcial) => {
     };
   }
 });
+
+ipcMain.handle("obter-versao-app", () => app.getVersion());
 
 ipcMain.handle("listar-impressoras", async () => {
   try {
@@ -507,10 +514,16 @@ app.whenReady().then(() => {
 
   carregarConfigApp();
   criarJanela();
+  // Depois da janela: o PowerShell compilando o helper nao atrasa a abertura.
+  setTimeout(prepararImpressao, 3000);
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) criarJanela();
   });
+});
+
+app.on("will-quit", () => {
+  encerrarImpressao();
 });
 
 app.on("window-all-closed", () => {

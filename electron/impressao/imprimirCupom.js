@@ -7,6 +7,7 @@ const { spawn } = require("child_process");
 const { BrowserWindow } = require("electron");
 const { gerarHtmlCupom } = require("./cupomHtml");
 const { gerarBufferEscPos } = require("./escpos");
+const servidorImpressao = require("./servidorImpressao");
 
 /**
  * Nomes/trechos usados para localizar a impressora Jetway no Windows.
@@ -168,11 +169,41 @@ function escolherImpressora(impressoras) {
 }
 
 /**
+ * Usa o servidor de impressão aquecido; só cai no caminho antigo (um
+ * PowerShell novo por chamada) quando o servidor não consegue subir.
+ * @template T
+ * @param {() => Promise<T>} viaServidor
+ * @param {() => Promise<T>} viaLegado
+ * @returns {Promise<T>}
+ */
+async function comServidorOuLegado(viaServidor, viaLegado) {
+  try {
+    return await viaServidor();
+  } catch (erro) {
+    if (erro?.codigo !== "INDISPONIVEL") throw erro;
+    console.warn("Servidor de impressão indisponível, usando modo antigo:", erro.message);
+    return viaLegado();
+  }
+}
+
+/**
  * Lista impressoras via WMI (Win7+) quando Chromium devolve lista vazia.
  * @returns {Promise<Array<{name: string, isDefault?: boolean, status?: number}>>}
  */
 async function listarImpressorasWinspool() {
   if (process.platform !== "win32") return [];
+  try {
+    return await comServidorOuLegado(
+      () => servidorImpressao.listar(),
+      listarImpressorasWinspoolLegado
+    );
+  } catch (erro) {
+    console.warn("Listagem WMI falhou:", erro.message);
+    return [];
+  }
+}
+
+async function listarImpressorasWinspoolLegado() {
   const ps = [
     "$ErrorActionPreference = 'SilentlyContinue';",
     "Get-WmiObject Win32_Printer | ForEach-Object {",
@@ -304,11 +335,40 @@ function caminhoScriptRaw() {
 
 /**
  * Envia bytes RAW via Winspool WritePrinter (formaEnvio=1 do exemplo Delphi).
- * Se falhar, tenta o metodo classico `copy /b` para a fila compartilhada.
+ * Se o WritePrinter recusar, tenta o metodo classico `copy /b`.
+ * Timeout/queda do servidor sobem como erro: o cupom pode ja estar no spooler
+ * e reenviar imprimiria em dobro.
  * @param {string} nomeImpressora
  * @param {Buffer} buffer
  */
 async function enviarViaWritePrinter(nomeImpressora, buffer) {
+  try {
+    await servidorImpressao.imprimirRaw(nomeImpressora, buffer);
+    return { ok: true, impressora: nomeImpressora, modo: "RAW" };
+  } catch (erro) {
+    if (erro?.codigo === "INDISPONIVEL") {
+      console.warn("Servidor de impressão indisponível, usando modo antigo:", erro.message);
+      return enviarViaWritePrinterLegado(nomeImpressora, buffer);
+    }
+    if (erro?.codigo !== "ERRO") throw erro;
+    console.warn("WritePrinter falhou, tentando copy /b:", erro.message);
+    const resultadoCopy = await enviarBufferViaCopyBinario(nomeImpressora, buffer);
+    if (resultadoCopy.ok) return resultadoCopy;
+    throw new Error(`${erro.message} | ${resultadoCopy.mensagem || "copy /b falhou"}`);
+  }
+}
+
+async function enviarBufferViaCopyBinario(nomeImpressora, buffer) {
+  const tmp = path.join(os.tmpdir(), `cybhor-cupom-${Date.now()}-${process.pid}.bin`);
+  await fs.promises.writeFile(tmp, buffer);
+  try {
+    return await enviarViaCopyBinario(nomeImpressora, tmp);
+  } finally {
+    fs.promises.unlink(tmp).catch(() => {});
+  }
+}
+
+async function enviarViaWritePrinterLegado(nomeImpressora, buffer) {
   const tmp = path.join(
     os.tmpdir(),
     `cybhor-cupom-${Date.now()}-${process.pid}.bin`
@@ -469,6 +529,20 @@ async function gravarCupomTeste(buffer) {
  * @returns {Promise<{problema: boolean, mensagem?: string} | null>}
  */
 async function diagnosticarImpressoraWindows(nomeImpressora) {
+  let saida;
+  try {
+    saida = await comServidorOuLegado(
+      () => servidorImpressao.diagnosticar(nomeImpressora),
+      () => diagnosticarImpressoraLegado(nomeImpressora)
+    );
+  } catch (erro) {
+    console.warn("Diagnóstico da impressora indisponível:", erro.message);
+    return null;
+  }
+  return interpretarDiagnostico(String(saida || "").trim(), nomeImpressora);
+}
+
+async function diagnosticarImpressoraLegado(nomeImpressora) {
   // Get-Printer é Win8+; Win32_Printer via WMI funciona no Windows 7 SP1.
   const nomeEsc = String(nomeImpressora).replace(/'/g, "''");
   const ps = [
@@ -485,8 +559,15 @@ async function diagnosticarImpressoraWindows(nomeImpressora) {
     "-Command",
     ps,
   ]);
+  return `${resultado.stdout || ""}${resultado.stderr || ""}`;
+}
 
-  const saida = `${resultado.stdout || ""}${resultado.stderr || ""}`.trim();
+/**
+ * @param {string} saida "MISSING" | "STATUS=..;PORT=..;WORKOFFLINE=.." | erro
+ * @param {string} nomeImpressora
+ * @returns {{problema: boolean, mensagem?: string} | null}
+ */
+function interpretarDiagnostico(saida, nomeImpressora) {
   if (!saida || /Get-WmiObject|Win32_Printer|não reconhecido|not recognized/i.test(saida)) {
     // Diagnóstico indisponível — não fingir que está tudo ok.
     return null;
@@ -516,6 +597,34 @@ async function diagnosticarImpressoraWindows(nomeImpressora) {
   }
 
   return { problema: false };
+}
+
+const VALIDADE_IMPRESSORA_CUPOM_MS = 5 * 60 * 1000;
+let impressoraCupomEmCache = { nome: "", configurada: "", expiraEm: 0 };
+
+/**
+ * Impressora do cupom, com cache curto: listar impressoras a cada venda custava
+ * uma consulta WMI inteira. Invalidado quando a impressao falha ou a config muda.
+ * @returns {Promise<string>}
+ */
+async function resolverImpressoraCupom() {
+  const configurada = (process.env.IMPRESSORA_NOME || "").trim();
+  const cache = impressoraCupomEmCache;
+  if (cache.nome && cache.configurada === configurada && Date.now() < cache.expiraEm) {
+    return cache.nome;
+  }
+  const impressoras = await listarImpressoras();
+  const nome = escolherImpressora(impressoras) || configurada || "Jetway JP-800";
+  impressoraCupomEmCache = {
+    nome,
+    configurada,
+    expiraEm: Date.now() + VALIDADE_IMPRESSORA_CUPOM_MS,
+  };
+  return nome;
+}
+
+function esquecerImpressoraCupom() {
+  impressoraCupomEmCache = { nome: "", configurada: "", expiraEm: 0 };
 }
 
 /**
@@ -554,17 +663,14 @@ async function imprimirCupomVenda(dadosVenda) {
     }
   }
 
-  const impressoras = await listarImpressoras();
-  const deviceName =
-    escolherImpressora(impressoras) ||
-    (process.env.IMPRESSORA_NOME || "").trim() ||
-    "Jetway JP-800";
+  const deviceName = await resolverImpressoraCupom();
 
   // Diagnostico rapido via PowerShell (Windows): se a fila esta Offline/erro,
   // nao adianta enviar — devolve mensagem clara para o operador.
   if (process.platform === "win32") {
     const diagnostico = await diagnosticarImpressoraWindows(deviceName);
     if (diagnostico && diagnostico.problema) {
+      esquecerImpressoraCupom();
       return {
         ok: false,
         impressora: deviceName,
@@ -577,6 +683,15 @@ async function imprimirCupomVenda(dadosVenda) {
     try {
       return await enviarViaWritePrinter(deviceName, buffer);
     } catch (erroRaw) {
+      esquecerImpressoraCupom();
+      if (erroRaw?.codigo === "TIMEOUT" || erroRaw?.codigo === "ENCERRADO") {
+        return {
+          ok: false,
+          impressora: deviceName,
+          mensagem:
+            "A impressora nao respondeu. Confira cabo, energia e papel antes de tentar de novo.",
+        };
+      }
       console.warn("RAW WritePrinter falhou, tentando HTML:", erroRaw.message);
       try {
         return await imprimirViaHtml(dadosVenda, deviceName);
@@ -606,8 +721,18 @@ async function imprimirCupomVenda(dadosVenda) {
   };
 }
 
+/** Aquece o servidor de impressão para o primeiro cupom não pagar a inicialização. */
+function prepararImpressao() {
+  if (process.platform !== "win32") return;
+  servidorImpressao.iniciar().catch((erro) => {
+    console.warn("Servidor de impressão não iniciou:", erro.message);
+  });
+}
+
 module.exports = {
   imprimirCupomVenda,
+  prepararImpressao,
+  encerrarImpressao: servidorImpressao.encerrar,
   validarDadosVendaCupom,
   escolherImpressora,
   listarImpressoras,
