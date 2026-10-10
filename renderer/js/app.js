@@ -423,9 +423,22 @@ function navegarPara(rota) {
  * Inicializacao
  * ------------------------------------------------------------------------- */
 
+async function exibirVersaoApp() {
+  try {
+    const versao = await window.pdvAPI?.obterVersaoApp?.();
+    if (!versao) return;
+    document.title = `CybhorPDV ${versao}`;
+    const rotulo = $("versao-app");
+    if (rotulo) rotulo.textContent = `v${versao}`;
+  } catch {
+    /* rótulo de versão é só informativo */
+  }
+}
+
 async function iniciar() {
   registrarEventosGerais();
   mostrarTela("tela-carregando");
+  void exibirVersaoApp();
 
   try {
     const configInicial = await obterConfigApp();
