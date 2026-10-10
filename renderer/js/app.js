@@ -301,21 +301,6 @@ function obterMega() {
 }
 
 /**
- * Iniciais do nome para avatar visual.
- * @param {string} nome
- * @returns {string}
- */
-function iniciais(nome) {
-  const partes = String(nome || "")
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean);
-  if (partes.length === 0) return "?";
-  if (partes.length === 1) return partes[0].slice(0, 2).toUpperCase();
-  return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase();
-}
-
-/**
  * Exibe mensagem de erro no elemento, ou oculta se vazia.
  * @param {HTMLElement} el
  * @param {string} texto
@@ -435,10 +420,34 @@ async function exibirVersaoApp() {
   }
 }
 
+const CHAVE_OPCOES_CARRINHO_ABERTAS = "cybhor.carrinhoOpcoesAbertas";
+
+/**
+ * Lojas que usam muito fiado/cliente deixam o bloco aberto; o caixa
+ * reabre do jeito que o operador deixou da última vez.
+ */
+function lembrarEstadoOpcoesCarrinho() {
+  const bloco = $("carrinho-opcoes");
+  if (!bloco) return;
+  try {
+    bloco.open = localStorage.getItem(CHAVE_OPCOES_CARRINHO_ABERTAS) === "1";
+  } catch {
+    bloco.open = false;
+  }
+  bloco.addEventListener("toggle", () => {
+    try {
+      localStorage.setItem(CHAVE_OPCOES_CARRINHO_ABERTAS, bloco.open ? "1" : "0");
+    } catch {
+      /* preferência visual; sem storage o bloco só volta fechado */
+    }
+  });
+}
+
 async function iniciar() {
   registrarEventosGerais();
   mostrarTela("tela-carregando");
   void exibirVersaoApp();
+  lembrarEstadoOpcoesCarrinho();
 
   try {
     const configInicial = await obterConfigApp();
@@ -1781,8 +1790,8 @@ function renderizarGradeProdutos(produtos) {
         semEstoque ? 'aria-disabled="true"' : ""
       }>
         <div class="produto-card-topo">
-          <span class="produto-avatar" aria-hidden="true">${escapeHtml(
-            iniciais(produto.nome)
+          <span class="produto-categoria" title="${escapeHtml(categoria)}">${escapeHtml(
+            categoria
           )}</span>
           <button type="button" class="btn-favorito ${ehFav ? "ativo" : ""}" data-favorito-id="${escapeHtml(
             produto.id
@@ -1794,17 +1803,12 @@ function renderizarGradeProdutos(produtos) {
                 )}" title="Editar produto" aria-label="Editar produto">✎</button>`
               : ""
           }
-          ${
-            categoria
-              ? `<span class="produto-categoria" title="${escapeHtml(
-                  categoria
-                )}">${escapeHtml(categoria)}</span>`
-              : ""
-          }
         </div>
         <span class="produto-nome">${escapeHtml(produto.nome)}</span>
-        <span class="produto-preco">${formatarMoeda(produto.preco)}</span>
-        <span class="produto-estoque ${classeEstoque}">${textoEstoque}</span>
+        <div class="produto-card-rodape">
+          <span class="produto-preco">${formatarMoeda(produto.preco)}</span>
+          <span class="produto-estoque ${classeEstoque}">${textoEstoque}</span>
+        </div>
       </div>`;
     })
     .join("");

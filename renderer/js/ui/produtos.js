@@ -2,21 +2,6 @@ import { formatarMoeda } from "../utils/formato.js";
 import { escapeHtml } from "../utils/escape.js";
 
 /**
- * Iniciais do nome para avatar.
- * @param {string} nome
- * @returns {string}
- */
-function iniciais(nome) {
-  const partes = String(nome || "")
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean);
-  if (partes.length === 0) return "?";
-  if (partes.length === 1) return partes[0].slice(0, 2).toUpperCase();
-  return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase();
-}
-
-/**
  * Lista de gestão de produtos (editar / estoque rápido / excluir).
  */
 export class PainelProdutos {
@@ -108,7 +93,6 @@ export class PainelProdutos {
         const baixo = estoque <= this.estoqueMinimo;
         return `
         <div class="gestao-linha" data-id="${escapeHtml(produto.id)}">
-          <span class="gestao-avatar" aria-hidden="true">${escapeHtml(iniciais(produto.nome))}</span>
           <div class="gestao-info">
             <div class="gestao-nome" title="${escapeHtml(produto.nome)}">${escapeHtml(produto.nome)}</div>
             <div class="gestao-meta">

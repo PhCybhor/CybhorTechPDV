@@ -221,7 +221,7 @@ function criarJanela() {
     minWidth: 900,
     minHeight: 600,
     show: false,
-    backgroundColor: config.tema === "claro" ? "#f4f7fb" : "#07111f",
+    backgroundColor: config.tema === "claro" ? "#f2f2f2" : "#151515",
     icon: path.join(__dirname, "..", "build", "icon.png"),
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
