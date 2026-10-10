@@ -312,6 +312,7 @@
               <div class="carrinho-cabecalho">
                 <h2 class="carrinho-titulo">Venda atual</h2>
                 <span id="carrinho-qtd-itens" class="carrinho-badge">0 itens</span>
+                <button type="button" id="btn-limpar" class="btn btn-texto btn-sm btn-limpar-carrinho">Limpar</button>
               </div>
               <div id="carrinho-itens" class="carrinho-itens">
                 <div class="estado-vazio">
@@ -325,52 +326,57 @@
               </div>
               <div id="upsell-carrinho" class="upsell-carrinho oculto" aria-label="Leva junto"></div>
               <div class="carrinho-rodape">
-                <div class="campo-bloco">
-                  <div id="bloco-pdv-cliente">
-                    <label class="campo-inline">Cliente
-                      <select id="pdv-cliente"></select>
+                <details id="carrinho-opcoes" class="carrinho-opcoes">
+                  <summary>Cliente, cupom e desconto</summary>
+                  <div class="carrinho-opcoes-corpo">
+                    <div id="bloco-pdv-cliente">
+                      <label class="campo-inline">Cliente
+                        <select id="pdv-cliente"></select>
+                      </label>
+                      <span id="pdv-cliente-chip" class="carrinho-badge oculto"></span>
+                      <button type="button" id="btn-limpar-cliente-pdv" class="btn btn-texto btn-sm">Limpar cliente</button>
+                    </div>
+                    <label class="checkbox checkbox-dividir" id="bloco-pdv-fiado">
+                      <input type="checkbox" id="check-venda-fiado" />
+                      Venda fiado (pagar depois)
                     </label>
-                    <span id="pdv-cliente-chip" class="carrinho-badge oculto"></span>
-                    <button type="button" id="btn-limpar-cliente-pdv" class="btn btn-texto btn-sm">Limpar cliente</button>
+                    <label class="checkbox checkbox-dividir">
+                      <input type="checkbox" id="check-enviar-wa-cupom" />
+                      Enviar resumo no WhatsApp
+                    </label>
+                    <label class="campo-inline">Cupom
+                      <input type="text" id="pdv-cupom" placeholder="Código" autocomplete="off" />
+                    </label>
+                    <label class="campo-inline">Nota atendimento
+                      <select id="pdv-avaliacao">
+                        <option value="0">—</option>
+                        <option value="5">5</option>
+                        <option value="4">4</option>
+                        <option value="3">3</option>
+                        <option value="2">2</option>
+                        <option value="1">1</option>
+                      </select>
+                    </label>
+                    <label class="campo-inline" id="bloco-pdv-desconto">Desconto (R$)
+                      <input
+                        type="number"
+                        id="carrinho-desconto"
+                        min="0"
+                        step="0.01"
+                        placeholder="0"
+                      />
+                    </label>
                   </div>
-                  <label class="checkbox checkbox-dividir" id="bloco-pdv-fiado">
-                    <input type="checkbox" id="check-venda-fiado" />
-                    Venda fiado (pagar depois)
-                  </label>
-                  <label class="checkbox checkbox-dividir">
-                    <input type="checkbox" id="check-enviar-wa-cupom" />
-                    Enviar resumo no WhatsApp
-                  </label>
-                  <label class="campo-inline">Cupom
-                    <input type="text" id="pdv-cupom" placeholder="Código" autocomplete="off" />
-                  </label>
-                  <label class="campo-inline">Nota atendimento
-                    <select id="pdv-avaliacao">
-                      <option value="0">—</option>
-                      <option value="5">5</option>
-                      <option value="4">4</option>
-                      <option value="3">3</option>
-                      <option value="2">2</option>
-                      <option value="1">1</option>
-                    </select>
-                  </label>
-                </div>
-                <div class="carrinho-linha">
-                  <span>Subtotal</span>
-                  <span id="carrinho-subtotal-valor">R$ 0,00</span>
-                </div>
-                <label class="campo-inline" id="bloco-pdv-desconto">Desconto (R$)
-                  <input
-                    type="number"
-                    id="carrinho-desconto"
-                    min="0"
-                    step="0.01"
-                    placeholder="0"
-                  />
-                </label>
-                <div class="carrinho-total">
-                  <span>Total</span>
-                  <strong id="carrinho-total-valor">R$ 0,00</strong>
+                </details>
+                <div class="carrinho-resumo">
+                  <div class="carrinho-linha">
+                    <span>Subtotal</span>
+                    <span id="carrinho-subtotal-valor">R$ 0,00</span>
+                  </div>
+                  <div class="carrinho-total">
+                    <span>Total</span>
+                    <strong id="carrinho-total-valor">R$ 0,00</strong>
+                  </div>
                 </div>
                 <div class="campo-bloco">
                   <span class="campo-rotulo">Forma de pagamento</span>
@@ -426,10 +432,9 @@
                     <strong id="carrinho-troco-valor" class="troco-valor">R$ 0,00</strong>
                   </div>
                 </div>
-                <button id="btn-finalizar" class="btn btn-primario btn-bloco btn-destaque" disabled>
+                <button id="btn-finalizar" class="btn btn-confirmar btn-bloco btn-destaque" disabled>
                   Finalizar venda (F12)
                 </button>
-                <button id="btn-limpar" class="btn btn-texto btn-bloco">Limpar carrinho</button>
               </div>
             </aside>
           </div>
