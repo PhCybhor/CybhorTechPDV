@@ -41,6 +41,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          publicado_em=$(gh release view "v$VERSAO" -R "$GITHUB_REPOSITORY" --json publishedAt -q .publishedAt)
+          echo "PUBLICADO_EM=$publicado_em" >> "$GITHUB_ENV"
           mkdir instaladores
           gh release download "v$VERSAO" -R "$GITHUB_REPOSITORY" -D instaladores \
             -p CybhorPDV-Setup-win10-x64.exe \
@@ -67,12 +69,12 @@ jobs:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_USER: ${{ secrets.VPS_USER }}
         run: |
-          # A chave so executa o script de publicacao; a versao vai como comando e o .tar pelo stdin.
+          # A chave so executa o script de publicacao; versao e data vao como comando e o .tar pelo stdin.
           ssh -i ~/.ssh/instaladores_key \
             -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=yes \
             -o ServerAliveInterval=15 \
-            "$VPS_USER@$VPS_HOST" "$VERSAO" < instaladores.tar
+            "$VPS_USER@$VPS_HOST" "$VERSAO $PUBLICADO_EM" < instaladores.tar
 
       - name: Conferir painel do cliente
         run: |

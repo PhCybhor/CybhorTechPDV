@@ -34,8 +34,12 @@ versao_mais_nova() {
     | sort -V | tail -n 1
 }
 
-VERSAO="${SSH_ORIGINAL_COMMAND:-}"
+read -r VERSAO PUBLICADO_EM _ <<< "${SSH_ORIGINAL_COMMAND:-}" || true
 [[ "$VERSAO" =~ ^[0-9]{1,3}\.[0-9]{1,4}\.[0-9]{1,4}$ ]] || falhar "versao invalida: '${VERSAO:0:40}'."
+# Data do GitHub Release (republicar uma versao antiga mantem a data original).
+if [[ ! "${PUBLICADO_EM:-}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$ ]]; then
+  PUBLICADO_EM=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+fi
 
 exec 9>"$LOCK_FILE"
 flock -w 600 9 || falhar "outra publicacao ainda em andamento."
@@ -74,7 +78,7 @@ for arquivo in "${ARQUIVOS[@]}"; do
 done
 
 # --- 2. Publica --------------------------------------------------------------
-printf '{"versao": "%s", "publicado_em": "%s"}\n' "$VERSAO" "$(date -u +%Y-%m-%dT%H:%M:%S+00:00)" \
+printf '{"versao": "%s", "publicado_em": "%s"}\n' "$VERSAO" "${PUBLICADO_EM%Z}+00:00" \
   > "$TMP/versao/info.json"
 chmod 755 "$TMP/versao"
 chmod 644 "$TMP/versao"/*
