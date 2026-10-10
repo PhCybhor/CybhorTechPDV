@@ -1,0 +1,158 @@
+name: Teste atualizacao instalador
+
+# Instala o ultimo release publicado e, por cima, o instalador gerado pelo PR,
+# combinando Win10 / Win7 x64 / Win7 32 bits e os modos "para todos" e
+# "somente para mim". Deve sobrar uma unica instalacao em todos os casos.
+on:
+  pull_request:
+    paths:
+      - "build/**"
+      - "package.json"
+      - "electron-builder.win7.json"
+      - "scripts/dist-win7.mjs"
+      - "scripts/testar-atualizacao-instalador.ps1"
+      - ".github/workflows/teste-atualizacao-instalador.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CSC_IDENTITY_AUTO_DISCOVERY: "false"
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  instaladores:
+    runs-on: windows-latest
+    timeout-minutes: 40
+    outputs:
+      versao-antiga: ${{ steps.versoes.outputs.antiga }}
+      versao-nova: ${{ steps.versoes.outputs.nova }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Calcular versoes
+        id: versoes
+        shell: pwsh
+        run: |
+          $antiga = (gh release view --repo $env:GITHUB_REPOSITORY --json tagName -q .tagName).TrimStart("v")
+          $partes = $antiga.Split(".")
+          $nova = "$($partes[0]).$($partes[1]).$([int]$partes[2] + 1)"
+          Write-Host "Ultimo release: $antiga / versao de teste: $nova"
+          "antiga=$antiga" >> $env:GITHUB_OUTPUT
+          "nova=$nova" >> $env:GITHUB_OUTPUT
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Aplicar versao de teste
+        run: npm version "${{ steps.versoes.outputs.nova }}" --no-git-tag-version --allow-same-version
+
+      - name: Instalador Windows 10 / 11
+        run: npm run dist:win10
+
+      - name: Limpar pasta do Win10 antes do Win7
+        shell: pwsh
+        run: |
+          if (Test-Path dist) { Get-ChildItem dist -Directory | Remove-Item -Recurse -Force }
+          if (Test-Path dist-win7) { Remove-Item dist-win7 -Recurse -Force }
+
+      - name: Instalador Windows 7
+        run: npm run dist:win7
+
+      - name: Guardar instaladores
+        uses: actions/upload-artifact@v4
+        with:
+          name: instaladores-novos
+          retention-days: 3
+          path: |
+            dist/CybhorPDV-Setup-win10-x64.exe
+            dist/CybhorPDV-Setup-win7-x64.exe
+            dist/CybhorPDV-Setup-win7-ia32.exe
+
+  atualizacao:
+    needs: instaladores
+    runs-on: windows-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - cenario: Win10 sobre Win10
+            antigo: win10-x64
+            novo: win10-x64
+          - cenario: Win10 sobre Win10 em outra pasta
+            antigo: win10-x64
+            novo: win10-x64
+            args-novo: "/D=C:\\CybhorPDV-Outra"
+          - cenario: Win7 x64 sobre Win7 x64
+            antigo: win7-x64
+            novo: win7-x64
+          - cenario: Win7 32 bits sobre Win7 32 bits
+            antigo: win7-ia32
+            novo: win7-ia32
+          - cenario: Win7 x64 somente para mim sobre Win7 x64 para todos
+            antigo: win7-x64
+            args-antigo: "/allusers"
+            novo: win7-x64
+            args-novo: "/currentuser"
+          - cenario: Win7 x64 para todos sobre Win7 x64 somente para mim
+            antigo: win7-x64
+            args-antigo: "/currentuser"
+            novo: win7-x64
+            args-novo: "/allusers"
+          - cenario: Win7 x64 sobre Win7 32 bits para todos
+            antigo: win7-ia32
+            args-antigo: "/allusers"
+            novo: win7-x64
+            args-novo: "/allusers"
+          - cenario: Win7 32 bits sobre Win7 x64 para todos
+            antigo: win7-x64
+            args-antigo: "/allusers"
+            novo: win7-ia32
+            args-novo: "/allusers"
+          - cenario: Win7 x64 somente para mim sobre Win10
+            antigo: win10-x64
+            novo: win7-x64
+            args-novo: "/currentuser"
+          - cenario: Win7 x64 sobre Win10
+            antigo: win10-x64
+            novo: win7-x64
+          - cenario: Win10 sobre Win7 x64
+            antigo: win7-x64
+            novo: win10-x64
+          - cenario: Win10 sobre Win7 32 bits para todos
+            antigo: win7-ia32
+            args-antigo: "/allusers"
+            novo: win10-x64
+    name: ${{ matrix.cenario }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Baixar instalador do ultimo release
+        shell: pwsh
+        run: gh release download "v${{ needs.instaladores.outputs.versao-antiga }}" --repo $env:GITHUB_REPOSITORY --pattern "CybhorPDV-Setup-${{ matrix.antigo }}.exe" --dir antigo
+
+      - name: Baixar instaladores do PR
+        uses: actions/download-artifact@v4
+        with:
+          name: instaladores-novos
+          path: novo
+
+      - name: Instalar antigo e novo por cima
+        shell: pwsh
+        run: >
+          ./scripts/testar-atualizacao-instalador.ps1
+          -InstaladorAntigo "antigo/CybhorPDV-Setup-${{ matrix.antigo }}.exe"
+          -ArgumentosAntigo "${{ matrix.args-antigo }}"
+          -InstaladorNovo "novo/CybhorPDV-Setup-${{ matrix.novo }}.exe"
+          -ArgumentosNovo "${{ matrix.args-novo }}"
+          -VersaoNova "${{ needs.instaladores.outputs.versao-nova }}"

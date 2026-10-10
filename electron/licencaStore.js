@@ -13,15 +13,24 @@ const { app } = require("electron");
 
 const VERSAO = 1;
 
+/*
+ * No mesmo PC o cliente pode trocar o instalador Win7 de 32 para 64 bits (ou vice-versa),
+ * o que muda os.arch(); sem tentar a outra arquitetura a loja teria de reativar a licença.
+ */
+const ARQUITETURAS_INSTALADOR = ["x64", "ia32"];
+
 function caminhoArquivo() {
   return path.join(app.getPath("userData"), "licenca.enc");
 }
 
-function derivarChave() {
+/**
+ * @param {string} [arquitetura]
+ */
+function derivarChave(arquitetura = os.arch()) {
   const maquina = [
     os.hostname(),
     os.platform(),
-    os.arch(),
+    arquitetura,
     os.userInfo().username,
     "cybhor-pdv-licenca-v1",
   ].join("|");
@@ -48,16 +57,17 @@ function criptografar(payload) {
 
 /**
  * @param {string} blob
+ * @param {string} arquitetura
  * @returns {object | null}
  */
-function descriptografar(blob) {
+function descriptografar(blob, arquitetura) {
   try {
     const buf = Buffer.from(String(blob || ""), "base64");
     if (buf.length < 30 || buf[0] !== VERSAO) return null;
     const iv = buf.subarray(1, 13);
     const tag = buf.subarray(13, 29);
     const dados = buf.subarray(29);
-    const chave = derivarChave();
+    const chave = derivarChave(arquitetura);
     const decipher = crypto.createDecipheriv("aes-256-gcm", chave, iv);
     decipher.setAuthTag(tag);
     const plain = Buffer.concat([decipher.update(dados), decipher.final()]);
@@ -75,12 +85,35 @@ function lerLicenca() {
     const arquivo = caminhoArquivo();
     if (!fs.existsSync(arquivo)) return null;
     const blob = fs.readFileSync(arquivo, "utf8");
-    const dados = descriptografar(blob);
-    if (!dados?.lojaId || !dados?.chave) return null;
-    return dados;
+    const arquiteturaAtual = os.arch();
+    const tentativas = [
+      arquiteturaAtual,
+      ...ARQUITETURAS_INSTALADOR.filter((arquitetura) => arquitetura !== arquiteturaAtual),
+    ];
+    for (const arquitetura of tentativas) {
+      const dados = descriptografar(blob, arquitetura);
+      if (!dados?.lojaId || !dados?.chave) continue;
+      if (arquitetura !== arquiteturaAtual) {
+        try {
+          gravarArquivo(dados);
+        } catch {
+          /* licença já lida; a regravação é tentada de novo na próxima abertura */
+        }
+      }
+      return dados;
+    }
+    return null;
   } catch {
     return null;
   }
+}
+
+/**
+ * @param {object} payload
+ */
+function gravarArquivo(payload) {
+  fs.mkdirSync(path.dirname(caminhoArquivo()), { recursive: true });
+  fs.writeFileSync(caminhoArquivo(), criptografar(payload), "utf8");
 }
 
 /**
@@ -94,8 +127,7 @@ function salvarLicenca(dados) {
     nomeLoja: dados.nomeLoja || "",
     ativadoEm: Date.now(),
   };
-  fs.mkdirSync(path.dirname(caminhoArquivo()), { recursive: true });
-  fs.writeFileSync(caminhoArquivo(), criptografar(payload), "utf8");
+  gravarArquivo(payload);
   return payload;
 }
 
