@@ -122,6 +122,18 @@ jobs:
             antigo: win10-x64
             novo: win7-x64
             args-novo: "/currentuser"
+          - cenario: Win7 x64 somente para mim sobre Win10 (rep 2)
+            antigo: win10-x64
+            novo: win7-x64
+            args-novo: "/currentuser"
+          - cenario: Win7 x64 somente para mim sobre Win10 (rep 3)
+            antigo: win10-x64
+            novo: win7-x64
+            args-novo: "/currentuser"
+          - cenario: Win7 x64 somente para mim sobre Win10 (rep 4)
+            antigo: win10-x64
+            novo: win7-x64
+            args-novo: "/currentuser"
           - cenario: Win7 x64 sobre Win10
             antigo: win10-x64
             novo: win7-x64

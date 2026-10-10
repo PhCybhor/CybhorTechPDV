@@ -85,8 +85,16 @@ function Invoke-InstaladorSilencioso([string] $caminho, [string] $argumentos) {
   Write-Host "Executando: $executavel $($lista -join ' ')"
   $processo = Start-Process -FilePath $executavel -ArgumentList $lista -Wait -PassThru
   if ($processo.ExitCode -ne 0) {
+    Write-Estado "Instalador falhou"
+    Write-FalhasRegistradasPeloWindows
     throw "Instalador terminou com codigo $($processo.ExitCode): $caminho"
   }
+}
+
+function Write-FalhasRegistradasPeloWindows {
+  Write-Host "Falhas de aplicativo no Log de Eventos (modulo que travou):"
+  Get-WinEvent -FilterHashtable @{ LogName = "Application"; Id = 1000 } -MaxEvents 5 -ErrorAction SilentlyContinue |
+    ForEach-Object { Write-Host $_.Message; Write-Host "---" }
 }
 
 New-Item -ItemType Directory -Force -Path $pastaDadosApp | Out-Null
