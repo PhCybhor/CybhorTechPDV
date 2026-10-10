@@ -102,9 +102,15 @@ def _verificar_assinatura_webhook(
     settings = get_settings()
     segredo = (settings.mp_webhook_secret or "").strip()
     if not segredo:
-        if settings.em_producao:
+        if not settings.em_producao:
+            # Dev/local: aceita sem assinatura para facilitar testes do IPN.
+            return
+        if not settings.mp_webhook_sem_assinatura:
             raise ErroNegocio("Webhook MP sem segredo configurado.", 503)
-        # Dev/local: aceita sem assinatura para facilitar testes do IPN.
+        logger.warning(
+            "webhook_mp_sem_verificacao_assinatura payment_id=%s",
+            _payment_id_para_log(payment_id),
+        )
         return
 
     partes: Dict[str, str] = {}
