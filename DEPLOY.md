@@ -7,6 +7,8 @@ Após o pull de `main` (merges de 2026-09: webhook, índice pagamentos, CORS, `/
 Obrigatório em produção (`NODE_ENV=production`). Sem isto o boot **falha**.
 Valor = segredo do webhook no painel Mercado Pago. Modelo: `backend/.env.example`.
 
+**Pendente na VPS:** hoje roda com `MP_WEBHOOK_SEM_ASSINATURA=1` (liberação temporária, gera `webhook_mp_sem_verificacao_assinatura` no log a cada aviso). Ao cadastrar `MP_WEBHOOK_SECRET`, a assinatura volta a ser exigida automaticamente; remova a liberação do `.env` em seguida.
+
 ## 2. Migrate do índice
 
 Em banco já existente:

@@ -32,6 +32,11 @@ class Settings(BaseSettings):
     mp_client_secret: str = Field(default="", alias="MP_CLIENT_SECRET")
     mp_public_key: str = Field(default="", alias="MP_PUBLIC_KEY")
     mp_webhook_secret: str = Field(default="", alias="MP_WEBHOOK_SECRET")
+    # Liberacao temporaria enquanto o segredo do painel MP nao e cadastrado. Aceitavel
+    # porque o webhook sempre reconsulta o pagamento na API do MP com nosso token:
+    # a assinatura evita spam de consultas, mas nao e o que impede pagamento forjado.
+    # Ignorada assim que MP_WEBHOOK_SECRET for preenchido.
+    mp_webhook_sem_assinatura: bool = Field(default=False, alias="MP_WEBHOOK_SEM_ASSINATURA")
     assinatura_valor_mensal: float = Field(default=99.9, alias="ASSINATURA_VALOR_MENSAL")
     assinatura_valor_semestral: float = Field(
         default=499.9, alias="ASSINATURA_VALOR_SEMESTRAL"
@@ -61,7 +66,7 @@ class Settings(BaseSettings):
         if self.em_producao:
             if not self.mp_access_token:
                 faltando.append("MP_ACCESS_TOKEN")
-            if not (self.mp_webhook_secret or "").strip():
+            if not (self.mp_webhook_secret or "").strip() and not self.mp_webhook_sem_assinatura:
                 faltando.append("MP_WEBHOOK_SECRET")
             if not (self.url_publica_api or "").startswith("https://"):
                 faltando.append("URL_PUBLICA_API (https)")

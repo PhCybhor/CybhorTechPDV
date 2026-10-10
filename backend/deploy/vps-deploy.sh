@@ -116,6 +116,9 @@ restaurar_backup() {
   mkdir "$restauracao"
   tar -xzf "$BACKUP" -C "$restauracao"
   aplicar_pacote "$restauracao"
+  # Backup anterior ao primeiro deploy automatico nao tem REVISION; sem isto
+  # ficaria registrada a revisao recusada.
+  [ -f "$restauracao/REVISION" ] || rm -f "$APP_DIR/REVISION"
   compose up -d --build "$SERVICO" >>"$LOG_FILE" 2>&1 || true
   if aguardar_saude; then
     log "Versao anterior restaurada e saudavel."

@@ -90,8 +90,11 @@ def _assinatura(segredo: str, payment_id: str, request_id: str, ts: str = "17000
 
 
 class _Settings:
-    def __init__(self, *, segredo: str = "", producao: bool = False):
+    def __init__(
+        self, *, segredo: str = "", producao: bool = False, sem_assinatura: bool = False
+    ):
         self.mp_webhook_secret = segredo
+        self.mp_webhook_sem_assinatura = sem_assinatura
         self._producao = producao
 
     @property
@@ -111,6 +114,34 @@ class TestWebhookAssinatura(unittest.TestCase):
                     request_id="req-1",
                 )
         self.assertEqual(ctx.exception.status, 503)
+
+    def test_producao_com_liberacao_temporaria_aceita_e_avisa(self):
+        with patch.object(
+            pagamento_service,
+            "get_settings",
+            return_value=_Settings(producao=True, sem_assinatura=True),
+        ):
+            with self.assertLogs(pagamento_service.logger, level="WARNING") as cm:
+                pagamento_service._verificar_assinatura_webhook(
+                    payment_id="1234567890",
+                    assinatura="",
+                    request_id="",
+                )
+        self.assertIn("webhook_mp_sem_verificacao_assinatura", " | ".join(cm.output))
+
+    def test_segredo_cadastrado_ignora_liberacao_temporaria(self):
+        with patch.object(
+            pagamento_service,
+            "get_settings",
+            return_value=_Settings(segredo="segredo-teste", producao=True, sem_assinatura=True),
+        ):
+            with self.assertRaises(ErroNegocio) as ctx:
+                pagamento_service._verificar_assinatura_webhook(
+                    payment_id="1234567890",
+                    assinatura="",
+                    request_id="req-1",
+                )
+        self.assertEqual(ctx.exception.status, 401)
 
     def test_dev_sem_segredo_aceita(self):
         with patch.object(

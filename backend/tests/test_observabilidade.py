@@ -77,6 +77,7 @@ from app.services import pagamento_service  # noqa: E402
 class _Settings:
     def __init__(self, *, segredo: str = "segredo-teste", producao: bool = True):
         self.mp_webhook_secret = segredo
+        self.mp_webhook_sem_assinatura = False
         self._producao = producao
         self.mp_access_token = ""
 
