@@ -19,4 +19,7 @@ contextBridge.exposeInMainWorld("pdvAPI", {
   consultarAssistente: (payload) =>
     ipcRenderer.invoke("consultar-assistente", payload),
   abrirExterno: (url) => ipcRenderer.invoke("abrir-externo", url),
+  lerFilaOffline: () => ipcRenderer.invoke("ler-fila-offline"),
+  gravarFilaOffline: (fila) => ipcRenderer.invoke("gravar-fila-offline", fila),
+  verificarAtualizacao: () => ipcRenderer.invoke("verificar-atualizacao"),
 });

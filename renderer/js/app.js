@@ -50,6 +50,12 @@ import {
   observarSangrias,
 } from "./services/sangriaService.js";
 import { notificar } from "./ui/notificacao.js";
+import { iniciarAvisoConexao } from "./ui/avisoConexao.js";
+import { iniciarAvisoAtualizacao } from "./ui/avisoAtualizacao.js";
+import {
+  iniciarSincronizacaoAutomatica,
+  sincronizarFilaOffline,
+} from "./services/filaVendasOffline.js";
 import { formatarMoeda } from "./utils/formato.js";
 import { debounce } from "./utils/debounce.js";
 import { escapeHtml } from "./utils/escape.js";
@@ -447,6 +453,9 @@ async function iniciar() {
   registrarEventosGerais();
   mostrarTela("tela-carregando");
   void exibirVersaoApp();
+  iniciarAvisoConexao();
+  iniciarAvisoAtualizacao();
+  iniciarSincronizacaoAutomatica();
   lembrarEstadoOpcoesCarrinho();
 
   try {
@@ -1128,6 +1137,7 @@ async function atualizarBannerAssinatura(assinatura) {
 
 async function entrarNoApp() {
   atualizarBannerAssinatura(estado.funcionario && estado.funcionario.assinatura);
+  void sincronizarFilaOffline();
 
   const { nome, cargo } = estado.funcionario;
   const ehAdmin = cargo === CARGOS.ADMIN;
@@ -2341,7 +2351,9 @@ async function tratarCadastroFuncionario(evento) {
 function abrirModalVendaSucesso(venda, msgExtra = "") {
   estado.ultimaVendaCupom = venda;
   const resumo = `Total: ${formatarMoeda(venda.total)}${msgExtra}`;
-  $("venda-sucesso-resumo").textContent = resumo;
+  $("venda-sucesso-resumo").textContent = venda.offline
+    ? `${resumo} · guardada sem internet, será enviada quando a conexão voltar`
+    : resumo;
 
   const dicaEl = $("venda-sucesso-dica");
   if (dicaEl && DICAS_OPERADOR.length) {
@@ -2501,10 +2513,18 @@ async function finalizarVenda() {
     if (venda.formaPagamento === "misto") extras.push("dividido");
     if (validacao.foiFiado) extras.push("fiado");
     const msgExtra = extras.length ? ` · ${extras.join(", ")}` : "";
-    notificar(
-      `Venda: ${formatarMoeda(venda.total)}${msgTroco}${msgExtra}`,
-      "sucesso"
-    );
+    if (venda.offline) {
+      notificar(
+        `Sem internet: venda de ${formatarMoeda(venda.total)} guardada neste computador${msgTroco}. Será enviada quando a conexão voltar.`,
+        "alerta",
+        6000
+      );
+    } else {
+      notificar(
+        `Venda: ${formatarMoeda(venda.total)}${msgTroco}${msgExtra}`,
+        "sucesso"
+      );
+    }
     obterRevolucao().atualizarMetaCaixa();
     liberarBotao();
     abrirModalVendaSucesso(

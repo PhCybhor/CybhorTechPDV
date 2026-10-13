@@ -27,6 +27,8 @@ const {
   API_URL_PRODUCAO,
   hostsApiConfiaveis,
 } = require("./licencaApi");
+const { lerFilaOffline, gravarFilaOffline } = require("./filaOfflineStore");
+const { verificarAtualizacao } = require("./atualizacaoApp");
 
 // Win7 / GPUs antigas: evita tela preta ou crash na abertura.
 try {
@@ -479,6 +481,37 @@ ipcMain.handle("consultar-assistente", async (_evento, payload) => {
       ok: false,
       mensagem: erro?.message || "Falha ao consultar a IA.",
     };
+  }
+});
+
+ipcMain.handle("ler-fila-offline", () => {
+  try {
+    return { ok: true, fila: lerFilaOffline() };
+  } catch (erro) {
+    console.error("Falha ao ler a fila offline:", erro);
+    return { ok: false, fila: [], mensagem: "Não foi possível ler as vendas guardadas." };
+  }
+});
+
+ipcMain.handle("gravar-fila-offline", (_evento, fila) => {
+  try {
+    gravarFilaOffline(fila);
+    return { ok: true };
+  } catch (erro) {
+    console.error("Falha ao gravar a fila offline:", erro);
+    return {
+      ok: false,
+      mensagem: erro?.message || "Não foi possível guardar a venda no computador.",
+    };
+  }
+});
+
+ipcMain.handle("verificar-atualizacao", async () => {
+  try {
+    return await verificarAtualizacao();
+  } catch {
+    // Sem internet é o caso comum aqui; o aviso simplesmente não aparece.
+    return { ok: false, disponivel: false };
   }
 });
 
