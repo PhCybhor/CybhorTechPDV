@@ -278,7 +278,21 @@
                   class="busca-input"
                   placeholder="Nome, código ou categoria · use *qtd (ex.: água*3) · Enter adiciona"
                   autocomplete="off"
+                  data-leitor-proprio
                 />
+                <button
+                  type="button"
+                  id="btn-camera-pdv"
+                  class="btn-camera-busca"
+                  data-leitor-camera
+                  aria-label="Ler código de barras pela câmera"
+                  title="Ler código de barras pela câmera"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <path d="M4 7V5a1 1 0 0 1 1-1h2M17 4h2a1 1 0 0 1 1 1v2M20 17v2a1 1 0 0 1-1 1h-2M7 20H5a1 1 0 0 1-1-1v-2"/>
+                    <path d="M8 8v8M11 8v8M14 8v8M17 8v8"/>
+                  </svg>
+                </button>
                 <button
                   type="button"
                   id="btn-sino-estoque"
@@ -475,14 +489,18 @@
           </header>
 
           <div class="painel-conteudo">
-            <div class="barra-filtro">
+            <div class="barra-filtro barra-filtro--com-acao">
               <input
                 type="text"
                 id="filtro-produtos"
                 class="busca-input"
-                placeholder="Filtrar por nome, categoria ou código..."
+                placeholder="Filtrar por nome, categoria ou código · passe o leitor para achar o produto"
                 autocomplete="off"
+                data-leitor-proprio
               />
+              <button type="button" id="btn-camera-produtos" class="btn btn-secundario" data-leitor-camera>
+                Ler com a câmera
+              </button>
             </div>
             <div id="lista-gestao-produtos" class="lista-gestao"></div>
           </div>
@@ -1454,11 +1472,22 @@
             </label>
           </div>
           <div class="form-linha" id="wrap-produto-codigos">
-            <label>Código de barras (EAN)
-              <input type="text" id="produto-codigo" autocomplete="off" />
+            <label class="label-com-acao">Código de barras (EAN)
+              <div class="campo-com-acao">
+                <input
+                  type="text"
+                  id="produto-codigo"
+                  autocomplete="off"
+                  placeholder="Passe o leitor ou digite"
+                  data-leitor-proprio
+                />
+                <button type="button" id="btn-camera-produto-codigo" class="btn btn-secundario btn-sm" data-leitor-camera title="Ler código de barras pela câmera">
+                  Câmera
+                </button>
+              </div>
             </label>
             <label>Código interno
-              <input type="text" id="produto-codigo-interno" autocomplete="off" />
+              <input type="text" id="produto-codigo-interno" autocomplete="off" data-leitor-proprio />
             </label>
           </div>
           <div class="form-linha">
@@ -1758,6 +1787,25 @@
           <button type="button" class="btn btn-texto btn-bloco" data-fechar-modal="modal-venda-sucesso">
             Fechar
           </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: leitor de código de barras pela câmera (fica acima do cadastro de produto) -->
+    <div id="modal-leitor-camera" class="modal modal--acima oculto">
+      <div class="modal-caixa modal-leitor-camera" role="dialog" aria-modal="true" aria-labelledby="leitor-camera-titulo">
+        <h2 class="titulo" id="leitor-camera-titulo">Ler código com a câmera</h2>
+        <p class="rota-sub" id="leitor-camera-dica"></p>
+        <div class="leitor-camera-visor">
+          <video id="leitor-camera-video" autoplay muted playsinline></video>
+          <div class="leitor-camera-mira" aria-hidden="true"></div>
+        </div>
+        <label id="wrap-leitor-camera-dispositivo" class="oculto">Câmera
+          <select id="leitor-camera-dispositivo"></select>
+        </label>
+        <p id="leitor-camera-status" class="leitor-camera-status" aria-live="polite"></p>
+        <div class="modal-acoes">
+          <button type="button" id="btn-fechar-leitor-camera" class="btn btn-secundario">Fechar</button>
         </div>
       </div>
     </div>

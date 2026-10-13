@@ -727,6 +727,13 @@ html[data-tema="claro"] input[type="date"] {
   margin-bottom: 0;
 }
 
+.barra-filtro--com-acao {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
 .painel-solto {
   width: 100%;
   max-width: 960px;
@@ -773,13 +780,40 @@ html[data-tema="claro"] input[type="date"] {
 }
 
 .busca-com-sino .busca-input {
-  padding-right: 52px;
+  padding-right: 90px;
+}
+
+.btn-camera-busca {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--cybhor-borda);
+  border-radius: var(--raio-sm);
+  background: var(--cybhor-surface-2);
+  color: var(--cor-texto-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+
+.btn-camera-busca svg {
+  width: 20px;
+  height: 20px;
+}
+
+.btn-camera-busca:hover {
+  color: var(--cor-texto);
+  border-color: var(--cybhor-borda-forte);
 }
 
 .btn-sino {
   position: absolute;
   top: 6px;
-  right: 6px;
+  right: 46px;
   width: 34px;
   height: 34px;
   border: 1px solid var(--cybhor-borda);
@@ -1696,6 +1730,11 @@ html[data-tema="claro"] input[type="date"] {
   transition: background var(--transicao);
 }
 
+.gestao-linha--destaque {
+  box-shadow: inset 3px 0 0 var(--cor-acento);
+  background: var(--cybhor-surface-2);
+}
+
 .gestao-linha:hover {
   background: var(--cybhor-surface-2);
 }
@@ -2423,6 +2462,52 @@ html[data-tema="claro"] input[type="date"] {
   overflow-y: auto;
   position: relative;
   animation: surgir 0.2s ease;
+}
+
+.modal--acima {
+  z-index: calc(var(--z-modal) + 1);
+}
+
+.modal-leitor-camera {
+  max-width: 560px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.leitor-camera-visor {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background: #000;
+  border-radius: var(--raio);
+  overflow: hidden;
+}
+
+.leitor-camera-visor video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.leitor-camera-mira {
+  position: absolute;
+  inset: 22% 7%;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  border-radius: var(--raio-sm);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+}
+
+.leitor-camera-status {
+  margin: 0;
+  min-height: 1.4em;
+  font-size: 0.9rem;
+  color: var(--cor-texto-muted);
+}
+
+.leitor-camera-status.erro {
+  color: var(--cor-perigo);
 }
 
 .modal-caixa--sm {
