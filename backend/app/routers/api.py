@@ -64,6 +64,9 @@ def site_comprar(request: Request, body: Dict[str, Any]) -> Dict[str, Any]:
         loja=body.get("loja") or {},
         admin=body.get("admin") or {},
         plano=body.get("plano") or "mensal",
+        aceite_diretrizes=body.get("aceiteDiretrizes"),
+        ip=chave_rate_limit(request),
+        navegador=request.headers.get("user-agent", ""),
     )
     return {
         "tokenAtivacao": resultado["tokenAtivacao"],

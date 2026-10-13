@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import psycopg2
 
@@ -27,7 +27,13 @@ def criar_loja_com_admin(
     dias_validade: int | None = None,
     plano: str = "",
     trial_cpf: str = "",
+    aceite_diretrizes: Optional[Dict[str, str]] = None,
 ) -> Dict[str, str]:
+    """Cria loja, administrador e assinatura numa única transação.
+
+    `aceite_diretrizes` (já validado) é gravado na mesma transação: não existe
+    loja comprada pelo site sem o registro do aceite.
+    """
     nome = (loja or {}).get("nome", "").strip()
     if len(nome) < 2:
         raise ErroNegocio("Informe o nome da loja.")
@@ -126,6 +132,20 @@ def criar_loja_com_admin(
                 VALUES (%s, 'ativa', (CURRENT_DATE + interval '1 year')::date)
                 """,
                 (loja_id,),
+            )
+
+        if aceite_diretrizes:
+            cur.execute(
+                """
+                INSERT INTO aceites_diretrizes (loja_id, versao, ip, navegador)
+                VALUES (%s, %s, %s, %s)
+                """,
+                (
+                    loja_id,
+                    aceite_diretrizes["versao"],
+                    aceite_diretrizes.get("ip", ""),
+                    aceite_diretrizes.get("navegador", ""),
+                ),
             )
 
     return {"lojaId": loja_id, "codigo": codigo}
