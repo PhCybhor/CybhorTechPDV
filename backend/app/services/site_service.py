@@ -9,6 +9,7 @@ from app import db
 from app.config import get_settings
 from app.errors import ErroNegocio
 from app.cpf import validar_cpf
+from app.diretrizes import validar_aceite_diretrizes
 from app.planos import obter_plano
 from app.services.loja_service import criar_loja_com_admin
 from app.services.pagamento_service import (
@@ -34,14 +35,28 @@ def _resolver_nome_pagador(registro: Dict[str, Any], nome_completo_admin: str):
 
 
 def comprar_pelo_site(
-    *, loja: Dict[str, Any], admin: Dict[str, Any], plano: str = "mensal"
+    *,
+    loja: Dict[str, Any],
+    admin: Dict[str, Any],
+    plano: str = "mensal",
+    aceite_diretrizes: Any = None,
+    ip: str = "",
+    navegador: str = "",
 ) -> Dict[str, Any]:
+    """Cria a loja pelo site (teste grátis ou plano pago).
+
+    O aceite das Diretrizes da comunidade é exigido antes de qualquer outra
+    validação, para nenhuma loja nascer sem ele.
+    """
+    aceite = validar_aceite_diretrizes(aceite_diretrizes, ip=ip, navegador=navegador)
     settings = get_settings()
     escolhido = obter_plano(plano, settings)
     cpf = validar_cpf((loja or {}).get("cpf") or (admin or {}).get("cpf") or "")
 
     if escolhido.get("gratis"):
-        return _iniciar_teste_gratis(loja=loja or {}, admin=admin or {}, cpf=cpf)
+        return _iniciar_teste_gratis(
+            loja=loja or {}, admin=admin or {}, cpf=cpf, aceite=aceite
+        )
 
     if not settings.mp_access_token:
         raise ErroNegocio("Pagamentos indisponiveis no momento.", 503)
@@ -51,6 +66,7 @@ def comprar_pelo_site(
         admin=admin,
         aguardar_pagamento=True,
         cpf=cpf,
+        aceite_diretrizes=aceite,
     )
     token = gerar_token_ativacao()
     db.executar(
@@ -76,7 +92,7 @@ def comprar_pelo_site(
 
 
 def _iniciar_teste_gratis(
-    *, loja: Dict[str, Any], admin: Dict[str, Any], cpf: str
+    *, loja: Dict[str, Any], admin: Dict[str, Any], cpf: str, aceite: Dict[str, str]
 ) -> Dict[str, Any]:
     ja_usou = db.consultar("SELECT 1 FROM trials_cpf WHERE cpf = %s", (cpf,))
     if ja_usou:
@@ -94,6 +110,7 @@ def _iniciar_teste_gratis(
         dias_validade=30,
         plano="teste",
         trial_cpf=cpf,
+        aceite_diretrizes=aceite,
     )
     db.executar(
         """

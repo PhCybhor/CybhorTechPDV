@@ -343,6 +343,26 @@ button.btn-suave { font-size: 0.9rem; }
 .form-comprar input::placeholder { color: var(--texto-fraco); }
 .form-comprar input:focus { outline: 2px solid var(--tinta); outline-offset: 0; border-color: var(--tinta); }
 .form-comprar a { color: var(--texto); font-weight: 600; text-underline-offset: 2px; }
+.form-comprar .campo-aceite {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  margin: 0.4rem 0 1.1rem;
+  font-weight: 400;
+  color: var(--texto-suave);
+  line-height: 1.45;
+  cursor: pointer;
+}
+.form-comprar .campo-aceite input {
+  width: 18px;
+  min-height: 0;
+  height: 18px;
+  margin: 0.1rem 0 0;
+  padding: 0;
+  flex: none;
+  accent-color: var(--tinta);
+  cursor: pointer;
+}
 .opcional { font-weight: 400; color: var(--texto-fraco); }
 .form-erro { color: var(--erro); font-size: 0.9rem; margin-top: 0.8rem; }
 .oculto { display: none !important; }
@@ -467,6 +487,24 @@ summary { cursor: pointer; font-weight: 600; font-size: 1rem; }
   gap: 0.8rem;
 }
 .rodape p { color: var(--texto-fraco); font-size: 0.85rem; }
+.rodape-link { color: var(--texto-suave); font-size: 0.85rem; text-underline-offset: 2px; }
+.rodape-link:hover { color: var(--texto); }
+
+/* Páginas de texto (diretrizes) */
+.secao-documento { padding-top: 2.75rem; padding-bottom: 4rem; }
+.documento { max-width: 760px; }
+.documento h1 { font-size: 2rem; margin-bottom: 1rem; }
+.documento h2 { font-size: 1.15rem; margin: 2rem 0 0.6rem; }
+.documento p,
+.documento li { color: var(--texto-suave); font-size: 0.98rem; max-width: 68ch; }
+.documento p + p,
+.documento ul + p { margin-top: 0.6rem; }
+.documento ul { padding-left: 1.25rem; }
+.documento li + li { margin-top: 0.4rem; }
+.documento strong { color: var(--texto); }
+.documento a { font-weight: 600; text-underline-offset: 2px; }
+.documento-intro { font-size: 1.05rem; }
+.documento-rodape { margin-top: 2.5rem; padding-top: 1.25rem; border-top: 1px solid var(--borda); }
 
 /* Portal (login / painel da loja) */
 .secao-portal { padding-top: 2.5rem; padding-bottom: 4rem; }
