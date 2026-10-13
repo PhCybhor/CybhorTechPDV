@@ -103,10 +103,23 @@
 
     <!-- Shell autenticado: sidebar + área de conteúdo -->
     <section id="tela-app" class="tela oculto">
-      <div id="banner-assinatura-atraso" class="banner-assinatura-atraso oculto" role="status" aria-live="polite">
-        <strong>Assinatura atrasada.</strong>
-        <span>Renove para evitar bloqueio.</span>
-        <a id="banner-assinatura-link" class="banner-assinatura-link" href="#" target="_blank" rel="noopener">Renovar</a>
+      <div class="avisos-app">
+        <div id="aviso-conexao" class="aviso-app aviso-app--alerta oculto" role="status" aria-live="polite">
+          <span id="aviso-conexao-texto"></span>
+          <button type="button" id="btn-enviar-vendas-guardadas" class="btn btn-secundario btn-sm aviso-app-acao oculto">Tentar enviar agora</button>
+        </div>
+        <div id="aviso-atualizacao" class="aviso-app oculto" role="status" aria-live="polite">
+          <span id="aviso-atualizacao-texto"></span>
+          <div class="aviso-app-acao">
+            <button type="button" id="btn-baixar-atualizacao" class="btn btn-primario btn-sm">Baixar atualização</button>
+            <button type="button" id="btn-adiar-atualizacao" class="btn btn-texto btn-sm">Depois</button>
+          </div>
+        </div>
+        <div id="banner-assinatura-atraso" class="banner-assinatura-atraso oculto" role="status" aria-live="polite">
+          <strong>Assinatura atrasada.</strong>
+          <span>Renove para evitar bloqueio.</span>
+          <a id="banner-assinatura-link" class="banner-assinatura-link" href="#" target="_blank" rel="noopener">Renovar</a>
+        </div>
       </div>
       <aside class="sidebar" id="sidebar">
         <div class="sidebar-marca">

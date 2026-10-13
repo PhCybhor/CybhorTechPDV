@@ -6,6 +6,8 @@ import { PainelGestaoAvancada } from "./ui/gestaoAvancada.js";
 import { observarClientes, aplicarPosVendaCliente } from "./services/clienteService.js";
 import { observarAuditoria, registrarAuditoria } from "./services/auditoriaService.js";
 import { caixaAbertoHoje } from "./services/caixaCicloService.js";
+import { anexarEfeitoPosVenda } from "./services/filaVendasOffline.js";
+import { ehErroDeConexao } from "./config/apiClient.js";
 import {
   precoEfetivo,
   calcularDescontoCombos,
@@ -285,34 +287,67 @@ export function instalarMegaPack(ctx) {
     };
   }
 
+  /**
+   * Venda guardada offline: o passo espera a venda chegar ao servidor.
+   * Venda online cujo passo caiu por falta de rede: o passo vai para a fila.
+   */
+  async function executarOuGuardarPosVenda(venda, efeito) {
+    if (!venda.offline) {
+      try {
+        await (efeito.tipo === "posVendaCliente"
+          ? aplicarPosVendaCliente(efeito.dados.clienteId, efeito.dados)
+          : registrarAuditoria(efeito.dados));
+        return;
+      } catch (erro) {
+        if (!ehErroDeConexao(erro)) throw erro;
+      }
+    }
+    await anexarEfeitoPosVenda(venda.id, efeito);
+  }
+
+  function funcionarioParaAuditoria() {
+    const f = estado.funcionario;
+    return f ? { id: f.id, nome: f.nome } : null;
+  }
+
   async function aposVendaMega(venda, extras = {}) {
     if (extras.cupomUsado) {
       consumirCupom(obterLojaId(), extras.cupomUsado.codigo);
     }
     if (extras.clienteId) {
-      await aplicarPosVendaCliente(extras.clienteId, {
-        total: venda.total,
-        foiFiado: extras.foiFiado,
-        cashbackPct: Number(estado.configLoja?.cashbackPct) || 0,
+      await executarOuGuardarPosVenda(venda, {
+        tipo: "posVendaCliente",
+        dados: {
+          clienteId: extras.clienteId,
+          total: venda.total,
+          foiFiado: extras.foiFiado,
+          cashbackPct: Number(estado.configLoja?.cashbackPct) || 0,
+        },
       });
       marcarPassoOnboarding("venda");
     }
     if (extras.descontoAlto || (venda.desconto || 0) > 0) {
-      await registrarAuditoria({
-        tipo: "venda",
-        mensagem: `Venda ${formatarMoeda(venda.total)}${
-          venda.desconto ? ` · desc. ${formatarMoeda(venda.desconto)}` : ""
-        }${extras.foiFiado ? " · FIADO" : ""}`,
-        funcionario: estado.funcionario,
-        meta: { vendaId: venda.id },
+      await executarOuGuardarPosVenda(venda, {
+        tipo: "auditoria",
+        dados: {
+          tipo: "venda",
+          mensagem: `Venda ${formatarMoeda(venda.total)}${
+            venda.desconto ? ` · desc. ${formatarMoeda(venda.desconto)}` : ""
+          }${extras.foiFiado ? " · FIADO" : ""}`,
+          funcionario: funcionarioParaAuditoria(),
+          meta: { vendaId: venda.id },
+        },
       });
     }
     if ($("pdv-avaliacao") && Number($("pdv-avaliacao").value) > 0) {
-      await registrarAuditoria({
-        tipo: "avaliacao",
-        mensagem: `Atendimento nota ${$("pdv-avaliacao").value}`,
-        funcionario: estado.funcionario,
-        meta: { vendaId: venda.id },
+      await executarOuGuardarPosVenda(venda, {
+        tipo: "auditoria",
+        dados: {
+          tipo: "avaliacao",
+          mensagem: `Atendimento nota ${$("pdv-avaliacao").value}`,
+          funcionario: funcionarioParaAuditoria(),
+          meta: { vendaId: venda.id },
+        },
       });
       $("pdv-avaliacao").value = "0";
     }

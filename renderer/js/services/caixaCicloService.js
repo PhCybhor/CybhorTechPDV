@@ -1,6 +1,7 @@
 import { ref, get, set, push, onValue, remove } from "../config/databaseClient.js";
 import { obterDatabase } from "../config/databaseClient.js";
 import { caminhoLoja } from "./tenantContext.js";
+import { ehErroDeConexao } from "../config/apiClient.js";
 
 /** Evita 0.1+0.2 em somas de dinheiro do gaveteiro. */
 function paraCentavos(valor) {
@@ -31,18 +32,53 @@ function inicioFimDoDia(ms = Date.now()) {
   return { inicio, fim: inicio + 24 * 60 * 60 * 1000 };
 }
 
+function chaveEstadoLocal() {
+  return `cybhor.caixaEstado.${caminhoEstado()}`;
+}
+
+/**
+ * Última leitura do estado do caixa guardada no computador: sem internet o
+ * operador continua vendendo se o caixa já tinha sido aberto hoje.
+ * @param {object} estadoCaixa
+ */
+function lembrarEstadoCaixa(estadoCaixa) {
+  try {
+    localStorage.setItem(chaveEstadoLocal(), JSON.stringify(estadoCaixa));
+  } catch {
+    /* sem storage o caixa só depende do servidor, como antes */
+  }
+}
+
+function estadoCaixaLembrado() {
+  try {
+    const salvo = JSON.parse(localStorage.getItem(chaveEstadoLocal()) || "null");
+    return salvo && typeof salvo === "object" ? salvo : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * @returns {Promise<{ fundoInicial: number, abertoEm: number | null, abertoPorNome: string | null }>}
  */
 export async function lerEstadoCaixa() {
   const db = await obterDatabase();
-  const snap = await get(ref(db, caminhoEstado()));
+  let snap;
+  try {
+    snap = await get(ref(db, caminhoEstado()));
+  } catch (erro) {
+    const lembrado = ehErroDeConexao(erro) ? estadoCaixaLembrado() : null;
+    if (lembrado) return lembrado;
+    throw erro;
+  }
   const v = snap.val() || {};
-  return {
+  const estadoCaixa = {
     fundoInicial: Number(v.fundoInicial) || 0,
     abertoEm: v.abertoEm || null,
     abertoPorNome: v.abertoPorNome || null,
   };
+  lembrarEstadoCaixa(estadoCaixa);
+  return estadoCaixa;
 }
 
 /**
@@ -55,12 +91,18 @@ export async function abrirCaixaDia({ fundoInicial, funcionario }) {
   }
   const db = await obterDatabase();
   const { inicio } = inicioFimDoDia();
-  await set(ref(db, caminhoEstado()), {
+  const registro = {
     fundoInicial: deCentavos(paraCentavos(valor)),
     abertoEm: Date.now(),
     abertoDiaInicio: inicio,
     abertoPorId: funcionario?.id || null,
     abertoPorNome: funcionario?.nome || null,
+  };
+  await set(ref(db, caminhoEstado()), registro);
+  lembrarEstadoCaixa({
+    fundoInicial: registro.fundoInicial,
+    abertoEm: registro.abertoEm,
+    abertoPorNome: registro.abertoPorNome,
   });
 }
 

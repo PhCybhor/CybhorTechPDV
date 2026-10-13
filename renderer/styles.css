@@ -667,7 +667,6 @@ html[data-tema="claro"] input[type="date"] {
   flex-direction: column;
   min-width: 0;
   min-height: 0;
-  height: 100vh;
   overflow: hidden;
   background: var(--cybhor-navy);
 }
@@ -3283,7 +3282,7 @@ body.venda-rapida .app-principal,
 body.venda-rapida #rota-pdv {
   width: 100%;
   max-width: none;
-  height: 100vh;
+  height: 100%;
   min-width: 0;
 }
 
@@ -3417,6 +3416,39 @@ html[data-tema="claro"] .sidebar {
   gap: 8px;
 }
 
+
+/* Faixa de avisos acima do app: conexão, nova versão e assinatura */
+.avisos-app {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+}
+.aviso-app {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  padding: 0.5rem 1rem;
+  background: var(--cybhor-surface);
+  color: var(--cor-texto);
+  border-bottom: 1px solid var(--cybhor-borda);
+  font-size: 0.92rem;
+}
+.aviso-app.oculto { display: none; }
+.aviso-app--alerta {
+  background: var(--cor-alerta-bg);
+  color: var(--cor-alerta);
+  border-bottom-color: var(--cor-alerta-borda);
+}
+.aviso-app--perigo {
+  color: var(--cor-perigo);
+  border-bottom-color: var(--cor-perigo);
+}
+.aviso-app-acao {
+  margin-left: auto;
+  display: flex;
+  gap: 0.5rem;
+}
 
 /* Aviso de assinatura em atraso (acesso ainda liberado) */
 .banner-assinatura-atraso {

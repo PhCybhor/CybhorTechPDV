@@ -2,10 +2,50 @@ import { ref, get, onValue } from "../config/databaseClient.js";
 import { obterDatabase } from "../config/databaseClient.js";
 import { validarAdministrador } from "./authService.js";
 import { caminhoLoja } from "./tenantContext.js";
-import { apiRequest } from "../config/apiClient.js";
+import { apiRequest, ehErroDeConexao } from "../config/apiClient.js";
+import { enfileirarVenda } from "./filaVendasOffline.js";
+
+/** Passou disso sem resposta, a venda é guardada no computador e o caixa segue. */
+const TEMPO_LIMITE_VENDA_MS = 15000;
 
 function caminhoVendas() {
   return caminhoLoja("vendas");
+}
+
+/**
+ * Venda montada no próprio caixa para imprimir o cupom e calcular o troco
+ * enquanto ela espera a internet voltar.
+ * @param {object} corpo corpo enviado a /api/caixa/venda
+ * @param {{ nome?: string }} funcionario
+ */
+function montarVendaGuardada(corpo, funcionario) {
+  const itens = corpo.itens.map((item) => {
+    const quantidade = Number(item.quantidade) || 0;
+    const precoUnitario = Number(item.precoUnitario) || 0;
+    return { ...item, quantidade, precoUnitario, subtotal: quantidade * precoUnitario };
+  });
+  const subtotal = itens.reduce((soma, item) => soma + item.subtotal, 0);
+  const desconto = Math.min(Math.max(0, Number(corpo.desconto) || 0), subtotal);
+  const total = subtotal - desconto;
+  const dividido = Array.isArray(corpo.formasPagamento) && corpo.formasPagamento.length >= 2;
+  return {
+    id: corpo.idLocal,
+    total,
+    subtotal,
+    desconto,
+    formaPagamento: corpo.fiado ? "fiado" : dividido ? "misto" : corpo.formaPagamento,
+    formasPagamento: dividido
+      ? corpo.formasPagamento
+      : [{ tipo: corpo.fiado ? "fiado" : corpo.formaPagamento, valor: total }],
+    funcionarioNome: funcionario?.nome || "",
+    itens,
+    criadoEm: corpo.criadoEmLocal,
+    cancelada: false,
+    clienteId: corpo.clienteId,
+    clienteNome: corpo.clienteNome,
+    fiado: Boolean(corpo.fiado),
+    offline: true,
+  };
 }
 
 /**
@@ -64,30 +104,48 @@ export async function registrarVenda({
     throw new Error("Adicione ao menos um item para finalizar a venda.");
   if (!funcionario?.id) throw new Error("Funcionário inválido.");
 
+  const corpo = {
+    itens: itens.map((item) => ({
+      produtoId: item.produtoId,
+      nome: item.nome,
+      quantidade: item.quantidade,
+      precoUnitario: item.precoUnitario,
+      custoUnitario:
+        item.custoUnitario === null ||
+        item.custoUnitario === undefined ||
+        item.custoUnitario === ""
+          ? null
+          : Number(item.custoUnitario),
+    })),
+    desconto: Number(desconto) || 0,
+    formaPagamento,
+    formasPagamento,
+    clienteId: clienteId || null,
+    clienteNome: clienteNome || null,
+    fiado: Boolean(fiado),
+    idLocal: crypto.randomUUID().replace(/-/g, ""),
+    criadoEmLocal: Date.now(),
+  };
+
+  const guardarNoComputador = async () => {
+    await enfileirarVenda(corpo);
+    return montarVendaGuardada(corpo, funcionario);
+  };
+
+  if (navigator.onLine === false) return guardarNoComputador();
+
   // Estoque é decrementado no servidor com lock — evita corrida entre caixas.
-  const venda = await apiRequest("/api/caixa/venda", {
-    method: "POST",
-    body: {
-      itens: itens.map((item) => ({
-        produtoId: item.produtoId,
-        nome: item.nome,
-        quantidade: item.quantidade,
-        precoUnitario: item.precoUnitario,
-        custoUnitario:
-          item.custoUnitario === null ||
-          item.custoUnitario === undefined ||
-          item.custoUnitario === ""
-            ? null
-            : Number(item.custoUnitario),
-      })),
-      desconto: Number(desconto) || 0,
-      formaPagamento,
-      formasPagamento,
-      clienteId: clienteId || null,
-      clienteNome: clienteNome || null,
-      fiado: Boolean(fiado),
-    },
-  });
+  let venda;
+  try {
+    venda = await apiRequest("/api/caixa/venda", {
+      method: "POST",
+      body: corpo,
+      timeoutMs: TEMPO_LIMITE_VENDA_MS,
+    });
+  } catch (erro) {
+    if (!ehErroDeConexao(erro)) throw erro;
+    return guardarNoComputador();
+  }
 
   return {
     id: venda.id,

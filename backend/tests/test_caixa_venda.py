@@ -178,5 +178,64 @@ class TestFinalizarVendaAtomica(unittest.TestCase):
         self.assertEqual(self.estado["produtos"]["p1"]["estoque"], 5)
 
 
+class TestVendaOfflineIdempotente(unittest.TestCase):
+    ID_LOCAL = "a" * 32
+    setUp = TestFinalizarVendaAtomica.setUp
+    tearDown = TestFinalizarVendaAtomica.tearDown
+
+    def _finalizar(self, **extras):
+        corpo = {
+            "itens": [{"produtoId": "p1", "quantidade": 2, "precoUnitario": 10}],
+            "formaPagamento": "dinheiro",
+            "idLocal": self.ID_LOCAL,
+        }
+        corpo.update(extras)
+        return caixa_service.finalizar_venda(self.loja, {"id": "f1", "nome": "Caixa"}, corpo)
+
+    def test_reenvio_com_mesmo_id_local_nao_duplica(self):
+        primeira = self._finalizar()
+        segunda = self._finalizar()
+        self.assertEqual(primeira["id"], self.ID_LOCAL)
+        self.assertEqual(segunda["id"], self.ID_LOCAL)
+        self.assertEqual(len(self.estado["vendas"]), 1)
+        self.assertEqual(self.estado["produtos"]["p1"]["estoque"], 3)
+
+    def test_id_local_invalido_gera_id_do_servidor(self):
+        venda = self._finalizar(idLocal="../../x")
+        self.assertNotEqual(venda["id"], "../../x")
+        self.assertIn(venda["id"], self.estado["vendas"])
+
+    def test_offline_aceita_estoque_insuficiente_e_zera(self):
+        venda = self._finalizar(
+            itens=[{"produtoId": "p2", "quantidade": 9, "precoUnitario": 8}],
+            offline=True,
+        )
+        self.assertEqual(self.estado["produtos"]["p2"]["estoque"], 0)
+        self.assertTrue(self.estado["vendas"][venda["id"]]["registradaOffline"])
+
+    def test_offline_aceita_produto_removido_sem_mexer_no_estoque(self):
+        venda = self._finalizar(
+            itens=[{"produtoId": "sumiu", "nome": "Bala", "quantidade": 1, "precoUnitario": 0.5}],
+            offline=True,
+        )
+        self.assertEqual(venda["itens"][0]["nome"], "Bala")
+        self.assertEqual(venda["total"], 0.5)
+        self.assertNotIn("sumiu", self.estado["produtos"])
+
+    def test_offline_usa_horario_do_caixa_dentro_da_janela(self):
+        agora = int(caixa_service.time.time() * 1000)
+        duas_horas_atras = agora - 2 * 60 * 60 * 1000
+        venda = self._finalizar(offline=True, criadoEmLocal=duas_horas_atras)
+        self.assertEqual(venda["criadoEm"], duas_horas_atras)
+
+    def test_offline_ignora_horario_absurdo(self):
+        venda = self._finalizar(offline=True, criadoEmLocal=1)
+        self.assertGreater(venda["criadoEm"], 1_000_000_000_000)
+
+    def test_online_continua_recusando_estoque_insuficiente(self):
+        with self.assertRaises(ErroNegocio):
+            self._finalizar(itens=[{"produtoId": "p2", "quantidade": 9, "precoUnitario": 8}])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -1,14 +1,53 @@
 from __future__ import annotations
 
+import re
 import time
 import uuid
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from app.errors import ErroNegocio
 from app.services import dados_service
 
 
 FORMAS_SIMPLES = frozenset({"dinheiro", "credito", "debito", "pix", "fiado", "misto"})
+
+ID_LOCAL_VALIDO = re.compile(r"^[a-f0-9]{32}$")
+# Venda guardada sem internet pode chegar dias depois; mais que isso é relógio errado.
+JANELA_VENDA_OFFLINE_MS = 30 * 24 * 60 * 60 * 1000
+TOLERANCIA_RELOGIO_MS = 5 * 60 * 1000
+
+
+def _id_local(valor: Any) -> Optional[str]:
+    texto = str(valor or "").strip().lower()
+    return texto if ID_LOCAL_VALIDO.match(texto) else None
+
+
+def _criado_em_offline(valor: Any, agora: int) -> int:
+    try:
+        informado = int(valor)
+    except (TypeError, ValueError):
+        return agora
+    if agora - JANELA_VENDA_OFFLINE_MS <= informado <= agora + TOLERANCIA_RELOGIO_MS:
+        return informado
+    return agora
+
+
+def _resposta_venda(venda_id: str, venda: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "id": venda_id,
+        "total": venda.get("total"),
+        "subtotal": venda.get("subtotal"),
+        "desconto": venda.get("desconto"),
+        "formaPagamento": venda.get("formaPagamento"),
+        "formasPagamento": venda.get("formasPagamento"),
+        "funcionarioNome": venda.get("funcionarioNome"),
+        "itens": venda.get("itens") or [],
+        "criadoEm": venda.get("criadoEm"),
+        "cancelada": bool(venda.get("cancelada")),
+        "clienteId": venda.get("clienteId"),
+        "clienteNome": venda.get("clienteNome"),
+        "fiado": bool(venda.get("fiado")),
+    }
 
 
 def _qtd(valor: Any) -> float:
@@ -76,7 +115,13 @@ def _normalizar_pagamentos(
 def finalizar_venda(
     loja_id: str, funcionario: Dict[str, str], dados: Dict[str, Any]
 ) -> Dict[str, Any]:
-    """Registra venda e baixa estoque no JSONB com lock — sem corrida no caixa."""
+    """Registra venda e baixa estoque no JSONB com lock — sem corrida no caixa.
+
+    Com ``idLocal`` o envio é idempotente: o caixa reenvia a mesma venda quando a
+    resposta se perde na rede e o servidor devolve a já gravada, sem baixar estoque
+    de novo. Com ``offline`` a venda já aconteceu no balcão sem internet, então
+    estoque insuficiente ou produto removido não podem mais recusá-la.
+    """
     itens = dados.get("itens") if isinstance(dados.get("itens"), list) else []
     if not itens:
         raise ErroNegocio("A venda precisa de ao menos um item.")
@@ -85,13 +130,20 @@ def finalizar_venda(
     fiado = bool(dados.get("fiado"))
     cliente_id = dados.get("clienteId") or None
     cliente_nome = dados.get("clienteNome") or None
+    id_local = _id_local(dados.get("idLocal"))
+    offline = bool(dados.get("offline"))
 
-    venda_id = uuid.uuid4().hex
-    criado_em = int(time.time() * 1000)
+    venda_id = id_local or uuid.uuid4().hex
+    agora = int(time.time() * 1000)
+    criado_em = _criado_em_offline(dados.get("criadoEmLocal"), agora) if offline else agora
 
     with dados_service.db.transacao() as cur:
-        produtos = dados_service._carregar_recurso(cur, loja_id, "produtos")
+        # Mesma ordem de lock que cancelar_venda (vendas -> produtos) evita deadlock.
         vendas = dados_service._carregar_recurso(cur, loja_id, "vendas")
+        ja_registrada = vendas.get(venda_id) if id_local else None
+        if isinstance(ja_registrada, dict):
+            return _resposta_venda(venda_id, ja_registrada)
+        produtos = dados_service._carregar_recurso(cur, loja_id, "produtos")
 
         subtotal = 0.0
         itens_venda: List[Dict[str, Any]] = []
@@ -106,16 +158,18 @@ def finalizar_venda(
 
             produto = produtos.get(produto_id)
             if not isinstance(produto, dict):
-                raise ErroNegocio("Produto nao encontrado na loja.", 404)
+                if not offline:
+                    raise ErroNegocio("Produto nao encontrado na loja.", 404)
+                produto = None
 
-            estoque_atual = float(produto.get("estoque") or 0)
-            if estoque_atual + 1e-9 < quantidade:
+            estoque_atual = float((produto or {}).get("estoque") or 0)
+            if produto is not None and not offline and estoque_atual + 1e-9 < quantidade:
                 nome = produto.get("nome") or produto_id
                 raise ErroNegocio(f'Estoque insuficiente para "{nome}".')
 
             # Preco vem do cadastro (nao confia no cliente para o valor unitario).
             try:
-                preco_cadastro = float(produto.get("preco") or 0)
+                preco_cadastro = float((produto or {}).get("preco") or 0)
             except (TypeError, ValueError):
                 preco_cadastro = 0.0
             try:
@@ -132,7 +186,7 @@ def finalizar_venda(
             subtotal_item = preco_unitario * quantidade
             subtotal += subtotal_item
 
-            custo_raw = item.get("custoUnitario", produto.get("custo"))
+            custo_raw = item.get("custoUnitario", (produto or {}).get("custo"))
             try:
                 custo_unitario = (
                     None
@@ -149,16 +203,17 @@ def finalizar_venda(
             itens_venda.append(
                 {
                     "produtoId": produto_id,
-                    "nome": produto.get("nome") or item.get("nome") or "",
+                    "nome": (produto or {}).get("nome") or item.get("nome") or "",
                     "quantidade": quantidade,
                     "precoUnitario": preco_unitario,
                     "subtotal": subtotal_item,
                     "custoUnitario": custo_unitario,
                 }
             )
-            produto["estoque"] = max(0.0, estoque_atual - quantidade)
-            produto["atualizadoEm"] = criado_em
-            produtos[produto_id] = produto
+            if produto is not None:
+                produto["estoque"] = max(0.0, estoque_atual - quantidade)
+                produto["atualizadoEm"] = agora
+                produtos[produto_id] = produto
 
         desconto_aplicado = min(desconto, subtotal)
         total = subtotal - desconto_aplicado
@@ -184,26 +239,15 @@ def finalizar_venda(
             "criadoEm": criado_em,
             "cancelada": False,
         }
+        if offline:
+            venda["registradaOffline"] = True
+            venda["sincronizadaEm"] = agora
         vendas[venda_id] = venda
 
         dados_service._salvar_recurso(cur, loja_id, "produtos", produtos)
         dados_service._salvar_recurso(cur, loja_id, "vendas", vendas)
 
-    return {
-        "id": venda_id,
-        "total": total,
-        "subtotal": subtotal,
-        "desconto": desconto_aplicado,
-        "formaPagamento": pagamentos["formaPagamento"],
-        "formasPagamento": pagamentos["formasPagamento"],
-        "funcionarioNome": funcionario.get("nome"),
-        "itens": itens_venda,
-        "criadoEm": criado_em,
-        "cancelada": False,
-        "clienteId": cliente_id,
-        "clienteNome": cliente_nome,
-        "fiado": fiado,
-    }
+    return _resposta_venda(venda_id, venda)
 
 
 def cancelar_venda(
