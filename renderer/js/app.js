@@ -53,6 +53,13 @@ import { notificar } from "./ui/notificacao.js";
 import { iniciarAvisoConexao } from "./ui/avisoConexao.js";
 import { iniciarAvisoAtualizacao } from "./ui/avisoAtualizacao.js";
 import {
+  abrirLeitorCamera,
+  existeCameraConectada,
+  fecharLeitorCamera,
+} from "./ui/leitorCamera.js";
+import { instalarLeitorTeclado } from "./utils/leitorTeclado.js";
+import { normalizarCodigoLido, pareceCodigoBarras } from "./utils/codigoBarras.js";
+import {
   iniciarSincronizacaoAutomatica,
   sincronizarFilaOffline,
 } from "./services/filaVendasOffline.js";
@@ -456,6 +463,7 @@ async function iniciar() {
   iniciarAvisoConexao();
   iniciarAvisoAtualizacao();
   iniciarSincronizacaoAutomatica();
+  instalarLeitoresCodigoBarras();
   lembrarEstadoOpcoesCarrinho();
 
   try {
@@ -630,6 +638,7 @@ async function tratarLogin(evento) {
 
 function sair({ preservarCarrinho = false } = {}) {
   if (!preservarCarrinho) limparCarrinhoPendente();
+  fecharLeitorCamera();
   encerrarSessao();
   estado.funcionario = null;
   estado.carrinho?.destruir();
@@ -1198,6 +1207,9 @@ async function entrarNoApp() {
     permitirEditar: podeAgora("editarProduto"),
     permitirAjustarEstoque: podeAgora("ajustarEstoque"),
     onEditar: (produto) => abrirModalProduto({ produto }),
+    onCadastrarComCodigo: podeAgora("cadastrarProduto")
+      ? (codigo) => abrirModalProduto({ codigoInicial: codigo })
+      : null,
     onExcluir: (produto) => {
       if (!podeAgora("excluirProduto")) {
         notificar("Você não tem permissão para excluir produtos.", "alerta");
@@ -1960,24 +1972,26 @@ function atualizarSugestoes(termo) {
     return;
   }
 
-  const resultados = buscar(consulta);
+  const ehCodigo = pareceCodigoBarras(consulta);
+  const exato = ehCodigo ? encontrarPorCodigoBarras(estado.produtos, consulta) : null;
+  const resultados = ehCodigo ? (exato ? [exato] : []) : buscar(consulta);
   painel.classList.remove("oculto");
 
   if (resultados.length === 0) {
     const podeCadastrar = podeAgora("cadastrarProduto");
     painel.innerHTML = `
       <div class="sugestao-vazia">
-        <p>Nenhum produto para "<strong>${escapeHtml(consulta)}</strong>".</p>
+        <p>Nenhum produto ${ehCodigo ? "com o código" : "para"} "<strong>${escapeHtml(consulta)}</strong>".</p>
         ${
           podeCadastrar
             ? `<button type="button" class="btn btn-primario" id="btn-criar-da-busca">
-          + Cadastrar "${escapeHtml(consulta)}"
+          ${ehCodigo ? "+ Cadastrar produto com este código" : `+ Cadastrar "${escapeHtml(consulta)}"`}
         </button>`
             : ""
         }
       </div>`;
     $("btn-criar-da-busca")?.addEventListener("click", () =>
-      abrirModalProduto({ nomeInicial: consulta })
+      abrirModalProduto(ehCodigo ? { codigoInicial: consulta } : { nomeInicial: consulta })
     );
     return;
   }
@@ -2049,6 +2063,15 @@ function confirmarBusca(termo) {
     return;
   }
 
+  if (pareceCodigoBarras(consulta)) {
+    notificar(`Código ${consulta} não cadastrado.`, "alerta");
+    const input = $("busca-produto");
+    if (input) input.value = consulta;
+    atualizarSugestoes(consulta);
+    focarBuscaProduto();
+    return;
+  }
+
   const resultados = buscar(consulta);
   if (resultados.length > 0) {
     adicionarAoCarrinho(resultados[0].id, quantidade);
@@ -2064,9 +2087,9 @@ function confirmarBusca(termo) {
  * ------------------------------------------------------------------------- */
 
 /**
- * @param {{nomeInicial?: string, produto?: object}} [opcoes]
+ * @param {{nomeInicial?: string, codigoInicial?: string, produto?: object}} [opcoes]
  */
-function abrirModalProduto({ nomeInicial = "", produto = null } = {}) {
+function abrirModalProduto({ nomeInicial = "", codigoInicial = "", produto = null } = {}) {
   const editando = Boolean(produto);
   if (editando && !podeAgora("editarProduto")) {
     notificar("Você não tem permissão para editar produtos.", "alerta");
@@ -2093,7 +2116,7 @@ function abrirModalProduto({ nomeInicial = "", produto = null } = {}) {
     produto && produto.estoque !== null && produto.estoque !== undefined
       ? String(produto.estoque)
       : "";
-  $("produto-codigo").value = produto?.codigoBarras || "";
+  $("produto-codigo").value = produto?.codigoBarras || codigoInicial;
   if ($("produto-codigo-interno")) {
     $("produto-codigo-interno").value = produto?.codigoInterno || "";
   }
@@ -2131,7 +2154,157 @@ function abrirModalProduto({ nomeInicial = "", produto = null } = {}) {
   aplicarCamposCadastroProduto(estado.configLoja);
 
   abrirModal("modal-produto");
-  (editando ? $("produto-nome") : $("produto-preco")).focus();
+  const comecarPeloNome = editando || (codigoInicial && !nomeInicial);
+  (comecarPeloNome ? $("produto-nome") : $("produto-preco")).focus();
+  if (codigoInicial) avisarSeCampoCodigoOculto();
+}
+
+function campoCodigoVisivel() {
+  return estado.configLoja?.campoProdutoCodigos !== false;
+}
+
+function avisarSeCampoCodigoOculto() {
+  if (campoCodigoVisivel()) return;
+  notificar(
+    "O campo de código está desligado. Ative em Configurações › “Código de barras e código interno”.",
+    "alerta",
+    6000
+  );
+}
+
+/**
+ * Coloca o código lido no cadastro aberto e avisa se ele já pertence a outro produto.
+ * @param {string} codigoLido
+ */
+function preencherCodigoNoCadastro(codigoLido) {
+  const codigo = normalizarCodigoLido(codigoLido);
+  if (!codigo) return;
+  const campo = $("produto-codigo");
+  campo.value = codigo;
+  avisarSeCampoCodigoOculto();
+
+  const idAtual = $("produto-id").value.trim();
+  const dono = encontrarPorCodigoBarras(estado.produtos, codigo);
+  if (dono && dono.id !== idAtual) {
+    setErro($("produto-erro"), `Este código já está no produto "${dono.nome}".`);
+    campo.focus();
+    campo.select();
+    return;
+  }
+  setErro($("produto-erro"), "");
+
+  const proximo = !$("produto-nome").value.trim()
+    ? $("produto-nome")
+    : !$("produto-preco").value
+      ? $("produto-preco")
+      : $("produto-estoque");
+  proximo.focus();
+}
+
+/**
+ * Tela Produtos: filtra pelo código lido e destaca o produto (para editar ou excluir).
+ * @param {string} codigoLido
+ */
+function localizarProdutoNaGestao(codigoLido) {
+  const codigo = normalizarCodigoLido(codigoLido);
+  if (!codigo || !estado.painelProdutos) return;
+  const produto = estado.painelProdutos.localizarPorCodigo(codigo);
+  if (!produto) {
+    notificar(`Nenhum produto com o código ${codigo}.`, "alerta");
+  }
+}
+
+/**
+ * Destino do leitor USB conforme a tela aberta.
+ * @param {string} codigo
+ * @param {{ emCampoDeTexto: boolean }} contexto
+ * @returns {boolean} true quando o código foi usado
+ */
+function tratarCodigoDoLeitor(codigo, { emCampoDeTexto }) {
+  if ($("tela-app").classList.contains("oculto")) return false;
+
+  const modaisAbertos = [...document.querySelectorAll(".modal:not(.oculto)")];
+  if (modaisAbertos.length > 0) {
+    const soCadastro =
+      modaisAbertos.length === 1 && modaisAbertos[0].id === "modal-produto";
+    if (!soCadastro) return false;
+    preencherCodigoNoCadastro(codigo);
+    return true;
+  }
+
+  if (estado.rotaAtual === "pdv") {
+    confirmarBusca(codigo);
+    return true;
+  }
+  if (estado.rotaAtual === "produtos") {
+    localizarProdutoNaGestao(codigo);
+    return true;
+  }
+  if (!emCampoDeTexto) {
+    notificar(
+      `Código ${codigo} lido. Abra o Caixa para vender ou Produtos para procurar.`,
+      "info"
+    );
+  }
+  return false;
+}
+
+/**
+ * Esconde os botões de câmera quando o computador não tem nenhuma.
+ */
+async function atualizarBotoesCamera() {
+  const temCamera = await existeCameraConectada();
+  document.querySelectorAll("[data-leitor-camera]").forEach((botao) => {
+    botao.classList.toggle("oculto", !temCamera);
+  });
+}
+
+function instalarLeitoresCodigoBarras() {
+  instalarLeitorTeclado(tratarCodigoDoLeitor);
+
+  $("btn-camera-pdv").addEventListener("click", () =>
+    abrirLeitorCamera({
+      titulo: "Vender pela câmera",
+      dica: "Passe cada produto na frente da câmera. Cada código lido entra no carrinho.",
+      continuo: true,
+      aoLerCodigo: (codigo) => confirmarBusca(codigo),
+    })
+  );
+  $("btn-camera-produtos").addEventListener("click", () =>
+    abrirLeitorCamera({
+      titulo: "Procurar produto pela câmera",
+      aoLerCodigo: localizarProdutoNaGestao,
+    })
+  );
+  $("btn-camera-produto-codigo").addEventListener("click", () =>
+    abrirLeitorCamera({
+      titulo: "Ler código do produto",
+      aoLerCodigo: preencherCodigoNoCadastro,
+    })
+  );
+
+  $("filtro-produtos").addEventListener("keydown", (evento) => {
+    if (evento.key !== "Enter") return;
+    evento.preventDefault();
+    const codigo = normalizarCodigoLido(evento.currentTarget.value);
+    if (codigo) localizarProdutoNaGestao(codigo);
+  });
+  // Leitor USB termina com Enter: no campo de código ele não pode enviar o formulário pela metade.
+  $("produto-codigo").addEventListener("keydown", (evento) => {
+    if (evento.key !== "Enter") return;
+    evento.preventDefault();
+    preencherCodigoNoCadastro(evento.currentTarget.value);
+  });
+  $("produto-codigo-interno")?.addEventListener("keydown", (evento) => {
+    if (evento.key !== "Enter") return;
+    evento.preventDefault();
+    $("produto-categoria")?.focus();
+  });
+
+  void atualizarBotoesCamera();
+  navigator.mediaDevices?.addEventListener?.("devicechange", () => {
+    void atualizarBotoesCamera();
+  });
 }
 
 function atualizarPreviewMargem() {

@@ -1,6 +1,6 @@
 {
   "name": "cybhor-pdv",
-  "version": "3.1.0",
+  "version": "3.2.0",
   "description": "CybhorPDV - PDV desktop para Windows 7 e Windows 10+.",
   "author": "Loja",
   "license": "MIT",
@@ -17,6 +17,7 @@
     "dist:nsis": "npm run dist:win10"
   },
   "dependencies": {
+    "@zxing/library": "^0.21.3",
     "chart.js": "^4.5.1",
     "dotenv": "^16.4.5",
     "fuse.js": "^7.0.0",

@@ -19,9 +19,10 @@ const ofuscar =
 const externosJspdfOpcionais = ["html2canvas", "canvg", "dompurify"];
 
 /**
- * Compila o renderer em dois IIFE:
+ * Compila o renderer em três IIFE:
  * - bundle.js: app do caixa (carrega na abertura)
  * - relatorios.js: Dashboard + chart.js + jspdf (só ao abrir Relatórios)
+ * - leitor-camera.js: decodificador de código de barras (só ao abrir a câmera)
  * target chrome108 = Electron 22 (ultimo com suporte oficial ao Windows 7).
  */
 fs.mkdirSync(dist, { recursive: true });
@@ -50,6 +51,14 @@ await build({
   outfile: path.join(dist, "relatorios.js"),
 });
 
+await build({
+  ...comum,
+  entryPoints: [path.join(raiz, "renderer/js/lazy/leitorCamera-entry.js")],
+  outfile: path.join(dist, "leitor-camera.js"),
+});
+
+const bundlesGerados = ["bundle.js", "relatorios.js", "leitor-camera.js"];
+
 async function ofuscarArquivo(caminho) {
   const { default: JavaScriptObfuscator } = await import(
     "javascript-obfuscator"
@@ -76,18 +85,17 @@ async function ofuscarArquivo(caminho) {
 }
 
 if (ofuscar) {
-  await ofuscarArquivo(path.join(dist, "bundle.js"));
-  await ofuscarArquivo(path.join(dist, "relatorios.js"));
-  console.log(
-    "Bundles ofuscados (leve) em renderer/dist/bundle.js e relatorios.js"
-  );
+  for (const nome of bundlesGerados) {
+    await ofuscarArquivo(path.join(dist, nome));
+  }
+  console.log(`Bundles ofuscados (leve) em renderer/dist/: ${bundlesGerados.join(", ")}`);
 } else {
   console.log(
     "Bundles de desenvolvimento em renderer/dist/ (use CYBHOR_OFUSCAR=1 para ofuscar)"
   );
 }
 
-for (const nome of ["bundle.js", "relatorios.js"]) {
+for (const nome of bundlesGerados) {
   const bytes = fs.statSync(path.join(dist, nome)).size;
   console.log(`  ${nome}: ${(bytes / 1024).toFixed(1)} KiB`);
 }
