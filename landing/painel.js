@@ -210,9 +210,10 @@ function renderizarGraficoDias(vendas, periodo) {
   const dias = [];
   const inicio = inicioHojeLocal();
   let qtdDias = 1;
-  if (periodo === "7d") qtdDias = 7;
-  else if (periodo === "30d") qtdDias = 30;
-  else if (periodo === "tudo") {
+  if (periodo === "7d" || periodo === "30d") {
+    qtdDias = periodo === "7d" ? 7 : 30;
+    inicio.setDate(inicio.getDate() - (qtdDias - 1));
+  } else if (periodo === "tudo") {
     if (!vendas.length) {
       elGraficoDias.innerHTML = `<p class="ranking-vazio">Sem dados.</p>`;
       return;

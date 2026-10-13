@@ -25,7 +25,16 @@ METODOS_BRASIL = {
 def configuracao_brick_pagamento() -> Dict[str, Any]:
     return {
         "visual": {
-            "style": {"theme": "dark"},
+            # Mesma paleta do site (claro, ação em tinta, cantos 4/6/8px).
+            "style": {
+                "theme": "default",
+                "customVariables": {
+                    "baseColor": "#171717",
+                    "borderRadiusSmall": "4px",
+                    "borderRadiusMedium": "6px",
+                    "borderRadiusLarge": "8px",
+                },
+            },
             "texts": {
                 "paymentMethods": {
                     "creditCardTitle": "Cartao de credito",
