@@ -14,7 +14,8 @@
     "test": "node --test testes/unitarios/",
     "test:integracao": "node --test --test-concurrency=1 testes/integracao/",
     "banco:schema": "node scripts/aplicarSchema.js",
-    "admin:criar": "node scripts/criarAdminSistema.js"
+    "admin:criar": "node scripts/criarAdminSistema.js",
+    "migracao:importar": "node scripts/migracao/importarParaMysql.js"
   },
   "dependencies": {
     "cors": "^2.8.6",
