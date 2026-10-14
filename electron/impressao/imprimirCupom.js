@@ -8,21 +8,11 @@ const { BrowserWindow } = require("electron");
 const { gerarHtmlCupom } = require("./cupomHtml");
 const { gerarBufferEscPos } = require("./escpos");
 const servidorImpressao = require("./servidorImpressao");
-
-/**
- * Nomes/trechos usados para localizar a impressora Jetway no Windows.
- * Driver oficial cria "Jetway JP-800" (Driver_Utilitarios_JP-800).
- */
-const PALAVRAS_JETWAY = [
-  "jetway",
-  "jp-800",
-  "jp800",
-  "jp-500",
-  "jp500",
-  "jp-700",
-  "jp700",
-  "tanca",
-];
+const {
+  escolherImpressora,
+  normalizarImpressora,
+  estadoWindowsIndisponivel,
+} = require("./deteccaoImpressora");
 
 
 
@@ -125,50 +115,6 @@ function obterDadosLoja(lojaDaVenda) {
 }
 
 /**
- * @param {Array<{name: string, isDefault?: boolean, status?: number}>} impressoras
- * @returns {string | null}
- */
-function escolherImpressora(impressoras) {
-  if (!Array.isArray(impressoras) || impressoras.length === 0) {
-    const forçada = (process.env.IMPRESSORA_NOME || "").trim();
-    return forçada || null;
-  }
-
-  const configurada = (process.env.IMPRESSORA_NOME || "").trim().toLowerCase();
-  if (configurada) {
-    const candidatas = impressoras.filter((p) =>
-      String(p.name || "").toLowerCase().includes(configurada)
-    );
-    const exata = candidatas.find(
-      (p) => String(p.name || "").toLowerCase() === configurada
-    );
-    if (exata) return exata.name;
-    // Prefere a impressora sem "(1)", "(2)" etc. (instalacoes duplicadas)
-    const principal = candidatas.find(
-      (p) => !/\(\d+\)$/.test(String(p.name || "").trim())
-    );
-    if (principal) return principal.name;
-    if (candidatas[0]) return candidatas[0].name;
-    return (process.env.IMPRESSORA_NOME || "").trim();
-  }
-
-  const jetways = impressoras.filter((p) => {
-    const nome = String(p.name || "").toLowerCase();
-    return PALAVRAS_JETWAY.some((trecho) => nome.includes(trecho));
-  });
-
-  if (jetways.length > 0) {
-    const principal = jetways.find(
-      (p) => !/\(\d+\)$/.test(String(p.name || "").trim())
-    );
-    return (principal || jetways[0]).name;
-  }
-
-  const padrao = impressoras.find((p) => p.isDefault);
-  return padrao?.name || impressoras[0]?.name || null;
-}
-
-/**
  * Usa o servidor de impressão aquecido; só cai no caminho antigo (um
  * PowerShell novo por chamada) quando o servidor não consegue subir.
  * @template T
@@ -187,8 +133,8 @@ async function comServidorOuLegado(viaServidor, viaLegado) {
 }
 
 /**
- * Lista impressoras via WMI (Win7+) quando Chromium devolve lista vazia.
- * @returns {Promise<Array<{name: string, isDefault?: boolean, status?: number}>>}
+ * Lista impressoras via WMI (Win7+), com o estado de cada uma (offline, erro).
+ * @returns {Promise<object[]>}
  */
 async function listarImpressorasWinspool() {
   if (process.platform !== "win32") return [];
@@ -204,11 +150,14 @@ async function listarImpressorasWinspool() {
 }
 
 async function listarImpressorasWinspoolLegado() {
+  // Mesmo formato do ServidorImpressao.ps1; [char]9 = TAB (aspas simples não interpretam `t).
   const ps = [
-    "$ErrorActionPreference = 'SilentlyContinue';",
+    "$ErrorActionPreference = 'SilentlyContinue'; $t = [char]9;",
     "Get-WmiObject Win32_Printer | ForEach-Object {",
     "  $def = if ($_.Default) { '1' } else { '0' };",
-    "  Write-Output ($_.Name + '`t' + $def + '`t' + $_.PrinterStatus)",
+    "  $off = if ($_.WorkOffline) { '1' } else { '0' };",
+    "  Write-Output ($_.Name + $t + $def + $t + $_.PrinterStatus + $t + $off + $t +",
+    "    $_.PrinterState + $t + $_.ExtendedPrinterStatus + $t + $_.PortName + $t + $_.DriverName)",
     "}",
   ].join(" ");
   const resultado = await executar("powershell.exe", [
@@ -219,53 +168,68 @@ async function listarImpressorasWinspoolLegado() {
     ps,
   ]);
   if (resultado.code !== 0) return [];
-  return (resultado.stdout || "")
-    .split(/\r?\n/)
-    .map((linha) => linha.trim())
-    .filter(Boolean)
-    .map((linha) => {
-      const [nome, def, status] = linha.split("\t");
-      if (!nome) return null;
-      return {
-        name: nome,
-        isDefault: def === "1",
-        status: Number(status) || 0,
-      };
-    })
-    .filter(Boolean);
+  return servidorImpressao.interpretarListagemWmi(resultado.stdout);
 }
 
-async function listarImpressoras() {
+/**
+ * Impressoras vistas pelo Chromium (no Linux/macOS traz o estado do CUPS).
+ * @returns {Promise<object[]>}
+ */
+async function listarImpressorasElectron() {
   const janela =
     BrowserWindow.getFocusedWindow() || BrowserWindow.getAllWindows()[0];
-  let lista = [];
-  if (janela) {
-    try {
-      if (typeof janela.webContents.getPrintersAsync === "function") {
-        lista = await janela.webContents.getPrintersAsync();
-      } else if (typeof janela.webContents.getPrinters === "function") {
-        lista = janela.webContents.getPrinters();
-      }
-    } catch (erro) {
-      console.warn("getPrinters falhou:", erro?.message || erro);
-      lista = [];
+  if (!janela) return [];
+  try {
+    if (typeof janela.webContents.getPrintersAsync === "function") {
+      return (await janela.webContents.getPrintersAsync()) || [];
     }
+    if (typeof janela.webContents.getPrinters === "function") {
+      return janela.webContents.getPrinters() || [];
+    }
+  } catch (erro) {
+    console.warn("getPrinters falhou:", erro?.message || erro);
   }
-  if ((!lista || lista.length === 0) && process.platform === "win32") {
-    const viaSpool = await listarImpressorasWinspool();
-    if (viaSpool.length > 0) return viaSpool;
-  }
-  return Array.isArray(lista) ? lista : [];
+  return [];
 }
+
+/**
+ * No Windows o WMI vem primeiro: é ele que informa offline/erro de forma
+ * confiável no Win7 e no Win10, o que a detecção automática precisa.
+ * @returns {Promise<object[]>}
+ */
+async function listarImpressoras() {
+  if (process.platform === "win32") {
+    const viaWmi = await listarImpressorasWinspool();
+    if (viaWmi.length > 0) return viaWmi;
+  }
+  return listarImpressorasElectron();
+}
+
+/**
+ * Lista para a tela de configurações, com o estado de cada impressora e
+ * qual delas a detecção automática usaria agora.
+ * @returns {Promise<{impressoras: Array<import("./deteccaoImpressora").ImpressoraDetectada>, automatica: string | null}>}
+ */
+async function listarImpressorasDetectadas() {
+  const brutas = await listarImpressoras();
+  return {
+    impressoras: brutas
+      .map((bruta) => normalizarImpressora(bruta))
+      .filter((impressora) => impressora.nome),
+    automatica: escolherImpressora(brutas, ""),
+  };
+}
+
+const TIMEOUT_COMANDO_MS = 15000;
 
 /**
  * @param {string} comando
  * @param {string[]} args
+ * @param {number} [timeoutMs]
+ * @param {Buffer} [entrada] bytes enviados ao stdin do processo
  * @returns {Promise<{code: number, stdout: string, stderr: string}>}
  */
-const TIMEOUT_COMANDO_MS = 15000;
-
-function executar(comando, args, timeoutMs = TIMEOUT_COMANDO_MS) {
+function executar(comando, args, timeoutMs = TIMEOUT_COMANDO_MS, entrada = null) {
   return new Promise((resolve) => {
     const filho = spawn(comando, args, { windowsHide: true });
     let stdout = "";
@@ -303,7 +267,40 @@ function executar(comando, args, timeoutMs = TIMEOUT_COMANDO_MS) {
     filho.on("close", (code) => {
       concluir({ code: code ?? 1, stdout, stderr });
     });
+    if (entrada) {
+      // Sem este handler um EPIPE (processo saiu antes de ler) derrubaria o processo principal.
+      filho.stdin.on("error", () => {});
+      filho.stdin.end(entrada);
+    }
   });
+}
+
+/**
+ * Envia bytes RAW para uma fila CUPS (Linux/macOS).
+ * `-o raw` pula os filtros do CUPS: filas "Generic Text-Only" reescreveriam
+ * os comandos ESC/POS e a térmica não cortaria/formataria o cupom.
+ * @param {string} nomeImpressora nome da fila CUPS
+ * @param {Buffer} buffer
+ * @returns {Promise<{ok: boolean, impressora: string, modo?: string, mensagem?: string}>}
+ */
+async function enviarViaCups(nomeImpressora, buffer) {
+  const resultado = await executar(
+    "lp",
+    ["-d", nomeImpressora, "-o", "raw", "-t", "CybhorPDV Cupom"],
+    TIMEOUT_COMANDO_MS,
+    buffer
+  );
+  if (resultado.code === 0) {
+    return { ok: true, impressora: nomeImpressora, modo: "CUPS" };
+  }
+  console.warn("Falha ao enviar cupom via CUPS:", resultado.stderr || resultado.stdout);
+  return {
+    ok: false,
+    impressora: nomeImpressora,
+    mensagem:
+      `Não foi possível enviar o cupom para a impressora "${nomeImpressora}". ` +
+      "Confira se ela está ligada e selecionada em Configurações > Impressora térmica.",
+  };
 }
 
 /**
@@ -549,7 +546,8 @@ async function diagnosticarImpressoraLegado(nomeImpressora) {
     "$ErrorActionPreference = 'SilentlyContinue';",
     `$p = Get-WmiObject Win32_Printer | Where-Object { $_.Name -eq '${nomeEsc}' } | Select-Object -First 1;`,
     "if (-not $p) { Write-Output 'MISSING'; exit 0 };",
-    "Write-Output ('STATUS=' + $p.PrinterStatus + ';PORT=' + $p.PortName + ';WORKOFFLINE=' + $p.WorkOffline)",
+    "Write-Output ('STATUS=' + $p.PrinterStatus + ';PORT=' + $p.PortName + ';WORKOFFLINE=' + $p.WorkOffline +",
+    "  ';STATE=' + $p.PrinterState + ';EXT=' + $p.ExtendedPrinterStatus)",
   ].join(" ");
 
   const resultado = await executar("powershell.exe", [
@@ -563,7 +561,7 @@ async function diagnosticarImpressoraLegado(nomeImpressora) {
 }
 
 /**
- * @param {string} saida "MISSING" | "STATUS=..;PORT=..;WORKOFFLINE=.." | erro
+ * @param {string} saida "MISSING" | "STATUS=..;PORT=..;WORKOFFLINE=..;STATE=..;EXT=.." | erro
  * @param {string} nomeImpressora
  * @returns {{problema: boolean, mensagem?: string} | null}
  */
@@ -580,14 +578,16 @@ function interpretarDiagnostico(saida, nomeImpressora) {
     };
   }
 
-  const statusMatch = /STATUS=([^;]+)/i.exec(saida);
-  const offlineMatch = /WORKOFFLINE=([^;\s]+)/i.exec(saida);
-  const statusNum = Number(statusMatch?.[1]);
-  const workOffline = String(offlineMatch?.[1] || "").toLowerCase() === "true";
-  // PrinterStatus CIM: 7=Offline, 1=Other; WorkOffline=true também bloqueia.
-  const statusRuim = workOffline || statusNum === 7 || statusNum === 1;
+  const campo = (chave) => new RegExp(`(?:^|;)${chave}=([^;\\s]*)`, "i").exec(saida)?.[1] || "";
+  const workOffline = campo("WORKOFFLINE").toLowerCase() === "true";
+  const statusRuim = estadoWindowsIndisponivel({
+    printerStatus: Number(campo("STATUS")),
+    workOffline,
+    printerState: Number(campo("STATE")),
+    extendedStatus: Number(campo("EXT")),
+  });
   if (statusRuim) {
-    const rotulo = workOffline ? "offline" : statusMatch?.[1] || "erro";
+    const rotulo = workOffline ? "offline" : campo("STATUS") || "erro";
     return {
       problema: true,
       mensagem:
@@ -628,11 +628,33 @@ function esquecerImpressoraCupom() {
 }
 
 /**
+ * Impressora do cupom já conferida no Windows. Se a escolhida (às vezes vinda
+ * do cache) estiver offline/com erro, lista de novo: a detecção automática
+ * troca para outra térmica pronta, quando houver.
+ * @returns {Promise<{nome: string, diagnostico: {problema: boolean, mensagem?: string} | null}>}
+ */
+async function resolverImpressoraProntaWindows() {
+  let nome = await resolverImpressoraCupom();
+  let diagnostico = await diagnosticarImpressoraWindows(nome);
+  if (diagnostico?.problema) {
+    esquecerImpressoraCupom();
+    const alternativa = await resolverImpressoraCupom();
+    if (alternativa !== nome) {
+      nome = alternativa;
+      diagnostico = await diagnosticarImpressoraWindows(nome);
+    }
+  }
+  if (diagnostico?.problema) esquecerImpressoraCupom();
+  return { nome, diagnostico };
+}
+
+/**
  * Imprime o comprovante na JP-800 no mesmo modelo do exemplo Delphi:
  * 1) Porta COM/serial se IMPRESSORA_PORTA estiver definida
  * 2) WritePrinter RAW no Windows (driver Jetway JP-800)
  * 3) Fallback HTML silencioso
- * 4) Em Linux/dev: grava arquivo de teste se IMPRESSORA_MODO=teste
+ * 4) Linux/macOS: fila CUPS em modo raw
+ * Com IMPRESSORA_MODO=teste apenas grava o ESC/POS em arquivo (não imprime).
  *
  * @param {object} dadosVenda
  * @returns {Promise<{ok: boolean, impressora?: string, mensagem?: string, modo?: string}>}
@@ -663,20 +685,16 @@ async function imprimirCupomVenda(dadosVenda) {
     }
   }
 
-  const deviceName = await resolverImpressoraCupom();
-
-  // Diagnostico rapido via PowerShell (Windows): se a fila esta Offline/erro,
-  // nao adianta enviar — devolve mensagem clara para o operador.
+  let deviceName;
   if (process.platform === "win32") {
-    const diagnostico = await diagnosticarImpressoraWindows(deviceName);
-    if (diagnostico && diagnostico.problema) {
-      esquecerImpressoraCupom();
-      return {
-        ok: false,
-        impressora: deviceName,
-        mensagem: diagnostico.mensagem,
-      };
+    // Fila Offline/erro: não adianta enviar, devolve mensagem clara ao operador.
+    const { nome, diagnostico } = await resolverImpressoraProntaWindows();
+    if (diagnostico?.problema) {
+      return { ok: false, impressora: nome, mensagem: diagnostico.mensagem };
     }
+    deviceName = nome;
+  } else {
+    deviceName = await resolverImpressoraCupom();
   }
 
   if (process.platform === "win32" && modoForcado !== "html") {
@@ -712,13 +730,15 @@ async function imprimirCupomVenda(dadosVenda) {
     }
   }
 
-  // Fora do Windows sem porta: gera arquivo para inspecao (simula impressao).
-  const teste = await gravarCupomTeste(buffer);
-  return {
-    ...teste,
-    mensagem:
-      "Ambiente nao-Windows: cupom ESC/POS gravado em arquivo de teste. No Windows use o driver Jetway JP-800.",
-  };
+  const resultadoCups = await enviarViaCups(deviceName, buffer);
+  if (resultadoCups.ok) return resultadoCups;
+  // `lp` recusou o trabalho (nada foi impresso): seguro tentar outra térmica pronta.
+  esquecerImpressoraCupom();
+  const alternativa = await resolverImpressoraCupom();
+  if (alternativa === deviceName) return resultadoCups;
+  const resultadoAlternativa = await enviarViaCups(alternativa, buffer);
+  if (!resultadoAlternativa.ok) esquecerImpressoraCupom();
+  return resultadoAlternativa;
 }
 
 /** Aquece o servidor de impressão para o primeiro cupom não pagar a inicialização. */
@@ -736,6 +756,7 @@ module.exports = {
   validarDadosVendaCupom,
   escolherImpressora,
   listarImpressoras,
+  listarImpressorasDetectadas,
   obterDadosLoja,
   gerarBufferEscPos,
 };

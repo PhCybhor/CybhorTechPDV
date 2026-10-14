@@ -14,10 +14,9 @@ on:
       - "build/**"
       - "vendor/**"
       - "scripts/build-renderer.mjs"
-      - "scripts/dist-win7.mjs"
+      - "scripts/dist-windows.mjs"
       - "package.json"
       - "package-lock.json"
-      - "electron-builder.win7.json"
   workflow_dispatch:
     inputs:
       version:
@@ -136,22 +135,8 @@ jobs:
             if ($_ -match '^GEMINI_API_KEY=') { 'GEMINI_API_KEY=***' } else { $_ }
           }
 
-      - name: Instalador Windows 10 / 11
-        run: npm run dist:win10
-
-      - name: Limpar pasta do Win10 antes do Win7
-        shell: pwsh
-        run: |
-          # Evita reaproveitar win-unpacked com Electron 31 no build Win7.
-          if (Test-Path dist) {
-            Get-ChildItem dist -Directory | Remove-Item -Recurse -Force
-          }
-          if (Test-Path dist-win7) {
-            Remove-Item dist-win7 -Recurse -Force
-          }
-
-      - name: Instalador Windows 7
-        run: npm run dist:win7
+      - name: Instaladores Windows 7, 8, 10 e 11 (64 e 32 bits)
+        run: npm run dist
 
       - name: Publicar GitHub Release
         uses: softprops/action-gh-release@v2
@@ -162,9 +147,8 @@ jobs:
           generate_release_notes: true
           fail_on_unmatched_files: true
           files: |
-            dist/CybhorPDV-Setup-win10-x64.exe
-            dist/CybhorPDV-Setup-win7-x64.exe
-            dist/CybhorPDV-Setup-win7-ia32.exe
+            dist/CybhorPDV-Setup-x64.exe
+            dist/CybhorPDV-Setup-ia32.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

@@ -171,24 +171,58 @@ async function requisitar(acao, argumentos = [], timeoutMs = TIMEOUT_PEDIDO_MS) 
 }
 
 /**
- * @returns {Promise<Array<{name: string, isDefault: boolean, status: number}>>}
+ * @typedef {object} ImpressoraWmi
+ * @property {"wmi"} origem
+ * @property {string} name
+ * @property {boolean} isDefault
+ * @property {number} status PrinterStatus
+ * @property {number} printerStatus
+ * @property {boolean} workOffline
+ * @property {number} printerState
+ * @property {number} extendedStatus
+ * @property {string} port
+ * @property {string} driver
  */
-async function listar() {
-  const texto = await requisitar("listar");
-  return texto
+
+/**
+ * Interpreta a listagem do WMI (uma impressora por linha, campos por TAB).
+ * Compartilhada com o modo antigo (um PowerShell por chamada).
+ * @param {string} texto
+ * @returns {ImpressoraWmi[]}
+ */
+function interpretarListagemWmi(texto) {
+  return String(texto || "")
     .split(/\r?\n/)
-    .map((linha) => linha.trim())
-    .filter(Boolean)
+    .map((linha) => linha.replace(/\r$/, ""))
+    .filter((linha) => linha.trim())
     .map((linha) => {
-      const [nome, padrao, status] = linha.split("\t");
-      return { name: nome, isDefault: padrao === "1", status: Number(status) || 0 };
+      const [nome, padrao, status, offline, estado, estendido, porta, driver] = linha.split("\t");
+      return {
+        origem: "wmi",
+        name: String(nome || "").trim(),
+        isDefault: padrao === "1",
+        status: Number(status) || 0,
+        printerStatus: Number(status) || 0,
+        workOffline: offline === "1",
+        printerState: Number(estado) || 0,
+        extendedStatus: Number(estendido) || 0,
+        port: String(porta || "").trim(),
+        driver: String(driver || "").trim(),
+      };
     })
     .filter((impressora) => impressora.name);
 }
 
 /**
+ * @returns {Promise<ImpressoraWmi[]>}
+ */
+async function listar() {
+  return interpretarListagemWmi(await requisitar("listar"));
+}
+
+/**
  * @param {string} nomeImpressora
- * @returns {Promise<string>} "MISSING" ou "STATUS=..;PORT=..;WORKOFFLINE=.."
+ * @returns {Promise<string>} "MISSING" ou "STATUS=..;PORT=..;WORKOFFLINE=..;STATE=..;EXT=.."
  */
 function diagnosticar(nomeImpressora) {
   return requisitar("diagnosticar", [para64(nomeImpressora)]);
@@ -203,4 +237,11 @@ function imprimirRaw(nomeImpressora, buffer) {
   return requisitar("imprimir", [para64(nomeImpressora), Buffer.from(buffer).toString("base64")]);
 }
 
-module.exports = { iniciar, encerrar, listar, diagnosticar, imprimirRaw };
+module.exports = {
+  iniciar,
+  encerrar,
+  listar,
+  diagnosticar,
+  imprimirRaw,
+  interpretarListagemWmi,
+};

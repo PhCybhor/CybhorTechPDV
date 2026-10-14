@@ -45,9 +45,8 @@ jobs:
           echo "PUBLICADO_EM=$publicado_em" >> "$GITHUB_ENV"
           mkdir instaladores
           gh release download "v$VERSAO" -R "$GITHUB_REPOSITORY" -D instaladores \
-            -p CybhorPDV-Setup-win10-x64.exe \
-            -p CybhorPDV-Setup-win7-x64.exe \
-            -p CybhorPDV-Setup-win7-ia32.exe
+            -p CybhorPDV-Setup-x64.exe \
+            -p CybhorPDV-Setup-ia32.exe
           cd instaladores
           sha256sum CybhorPDV-Setup-*.exe > SHA256SUMS
           cat SHA256SUMS

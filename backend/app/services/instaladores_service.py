@@ -15,7 +15,21 @@ from typing import Any, Dict, List, Optional
 
 from app.errors import ErroNegocio
 
+# Desde a 3.2 um instalador (Electron 22) atende Windows 7, 8, 10 e 11.
+# Os win10/win7 continuam listados para as versoes antigas ainda publicadas.
 INSTALADORES = (
+    {
+        "id": "windows-x64",
+        "arquivo": "CybhorPDV-Setup-x64.exe",
+        "rotulo": "Windows 7, 8, 10 e 11 (64 bits)",
+        "so": "windows",
+    },
+    {
+        "id": "windows-ia32",
+        "arquivo": "CybhorPDV-Setup-ia32.exe",
+        "rotulo": "Windows 7, 8, 10 e 11 (32 bits)",
+        "so": "windows",
+    },
     {
         "id": "win10-x64",
         "arquivo": "CybhorPDV-Setup-win10-x64.exe",
@@ -37,6 +51,12 @@ INSTALADORES = (
 )
 
 ARQUIVOS_PERMITIDOS = frozenset(item["arquivo"] for item in INSTALADORES)
+# Links antigos sem versao (/api/site/baixar/<arquivo>) continuam entregando o mais novo.
+SUBSTITUTOS_LEGADOS = {
+    "CybhorPDV-Setup-win10-x64.exe": "CybhorPDV-Setup-x64.exe",
+    "CybhorPDV-Setup-win7-x64.exe": "CybhorPDV-Setup-x64.exe",
+    "CybhorPDV-Setup-win7-ia32.exe": "CybhorPDV-Setup-ia32.exe",
+}
 VERSAO_VALIDA = re.compile(r"^\d{1,3}\.\d{1,4}\.\d{1,4}$")
 
 
@@ -145,6 +165,9 @@ def caminho_instalador(arquivo: str, versao: Optional[str] = None) -> Path:
     pasta = _pasta_downloads()
     if versao is None:
         caminho = pasta / nome
+        substituto = pasta / SUBSTITUTOS_LEGADOS.get(nome, nome)
+        if substituto.is_file():
+            caminho = substituto
     else:
         if not VERSAO_VALIDA.match(versao or ""):
             raise ErroNegocio("Versao invalida.", 404)

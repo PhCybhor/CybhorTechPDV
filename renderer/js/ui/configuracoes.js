@@ -160,24 +160,31 @@ export class PainelConfiguracoes {
       "";
 
     try {
-      const lista = await listarImpressoras();
-      const nomes = lista.map((p) => p.nome);
+      const { impressoras, automatica } = await listarImpressoras();
+      const nomes = impressoras.map((p) => p.nome);
       if (atual && !nomes.includes(atual)) nomes.unshift(atual);
 
+      const rotuloAutomatico = automatica
+        ? `Detectar automaticamente (agora: ${automatica})`
+        : "Detectar automaticamente";
       this.selectImpressora.innerHTML =
-        `<option value="">Detectar automaticamente (Jetway)</option>` +
+        `<option value="">${escapeHtml(rotuloAutomatico)}</option>` +
         nomes
           .map((nome) => {
-            const padrao = lista.find((p) => p.nome === nome)?.padrao
-              ? " (padrão)"
-              : "";
+            const impressora = impressoras.find((p) => p.nome === nome);
+            const detalhes = [
+              impressora?.padrao ? "padrão" : "",
+              impressora?.disponivel === false ? "offline" : "",
+              impressora ? "" : "não encontrada",
+            ].filter(Boolean);
+            const sufixo = detalhes.length ? ` (${detalhes.join(", ")})` : "";
             return `<option value="${escapeAttr(nome)}" ${
               nome === atual ? "selected" : ""
-            }>${escapeHtml(nome)}${padrao}</option>`;
+            }>${escapeHtml(nome)}${escapeHtml(sufixo)}</option>`;
           })
           .join("");
     } catch {
-      this.selectImpressora.innerHTML = `<option value="">Detectar automaticamente (Jetway)</option>`;
+      this.selectImpressora.innerHTML = `<option value="">Detectar automaticamente</option>`;
     }
   }
 

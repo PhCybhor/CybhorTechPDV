@@ -1,7 +1,7 @@
 {
   "name": "cybhor-pdv",
   "version": "3.2.0",
-  "description": "CybhorPDV - PDV desktop para Windows 7 e Windows 10+.",
+  "description": "CybhorPDV - PDV desktop para Windows 7, 8, 10 e 11 (um instalador para todos).",
   "author": "Loja",
   "license": "MIT",
   "main": "electron/main.js",
@@ -10,11 +10,7 @@
     "build:renderer:prod": "node scripts/build-renderer.mjs --ofuscar",
     "start": "npm run build:renderer && electron .",
     "test:impressao": "node scripts/testar-impressao-jp800.js",
-    "dist": "npm run dist:win10",
-    "dist:win10": "npm run build:renderer:prod && electron-builder --win nsis --x64 --publish never -c.win.signAndEditExecutable=false",
-    "dist:prod": "npm run dist:win10",
-    "dist:win7": "npm run build:renderer:prod && node scripts/dist-win7.mjs",
-    "dist:nsis": "npm run dist:win10"
+    "dist": "npm run build:renderer:prod && node scripts/dist-windows.mjs"
   },
   "dependencies": {
     "@zxing/library": "^0.21.3",
@@ -25,7 +21,7 @@
     "jspdf-autotable": "^3.8.4"
   },
   "devDependencies": {
-    "electron": "^31.7.7",
+    "electron": "22.3.27",
     "electron-builder": "^24.13.3",
     "esbuild": "^0.23.0",
     "javascript-obfuscator": "^4.1.1"
@@ -58,19 +54,18 @@
     ],
     "win": {
       "icon": "build/icon.png",
+      "executableName": "CybhorPDV",
+      "requestedExecutionLevel": "asInvoker",
       "target": [
         {
-          "target": "nsis",
-          "arch": [
-            "x64"
-          ]
+          "target": "nsis"
         }
       ],
-      "artifactName": "CybhorPDV-Setup-win10-${arch}.${ext}"
+      "artifactName": "CybhorPDV-Setup-${arch}.${ext}"
     },
     "nsis": {
       "oneClick": false,
-      "perMachine": true,
+      "perMachine": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
@@ -78,7 +73,8 @@
       "unicode": true,
       "installerLanguages": [
         "pt_BR"
-      ]
+      ],
+      "displayLanguageSelector": false
     }
   }
 }
