@@ -7,7 +7,7 @@ Você **não precisa baixar o código-fonte**. Basta o instalador e o **código 
 1. Cadastre-se / pague no site e **guarde o código da loja** (visível na Área do cliente após o pagamento).
 
 2. Baixe o instalador em:  
-   [github.com/cybhortech/sistemaPDV/releases](https://github.com/cybhortech/sistemaPDV/releases)
+   [github.com/PhCybhor/CybhorTechPDV/releases](https://github.com/PhCybhor/CybhorTechPDV/releases)
 
    - **Windows 7, 8, 10 ou 11 (64 bits):** `CybhorPDV-Setup-x64.exe`
    - **PC de 32 bits:** `CybhorPDV-Setup-ia32.exe`
