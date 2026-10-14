@@ -1,6 +1,6 @@
 "use strict";
 
-const API_BASE = window.location.origin;
+const API_BASE = window.CYBHOR_API_BASE || window.location.origin;
 const params = new URLSearchParams(window.location.search);
 const token = params.get("token");
 let intervaloAtivacao = null;

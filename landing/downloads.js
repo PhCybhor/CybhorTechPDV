@@ -7,25 +7,30 @@ function escapeDownloadHtml(texto) {
 }
 
 /**
- * Só aceita http(s) same-origin ou caminho relativo iniciando com /.
- * Rejeita javascript:, data: e hosts externos.
+ * @returns {string} origem da API (os instaladores são servidos por ela, não pelo site)
+ */
+function origemApiDownloads() {
+  return new URL(window.CYBHOR_API_BASE || window.location.origin).origin;
+}
+
+/**
+ * Só aceita http(s) da origem da API ou caminho relativo iniciando com /,
+ * resolvido contra a API. Rejeita javascript:, data: e hosts externos.
  * @param {string} url
  * @returns {string} href seguro ou "#" se inválido
  */
 function hrefDownloadSeguro(url) {
   const bruto = String(url || "").trim();
-  if (!bruto || /^javascript:/i.test(bruto) || /^data:/i.test(bruto)) {
+  if (!bruto || bruto.startsWith("//") || /^javascript:/i.test(bruto) || /^data:/i.test(bruto)) {
     return "#";
   }
-  if (bruto.startsWith("/") && !bruto.startsWith("//")) {
-    return bruto;
-  }
   try {
-    const parsed = new URL(bruto, window.location.origin);
+    const origemApi = origemApiDownloads();
+    const parsed = new URL(bruto, origemApi);
     if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
       return "#";
     }
-    if (parsed.origin !== window.location.origin) {
+    if (parsed.origin !== origemApi) {
       return "#";
     }
     return parsed.href;
@@ -115,8 +120,7 @@ async function carregarInstaladores(containerId) {
   if (!el) return;
 
   try {
-    const origem = window.location.origin;
-    const resposta = await fetch(`${origem}/api/site/downloads`);
+    const resposta = await fetch(`${origemApiDownloads()}/api/site/downloads`);
     const dados = await resposta.json();
     const atual = dados.atual && Array.isArray(dados.atual.instaladores) ? dados.atual : null;
     if (!atual || !atual.instaladores.length) {

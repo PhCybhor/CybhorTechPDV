@@ -1,6 +1,6 @@
 "use strict";
 
-const API_BASE = window.location.origin;
+const API_BASE = window.CYBHOR_API_BASE || window.location.origin;
 const TOKEN_KEY = "cybhor_portal_token";
 const LOJA_KEY = "cybhor_portal_loja";
 

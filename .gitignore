@@ -1,6 +1,7 @@
 ﻿node_modules/
 dist/
 dist-win7/
+dist-site/
 renderer/dist/
 .env
 .env.*

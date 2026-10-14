@@ -1,6 +1,6 @@
 "use strict";
 
-const API_BASE = window.location.origin;
+const API_BASE = window.CYBHOR_API_BASE || window.location.origin;
 // Precisa ser igual a VERSAO_DIRETRIZES em backend/app/diretrizes.py; o servidor recusa aceite de versão antiga.
 const VERSAO_DIRETRIZES = "2026-10-13";
 const PLANOS_PADRAO = {
