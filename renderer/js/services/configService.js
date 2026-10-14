@@ -64,10 +64,16 @@ export async function salvarConfigApp(config) {
 }
 
 /**
- * @returns {Promise<Array<{nome: string, padrao: boolean}>>}
+ * @returns {Promise<{
+ *   impressoras: Array<{nome: string, padrao: boolean, disponivel: boolean | null, termica: boolean}>,
+ *   automatica: string | null
+ * }>} `automatica` = impressora que a detecção automática usaria agora
  */
 export async function listarImpressoras() {
-  if (!window.pdvAPI?.listarImpressoras) return [];
+  if (!window.pdvAPI?.listarImpressoras) return { impressoras: [], automatica: null };
   const resposta = await window.pdvAPI.listarImpressoras();
-  return resposta?.impressoras || [];
+  return {
+    impressoras: Array.isArray(resposta?.impressoras) ? resposta.impressoras : [],
+    automatica: resposta?.automatica || null,
+  };
 }

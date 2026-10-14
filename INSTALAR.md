@@ -9,8 +9,8 @@ Você **não precisa baixar o código-fonte**. Basta o instalador e o **código 
 2. Baixe o instalador em:  
    [github.com/cybhortech/sistemaPDV/releases](https://github.com/cybhortech/sistemaPDV/releases)
 
-   - **Windows 10/11:** `CybhorPDV-Setup-win10-x64.exe`
-   - **Windows 7:** `CybhorPDV-Setup-win7-x64.exe` ou `CybhorPDV-Setup-win7-ia32.exe`
+   - **Windows 7, 8, 10 ou 11 (64 bits):** `CybhorPDV-Setup-x64.exe`
+   - **PC de 32 bits:** `CybhorPDV-Setup-ia32.exe`
 
 3. Instale e abra o **CybhorPDV.exe**.
 
@@ -22,8 +22,8 @@ Você **não precisa baixar o código-fonte**. Basta o instalador e o **código 
 
 ## Requisitos
 
-- Windows 10/11 (pacote **win10**) **ou** Windows 7 SP1 (pacote **win7** — nunca use o win10 no Windows 7)
-- No Windows 7: baixe `CybhorPDV-Setup-win7-x64.exe` (64 bits) ou `CybhorPDV-Setup-win7-ia32.exe` (32 bits)
+- Windows 7 SP1, 8, 10 ou 11 — o mesmo instalador serve para todos
+- 64 bits: `CybhorPDV-Setup-x64.exe`; 32 bits: `CybhorPDV-Setup-ia32.exe`
 - Conexão com a internet (ativar a loja e sincronizar dados)
 - Um código de loja válido (1 código = 1 loja; use o mesmo código nos outros caixas)
 
@@ -35,14 +35,17 @@ Você **não precisa baixar o código-fonte**. Basta o instalador e o **código 
 | "Falha ao conectar ao banco de dados" | Verifique a internet e reinstale com o instalador mais recente |
 | Assinatura pendente ou cancelada | Conclua o pagamento no site (Área do cliente) — vencida/inadimplente segue liberada com aviso |
 | Antivírus bloqueou | Permita o CybhorPDV nas exceções do antivírus |
-| Não abre no Windows 7 | Use o instalador **win7** (não o win10), confirme Windows 7 **SP1**, reinstale e abra como administrador |
+| Não abre no Windows 7 | Confirme o Windows 7 **SP1**, reinstale e abra como administrador |
 | Não abre após instalar | Execute o `.exe` como administrador |
 | Quero outra loja | Cadastre outra loja no site — cada código cria um espaço separado |
 
 ## Impressora térmica (Jetway JP-800)
 
-Após entrar como admin: **Configurações** → escolha a impressora e salve.
-Também é possível ajustar nome da loja no cupom nessa tela.
+O PDV detecta sozinho a impressora térmica que está ligada e pronta (Jetway,
+Bematech, Elgin, Epson TM, "Generic / Text Only" etc.). Se a impressora
+escolhida estiver offline, ele usa outra térmica pronta. Para fixar uma
+impressora: **Configurações** → escolha a impressora e salve. Nessa tela também
+dá para ajustar o nome da loja no cupom.
 
 ## API (quem hospeda o backend)
 

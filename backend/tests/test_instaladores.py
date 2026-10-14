@@ -17,6 +17,8 @@ from app.services import instaladores_service  # noqa: E402
 
 WIN10 = "CybhorPDV-Setup-win10-x64.exe"
 WIN7_32 = "CybhorPDV-Setup-win7-ia32.exe"
+UNICO_64 = "CybhorPDV-Setup-x64.exe"
+UNICO_32 = "CybhorPDV-Setup-ia32.exe"
 
 
 class InstaladoresTest(unittest.TestCase):
@@ -89,6 +91,32 @@ class InstaladoresTest(unittest.TestCase):
         caminho = instaladores_service.caminho_instalador(WIN10, "2.1.5")
 
         self.assertEqual(caminho, pasta_versao / WIN10)
+
+    def test_instalador_unico_listado_com_versoes_antigas(self) -> None:
+        self._publicar("3.1.0", WIN10, WIN7_32)
+        self._publicar("3.2.0", UNICO_64, UNICO_32)
+
+        dados = instaladores_service.listar_instaladores()
+
+        self.assertEqual(
+            [i["id"] for i in dados["atual"]["instaladores"]], ["windows-x64", "windows-ia32"]
+        )
+        self.assertEqual(
+            [i["arquivo"] for i in dados["anteriores"][0]["instaladores"]], [WIN10, WIN7_32]
+        )
+
+    def test_link_antigo_sem_versao_entrega_instalador_unico(self) -> None:
+        (self.pasta / WIN10).write_bytes(b"MZ antigo")
+        (self.pasta / UNICO_64).write_bytes(b"MZ novo")
+        (self.pasta / UNICO_32).write_bytes(b"MZ novo")
+
+        self.assertEqual(instaladores_service.caminho_instalador(WIN10), self.pasta / UNICO_64)
+        self.assertEqual(instaladores_service.caminho_instalador(WIN7_32), self.pasta / UNICO_32)
+
+    def test_link_antigo_sem_instalador_unico_entrega_o_proprio(self) -> None:
+        (self.pasta / WIN7_32).write_bytes(b"MZ")
+
+        self.assertEqual(instaladores_service.caminho_instalador(WIN7_32), self.pasta / WIN7_32)
 
     def test_bloqueia_traversal_e_arquivos_fora_da_lista(self) -> None:
         self._publicar("2.1.5", WIN10)

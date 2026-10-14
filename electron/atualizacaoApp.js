@@ -26,14 +26,12 @@ function compararVersoes(a, b) {
 }
 
 /**
- * O build do Windows 7 roda no Electron 22; o de Windows 10/11 em versões mais novas.
- * Assim o aviso aponta para o instalador certo sem perguntar ao operador.
+ * Um instalador por arquitetura atende Windows 7 a 11; o aviso aponta para o
+ * da arquitetura desta instalação sem perguntar ao operador.
  * @returns {string}
  */
 function idInstaladorDestaInstalacao() {
-  const major = Number.parseInt(String(process.versions.electron || "0").split(".")[0], 10);
-  if (major <= 22) return process.arch === "ia32" ? "win7-ia32" : "win7-x64";
-  return "win10-x64";
+  return process.arch === "ia32" ? "windows-ia32" : "windows-x64";
 }
 
 /**

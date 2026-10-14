@@ -1,12 +1,13 @@
 "use strict";
 
 const { app, BrowserWindow, ipcMain, shell, dialog } = require("electron");
+const os = require("os");
 const path = require("path");
 const fs = require("fs");
 const { pathToFileURL } = require("url");
 const {
   imprimirCupomVenda,
-  listarImpressoras,
+  listarImpressorasDetectadas,
   prepararImpressao,
   encerrarImpressao,
 } = require("./impressao/imprimirCupom");
@@ -134,12 +135,15 @@ function validarUrlExterna(url) {
 }
 
 /**
- * Electron 22 (Win7) precisa do bypass de certificado; Electron 23+ usa verificação normal.
+ * Windows 7/8/8.1 (NT 6.x) não têm a raiz nova do Let's Encrypt no repositório
+ * do sistema; só neles a API oficial precisa do bypass de certificado. O mesmo
+ * instalador no Windows 10/11 mantém a verificação normal.
  * @returns {boolean}
  */
 function precisaBypassCertificadoLegacy() {
-  const major = Number.parseInt(String(process.versions.electron || "0").split(".")[0], 10);
-  return Number.isFinite(major) && major <= 22;
+  if (process.platform !== "win32") return false;
+  const versaoNt = Number.parseInt(String(os.release()).split(".")[0], 10);
+  return Number.isFinite(versaoNt) && versaoNt < 10;
 }
 
 function carregarVariaveisDeAmbiente() {
@@ -279,7 +283,7 @@ function criarJanela() {
     console.error("Renderer encerrado:", details);
     dialog.showErrorBox(
       "CybhorPDV",
-      "O aplicativo fechou inesperadamente. No Windows 7 use o instalador win7 (nao o win10) e confira se ha SP1 instalado."
+      "O aplicativo fechou inesperadamente. No Windows 7 confira se o SP1 esta instalado e reinstale o CybhorPDV."
     );
   });
 }
@@ -334,20 +338,23 @@ ipcMain.handle("obter-versao-app", () => app.getVersion());
 
 ipcMain.handle("listar-impressoras", async () => {
   try {
-    const lista = await listarImpressoras();
+    const { impressoras, automatica } = await listarImpressorasDetectadas();
     return {
       ok: true,
-      impressoras: (lista || []).map((p) => ({
-        nome: p.name,
-        padrao: Boolean(p.isDefault),
-        status: p.status,
+      automatica,
+      impressoras: impressoras.map((p) => ({
+        nome: p.nome,
+        padrao: p.padrao,
+        disponivel: p.disponivel,
+        termica: p.termica,
       })),
     };
   } catch (erro) {
+    console.error("Falha ao listar impressoras:", erro);
     return {
       ok: false,
       impressoras: [],
-      mensagem: erro?.message || "Falha ao listar impressoras.",
+      mensagem: "Falha ao listar impressoras.",
     };
   }
 });
@@ -525,8 +532,6 @@ ipcMain.handle("abrir-externo", async (_evento, url) => {
 });
 
 app.whenReady().then(() => {
-  // Bypass de certificado só no Electron legado (<=22 / Win7). No 23+
-  // (Win10) a verificação normal do Chromium já cobre Let's Encrypt.
   if (precisaBypassCertificadoLegacy()) {
     try {
       const { session } = require("electron");

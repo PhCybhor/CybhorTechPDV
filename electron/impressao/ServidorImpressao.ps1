@@ -66,12 +66,18 @@ function CodigoWin32 {
   return [Runtime.InteropServices.Marshal]::GetLastWin32Error()
 }
 
+# Linha por impressora: nome, padrao, PrinterStatus, WorkOffline, PrinterState,
+# ExtendedPrinterStatus, porta e driver (separados por TAB). O estado alimenta a
+# deteccao automatica da impressora que esta pronta para imprimir.
 function Listar-Impressoras {
   $linhas = @()
   foreach ($p in @(Get-WmiObject Win32_Printer)) {
     $padrao = "0"
     if ($p.Default) { $padrao = "1" }
-    $linhas += ($p.Name + "`t" + $padrao + "`t" + $p.PrinterStatus)
+    $offline = "0"
+    if ($p.WorkOffline) { $offline = "1" }
+    $linhas += ($p.Name + "`t" + $padrao + "`t" + $p.PrinterStatus + "`t" + $offline + "`t" +
+      $p.PrinterState + "`t" + $p.ExtendedPrinterStatus + "`t" + $p.PortName + "`t" + $p.DriverName)
   }
   return ($linhas -join "`n")
 }
@@ -81,7 +87,8 @@ function Diagnosticar-Impressora([string]$nome) {
   $nomeWql = $nome.Replace("\", "\\").Replace("'", "\'")
   $p = Get-WmiObject Win32_Printer -Filter ("Name='" + $nomeWql + "'") | Select-Object -First 1
   if (-not $p) { return "MISSING" }
-  return ("STATUS=" + $p.PrinterStatus + ";PORT=" + $p.PortName + ";WORKOFFLINE=" + $p.WorkOffline)
+  return ("STATUS=" + $p.PrinterStatus + ";PORT=" + $p.PortName + ";WORKOFFLINE=" + $p.WorkOffline +
+    ";STATE=" + $p.PrinterState + ";EXT=" + $p.ExtendedPrinterStatus)
 }
 
 function Imprimir-Raw([string]$nome, [byte[]]$bytes) {

@@ -17,7 +17,7 @@ LOG_FILE=/var/log/cybhorpdv-deploy.log
 LOCK_FILE=/var/lock/cybhorpdv-instaladores.lock
 MAX_PACOTE_BYTES=$((600 * 1024 * 1024))
 ESPACO_MINIMO_KB=$((2 * 1024 * 1024))
-ARQUIVOS=(CybhorPDV-Setup-win10-x64.exe CybhorPDV-Setup-win7-x64.exe CybhorPDV-Setup-win7-ia32.exe)
+ARQUIVOS=(CybhorPDV-Setup-x64.exe CybhorPDV-Setup-ia32.exe)
 
 log() {
   printf '[%s] instaladores: %s\n' "$(date -Is)" "$*" | tee -a "$LOG_FILE"

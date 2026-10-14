@@ -19,6 +19,7 @@ const { spawn } = require("child_process");
 const raiz = path.join(__dirname, "..");
 const servidor = require(path.join(raiz, "electron/impressao/servidorImpressao.js"));
 const { gerarBufferEscPos } = require(path.join(raiz, "electron/impressao/escpos.js"));
+const { escolherImpressora } = require(path.join(raiz, "electron/impressao/deteccaoImpressora.js"));
 
 const IMPRESSORA = process.env.IMPRESSORA_TESTE;
 const IMPRESSORA_ACENTO = process.env.IMPRESSORA_TESTE_ACENTO;
@@ -128,11 +129,20 @@ async function main() {
   console.log(`\nservidor iniciado em ${inicio.ms.toFixed(0)} ms (acontece na abertura do app)`);
 
   const lista = await servidor.listar();
-  verificar(lista.some((p) => p.name === IMPRESSORA), "listar encontra a impressora de teste");
+  const daLista = lista.find((p) => p.name === IMPRESSORA);
+  verificar(Boolean(daLista), "listar encontra a impressora de teste");
+  verificar(
+    daLista?.driver === "Generic / Text Only" && daLista?.workOffline === false,
+    `listar traz driver e estado: ${JSON.stringify(daLista)}`
+  );
+  verificar(
+    escolherImpressora(lista, "") === IMPRESSORA || escolherImpressora(lista, "") === IMPRESSORA_ACENTO,
+    `deteccao automatica escolhe uma impressora termica de teste: ${escolherImpressora(lista, "")}`
+  );
 
   const diagnostico = await cronometrar(() => servidor.diagnosticar(IMPRESSORA));
   verificar(
-    /^STATUS=\d+;PORT=.+;WORKOFFLINE=False$/i.test(diagnostico.resultado),
+    /^STATUS=\d+;PORT=.+;WORKOFFLINE=False;STATE=\d+;EXT=\d+$/i.test(diagnostico.resultado),
     `diagnostico da impressora: ${diagnostico.resultado} (${diagnostico.ms.toFixed(0)} ms)`
   );
   verificar(

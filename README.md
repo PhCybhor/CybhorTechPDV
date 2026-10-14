@@ -8,9 +8,9 @@ Sistema de ponto de venda (PDV) para loja, em desktop (Windows), construído com
 **Nao precisa baixar o codigo.** So o instalador:
 
 1. Acesse **[Releases](https://github.com/cybhortech/sistemaPDV/releases)**
-2. Baixe o instalador da sua versao do Windows:
-   - **Windows 10/11:** `CybhorPDV-Setup-win10-x64.exe`
-   - **Windows 7:** `CybhorPDV-Setup-win7-x64.exe` (ou `...-win7-ia32.exe` em PCs 32 bits)
+2. Baixe o instalador (o mesmo serve para Windows 7, 8, 10 e 11):
+   - **64 bits:** `CybhorPDV-Setup-x64.exe`
+   - **32 bits:** `CybhorPDV-Setup-ia32.exe`
 3. Instale e abra o CybhorPDV
 
 Instrucoes detalhadas: [INSTALAR.md](INSTALAR.md)
@@ -83,10 +83,12 @@ instalador; o código-fonte legível não é incluído.
 
 3. Suba o PostgreSQL e a FastAPI conforme `backend/README.md`.
 
-4. (Opcional) Configure a impressora Jetway JP-800 no `.env`:
-   - `IMPRESSORA_NOME=Jetway JP-800` (nome criado pelo driver oficial)
+4. (Opcional) Configure a impressora no `.env`:
+   - `IMPRESSORA_NOME` vazio = detecção automática da térmica pronta (WMI no Windows, CUPS no Linux/macOS);
+     com um nome, ele tem prioridade enquanto estiver pronto
    - `LOJA_NOME`, `LOJA_CNPJ`, `LOJA_ENDERECO`, `LOJA_TELEFONE` — cabecalho do cupom
-   - Em desenvolvimento Linux: `IMPRESSORA_MODO=teste` (grava o ESC/POS em `/tmp`)
+   - Linux/macOS: imprime pela fila CUPS em modo raw (`lp -o raw`)
+   - `IMPRESSORA_MODO=teste` só grava o ESC/POS em `/tmp` (não imprime)
 
 Materiais oficiais em `vendor/jp800/` (Driver + Exemplo Delphi). No Windows,
 rode `scripts/instalar-driver-jp800-windows.bat` ou o
@@ -128,10 +130,10 @@ faça login para abrir o PDV.
 npm run dist
 ```
 
-Os instaladores saem em `dist/`:
-`CybhorPDV-Setup-win10-x64.exe`, `CybhorPDV-Setup-win7-x64.exe` e
-`CybhorPDV-Setup-win7-ia32.exe`. O arquivo `.env` é empacotado nos recursos do
-aplicativo.
+Os instaladores saem em `dist/`: `CybhorPDV-Setup-x64.exe` e
+`CybhorPDV-Setup-ia32.exe`. Os dois usam o Electron 22 (o último que roda no
+Windows 7) e servem para Windows 7, 8, 10 e 11. O arquivo `.env` é empacotado
+nos recursos do aplicativo.
 
 ## GitHub Releases (distribuicao do instalador)
 
@@ -141,7 +143,7 @@ O instalador oficial e publicado automaticamente nas **Releases** do GitHub.
 
 Acesse: [github.com/cybhortech/sistemaPDV/releases](https://github.com/cybhortech/sistemaPDV/releases)
 
-Baixe `CybhorPDV-Setup-win10-x64.exe` (ou o pacote **win7** correspondente) e execute para instalar.
+Baixe `CybhorPDV-Setup-x64.exe` (ou `CybhorPDV-Setup-ia32.exe` em PCs 32 bits) e execute para instalar.
 
 ### Publicar uma nova versao
 
