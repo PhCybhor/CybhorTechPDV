@@ -1,0 +1,26 @@
+{
+  "name": "cybhorpdv-api-node",
+  "version": "0.1.0",
+  "private": true,
+  "description": "API do CybhorPDV em Node.js + MySQL/MariaDB (versao de teste do backend FastAPI).",
+  "type": "module",
+  "main": "src/servidor.js",
+  "engines": {
+    "node": ">=20.12"
+  },
+  "scripts": {
+    "start": "node src/servidor.js",
+    "dev": "node --watch src/servidor.js",
+    "test": "node --test testes/unitarios/",
+    "test:integracao": "node --test --test-concurrency=1 testes/integracao/",
+    "banco:schema": "node scripts/aplicarSchema.js",
+    "admin:criar": "node scripts/criarAdminSistema.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "express": "^5.3.0",
+    "express-rate-limit": "^8.7.1",
+    "jsonwebtoken": "^9.0.3",
+    "mysql2": "^3.24.6"
+  }
+}
