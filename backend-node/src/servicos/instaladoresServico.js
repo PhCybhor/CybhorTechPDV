@@ -11,13 +11,23 @@ import path from "node:path";
 import { config, PASTA_BACKEND } from "../config.js";
 import { ErroNegocio } from "../erros.js";
 
+// Desde a 3.2 um instalador (Electron 22) atende Windows 7, 8, 10 e 11.
+// Os win10/win7 continuam listados para as versões antigas ainda publicadas.
 const INSTALADORES = Object.freeze([
+  { id: "windows-x64", arquivo: "CybhorPDV-Setup-x64.exe", rotulo: "Windows 7, 8, 10 e 11 (64 bits)", so: "windows" },
+  { id: "windows-ia32", arquivo: "CybhorPDV-Setup-ia32.exe", rotulo: "Windows 7, 8, 10 e 11 (32 bits)", so: "windows" },
   { id: "win10-x64", arquivo: "CybhorPDV-Setup-win10-x64.exe", rotulo: "Windows 10 / 11 (64 bits)", so: "win10" },
   { id: "win7-x64", arquivo: "CybhorPDV-Setup-win7-x64.exe", rotulo: "Windows 7 (64 bits)", so: "win7" },
   { id: "win7-ia32", arquivo: "CybhorPDV-Setup-win7-ia32.exe", rotulo: "Windows 7 (32 bits)", so: "win7" },
 ]);
 
 const ARQUIVOS_PERMITIDOS = new Set(INSTALADORES.map((item) => item.arquivo));
+/** Links antigos sem versão (/api/site/baixar/<arquivo>) continuam entregando o mais novo. */
+const SUBSTITUTOS_LEGADOS = Object.freeze({
+  "CybhorPDV-Setup-win10-x64.exe": "CybhorPDV-Setup-x64.exe",
+  "CybhorPDV-Setup-win7-x64.exe": "CybhorPDV-Setup-x64.exe",
+  "CybhorPDV-Setup-win7-ia32.exe": "CybhorPDV-Setup-ia32.exe",
+});
 const VERSAO_VALIDA = /^\d{1,3}\.\d{1,4}\.\d{1,4}$/;
 
 function ehPasta(caminho) {
@@ -118,7 +128,8 @@ export function caminhoInstalador(arquivo, versao = null) {
   const pasta = pastaDownloads();
   let caminho;
   if (versao === null) {
-    caminho = path.join(pasta, nome);
+    const substituto = path.join(pasta, SUBSTITUTOS_LEGADOS[nome] || nome);
+    caminho = ehArquivo(substituto) ? substituto : path.join(pasta, nome);
   } else {
     if (!VERSAO_VALIDA.test(versao || "")) throw new ErroNegocio("Versao invalida.", 404);
     caminho = path.join(pasta, "versoes", versao, nome);
