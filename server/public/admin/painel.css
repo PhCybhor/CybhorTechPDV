@@ -1,12 +1,3 @@
-.logo-admin {
-  display: block;
-  width: 56px;
-  height: 56px;
-  object-fit: contain;
-  margin: 0 0 1rem;
-  border-radius: 10px;
-}
-
 :root {
   --fundo: #07111f;
   --painel: #0d1b30;
