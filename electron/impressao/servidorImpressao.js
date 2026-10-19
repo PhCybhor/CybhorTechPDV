@@ -19,10 +19,14 @@ const { spawn } = require("child_process");
  */
 
 const TIMEOUT_INICIO_MS = 30000;
+const TIMEOUT_CONFIRMACAO_MS = 5000;
 const TIMEOUT_PEDIDO_MS = 15000;
+/** Id reservado para o ping de confirmação da subida (pedidos começam em 1). */
+const ID_CONFIRMACAO = "0";
 
 let processoAtual = null;
 let inicioEmAndamento = null;
+let servidorDesativado = false;
 let proximoId = 1;
 const pendentes = new Map();
 
@@ -81,17 +85,24 @@ function encerrar() {
 }
 
 /**
- * Sobe o servidor (idempotente). Resolve quando o helper Win32 está compilado.
+ * Sobe o servidor (idempotente). Resolve quando o helper Win32 está compilado
+ * e o servidor respondeu ao ping de confirmação.
  * @returns {Promise<void>}
  */
 function iniciar() {
   if (process.platform !== "win32") {
     return Promise.reject(criarErro("Servidor de impressão só existe no Windows.", "INDISPONIVEL"));
   }
+  if (servidorDesativado) {
+    return Promise.reject(
+      criarErro("Servidor de impressão desativado nesta sessão.", "INDISPONIVEL")
+    );
+  }
   if (inicioEmAndamento) return inicioEmAndamento;
 
   inicioEmAndamento = new Promise((resolve, reject) => {
     let pronto = false;
+    let aguardandoConfirmacao = false;
     let stderrRecente = "";
     const filho = spawn(
       "powershell.exe",
@@ -111,25 +122,42 @@ function iniciar() {
     const falharInicio = (motivo) => {
       if (pronto) return;
       pronto = true;
+      // Tentar subir de novo a cada cupom custaria até 30s por impressão;
+      // o modo antigo atende o resto da sessão.
+      servidorDesativado = true;
       clearTimeout(timerInicio);
       if (processoAtual === filho) encerrar();
       reject(criarErro(`Servidor de impressão indisponível: ${motivo}`, "INDISPONIVEL"));
     };
-    const timerInicio = setTimeout(
+    let timerInicio = setTimeout(
       () => falharInicio(`não iniciou em ${TIMEOUT_INICIO_MS / 1000}s`),
       TIMEOUT_INICIO_MS
     );
 
     readline.createInterface({ input: filho.stdout }).on("line", (linha) => {
-      if (!pronto) {
-        if (linha.trim() === "PRONTO") {
-          pronto = true;
-          clearTimeout(timerInicio);
-          resolve();
-        }
+      if (pronto) {
+        tratarResposta(linha);
         return;
       }
-      tratarResposta(linha);
+      if (!aguardandoConfirmacao) {
+        if (linha.trim() !== "PRONTO") return;
+        // No PowerShell 2.0 (Windows 7) o host consome o stdin redirecionado:
+        // o script escreve PRONTO mas nunca recebe os pedidos, e cada cupom
+        // esperaria o timeout sem cair no modo antigo.
+        aguardandoConfirmacao = true;
+        clearTimeout(timerInicio);
+        timerInicio = setTimeout(
+          () => falharInicio(`não respondeu ao ping em ${TIMEOUT_CONFIRMACAO_MS / 1000}s`),
+          TIMEOUT_CONFIRMACAO_MS
+        );
+        filho.stdin.write(`${ID_CONFIRMACAO}\tping\n`);
+        return;
+      }
+      if (linha.startsWith(`${ID_CONFIRMACAO}\tOK`)) {
+        pronto = true;
+        clearTimeout(timerInicio);
+        resolve();
+      }
     });
     filho.stderr.on("data", (dados) => {
       stderrRecente = (stderrRecente + dados.toString()).slice(-500);

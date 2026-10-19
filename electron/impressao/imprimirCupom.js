@@ -267,11 +267,10 @@ function executar(comando, args, timeoutMs = TIMEOUT_COMANDO_MS, entrada = null)
     filho.on("close", (code) => {
       concluir({ code: code ?? 1, stdout, stderr });
     });
-    if (entrada) {
-      // Sem este handler um EPIPE (processo saiu antes de ler) derrubaria o processo principal.
-      filho.stdin.on("error", () => {});
-      filho.stdin.end(entrada);
-    }
+    // Sem este handler um EPIPE (processo saiu antes de ler) derrubaria o processo principal.
+    filho.stdin.on("error", () => {});
+    // PowerShell 2.0 (Windows 7) só termina depois do fim do stdin redirecionado.
+    filho.stdin.end(entrada || undefined);
   });
 }
 

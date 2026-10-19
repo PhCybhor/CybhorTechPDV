@@ -1,7 +1,8 @@
 # CybhorPDV
 
 Sistema de ponto de venda (PDV) para loja, em desktop (Windows), construído com
-**Electron**, **FastAPI (Python)** e **PostgreSQL**.
+**Electron**, API **Node.js (Express) + MySQL 8** (pasta `server/`). O backend
+legado FastAPI + PostgreSQL permanece em `backend/` até o cutover completo.
 
 ## Baixar e instalar (usuarios da loja)
 

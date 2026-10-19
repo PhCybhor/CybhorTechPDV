@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CybhorPDV — Seu codigo esta pronto</title>
+  <link rel="stylesheet" href="landing.css" />
+</head>
+<body>
+  <header class="topo">
+    <div class="container topo-conteudo">
+      <a href="/" class="marca-link"><span class="marca">Cybhor<strong>PDV</strong></span></a>
+      <nav class="menu">
+        <a href="/#recursos">Recursos</a>
+        <a href="/#planos">Planos</a>
+        <a href="/#faq">Dúvidas</a>
+        <a href="/login.html" class="btn-cliente">Área do cliente</a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="tela-sucesso">
+    <div class="container sucesso-conteudo">
+      <p class="eyebrow">CybhorPDV · Ativacao</p>
+
+      <div id="estado-pendente" class="cartao-sucesso">
+        <div class="spinner"></div>
+        <h1>Confirmando seu pagamento...</h1>
+        <p class="sucesso-sub">Aguarde alguns segundos. Esta pagina atualiza sozinha assim que o Mercado Pago confirmar.</p>
+      </div>
+
+      <div id="estado-ativo" class="cartao-sucesso oculto">
+        <p class="selo-ok" id="selo-ativo">Pagamento confirmado</p>
+        <h1>Sua loja esta pronta!</h1>
+        <p class="sucesso-sub">Guarde estes dados. Voce vai precisar deles no primeiro acesso ao CybhorPDV.</p>
+
+        <div class="codigo-bloco">
+          <span class="codigo-rotulo">Codigo da loja</span>
+          <strong id="codigo-loja" class="codigo-valor">--------</strong>
+          <button type="button" class="btn-suave btn-copiar" id="btn-copiar-codigo">Copiar codigo</button>
+        </div>
+
+        <div class="dados-acesso">
+          <p><strong>Loja:</strong> <span id="nome-loja">—</span></p>
+          <p><strong>Usuario:</strong> <span id="usuario-login">—</span></p>
+        </div>
+
+        <p class="instrucoes">
+          1. Baixe o setup abaixo e instale no computador do caixa<br />
+          2. Na primeira tela, escolha <strong>Ja tenho codigo</strong><br />
+          3. Digite o codigo acima e faca login com seu usuario e senha
+        </p>
+
+        <div class="secao-downloads sucesso-downloads">
+          <h2 class="painel-h2">Instalar o CybhorPDV</h2>
+          <div id="lista-downloads" class="grade-downloads">
+            <p class="cadastro-sub">Carregando instaladores...</p>
+          </div>
+        </div>
+
+        <p class="sucesso-sub" style="margin-top: 1.4rem;">
+          Perdeu o código depois? Abra a área do cliente com o mesmo usuário e senha para consultá-lo e ver as vendas.
+        </p>
+        <a href="/login.html" class="btn-cliente" id="link-painel">Área do cliente</a>
+      </div>
+
+      <div id="estado-erro" class="cartao-sucesso oculto">
+        <h1>Nao foi possivel carregar</h1>
+        <p id="erro-texto" class="sucesso-sub"></p>
+        <a href="/#planos" class="btn-destaque">Voltar aos planos</a>
+      </div>
+    </div>
+  </section>
+  <script src="downloads.js"></script>
+  <script src="sucesso.js"></script>
+</body>
+</html>

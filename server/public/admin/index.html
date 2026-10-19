@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CybhorPDV — Painel do Administrador</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="painel.css" />
+</head>
+<body>
+  <!-- Login do administrador do sistema -->
+  <section id="tela-login" class="tela-central">
+    <div class="cartao">
+      <p class="eyebrow">CybhorPDV · Controle central</p>
+      <h1>Painel do Administrador</h1>
+      <p class="subtitulo">Acesso exclusivo do dono do sistema.</p>
+      <form id="form-login">
+        <label>E-mail
+          <input type="email" id="login-email" required autocomplete="username" />
+        </label>
+        <label>Senha
+          <input type="password" id="login-senha" required autocomplete="current-password" />
+        </label>
+        <button type="submit" class="btn-destaque">Entrar</button>
+        <p id="login-erro" class="erro oculto"></p>
+      </form>
+    </div>
+  </section>
+
+  <!-- Painel -->
+  <section id="tela-painel" class="oculto">
+    <header class="topo">
+      <div>
+        <p class="eyebrow">CybhorPDV · Controle central</p>
+        <h1>Lojas do sistema</h1>
+      </div>
+      <div class="topo-acoes">
+        <button id="btn-filtro-atrasadas" class="btn-suave" type="button" aria-pressed="false">Só atrasadas</button>
+        <button id="btn-atualizar" class="btn-suave">Atualizar</button>
+        <button id="btn-sair" class="btn-suave">Sair</button>
+      </div>
+    </header>
+
+    <div class="resumo" id="resumo-cards"></div>
+
+    <section class="bloco-provisionar" id="bloco-contas">
+      <div class="bloco-cabecalho">
+        <div>
+          <p class="eyebrow">Provisionamento</p>
+          <h2>Criar conta e chave</h2>
+          <p class="subtitulo-bloco">Gera uma loja ativa com codigo de conexao, sem passar pelo pagamento do site.</p>
+        </div>
+      </div>
+
+      <div id="conta-criada" class="conta-criada oculto">
+        <p class="selo selo-ok">Conta criada</p>
+        <p><strong>Loja:</strong> <span id="criada-nome">—</span></p>
+        <p><strong>Usuario:</strong> <span id="criada-usuario">—</span></p>
+        <div class="chave-destaque">
+          <span class="chave-rotulo">Chave / codigo da loja</span>
+          <strong id="criada-codigo">--------</strong>
+          <button type="button" class="btn-suave" id="btn-copiar-criada">Copiar chave</button>
+        </div>
+        <p class="dica">Passe esta chave no CybhorPDV em “Ja tenho codigo”.</p>
+      </div>
+
+      <form id="form-criar-conta" class="form-criar-conta">
+        <label>Nome da loja
+          <input type="text" id="nova-nome-loja" required minlength="2" placeholder="Ex: Mercado Central" />
+        </label>
+        <label>E-mail
+          <input type="email" id="nova-email" required placeholder="loja@email.com" />
+        </label>
+        <label>Nome do admin
+          <input type="text" id="nova-nome" required minlength="2" placeholder="Maria" />
+        </label>
+        <label>Sobrenome
+          <input type="text" id="nova-sobrenome" required minlength="2" placeholder="Silva" />
+        </label>
+        <label>Usuario de login
+          <input type="text" id="nova-usuario" required minlength="3" pattern="[a-zA-Z0-9._-]+" placeholder="maria" autocomplete="off" />
+        </label>
+        <label>Senha
+          <input type="password" id="nova-senha" required minlength="8" maxlength="128" placeholder="Minimo 8 caracteres" autocomplete="new-password" />
+        </label>
+        <label>Telefone <span class="opcional">(opcional)</span>
+          <input type="tel" id="nova-telefone" placeholder="(11) 99999-0000" />
+        </label>
+        <div class="form-acoes">
+          <button type="submit" class="btn-destaque" id="btn-criar-conta">Criar conta e gerar chave</button>
+          <p id="criar-erro" class="erro oculto"></p>
+        </div>
+      </form>
+    </section>
+
+    <div class="tabela-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Loja</th>
+            <th>Codigo</th>
+            <th>Assinatura</th>
+            <th>Funcionarios</th>
+            <th>Produtos</th>
+            <th>Vendas</th>
+            <th>Faturamento</th>
+            <th>Uso de dados</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="tabela-lojas"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <script src="painel.js?v=20260922-atrasadas"></script>
+</body>
+</html>

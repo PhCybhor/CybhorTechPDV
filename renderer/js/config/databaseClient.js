@@ -60,7 +60,7 @@ function aplicarConsulta(valor, constraints = []) {
 }
 
 export async function obterDatabase() {
-  return { tipo: "fastapi-postgresql" };
+  return { tipo: "express-mysql" };
 }
 
 export function ref(_db, caminho = "") {

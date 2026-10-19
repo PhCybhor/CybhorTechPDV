@@ -1,0 +1,236 @@
+:root {
+  --fundo: #07111f;
+  --painel: #0d1b30;
+  --borda: #1d3252;
+  --texto: #e8f0fb;
+  --texto-suave: #8ba3c7;
+  --acento: #38bdf8;
+  --acento-forte: #0ea5e9;
+  --ok: #34d399;
+  --alerta: #fbbf24;
+  --erro: #f87171;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: "IBM Plex Sans", system-ui, sans-serif;
+  background:
+    radial-gradient(900px 500px at 15% -10%, rgba(56, 189, 248, 0.12), transparent 60%),
+    radial-gradient(700px 400px at 110% 20%, rgba(14, 165, 233, 0.08), transparent 55%),
+    var(--fundo);
+  color: var(--texto);
+  min-height: 100vh;
+}
+
+h1 { font-family: "Sora", sans-serif; font-size: 1.5rem; }
+
+.oculto { display: none !important; }
+
+.eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.7rem;
+  color: var(--acento);
+  font-weight: 600;
+  margin-bottom: 0.4rem;
+}
+
+/* Login */
+.tela-central {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.cartao {
+  width: 100%;
+  max-width: 400px;
+  background: linear-gradient(160deg, var(--painel), #0a1626);
+  border: 1px solid var(--borda);
+  border-radius: 16px;
+  padding: 2rem;
+  box-shadow: 0 24px 60px rgba(2, 8, 20, 0.6);
+}
+
+.subtitulo { color: var(--texto-suave); font-size: 0.9rem; margin: 0.4rem 0 1.4rem; }
+
+label { display: block; font-size: 0.8rem; color: var(--texto-suave); margin-bottom: 1rem; }
+
+input {
+  width: 100%;
+  margin-top: 0.35rem;
+  padding: 0.7rem 0.85rem;
+  border-radius: 10px;
+  border: 1px solid var(--borda);
+  background: #0a1728;
+  color: var(--texto);
+  font-size: 0.95rem;
+}
+input:focus { outline: 2px solid var(--acento-forte); border-color: transparent; }
+
+.btn-destaque {
+  width: 100%;
+  padding: 0.8rem;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--acento), var(--acento-forte));
+  color: #04101d;
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+.btn-destaque:hover { filter: brightness(1.1); }
+
+.btn-suave {
+  padding: 0.55rem 1rem;
+  border-radius: 10px;
+  border: 1px solid var(--borda);
+  background: transparent;
+  color: var(--texto);
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+.btn-suave:hover { border-color: var(--acento); }
+
+.erro { color: var(--erro); font-size: 0.85rem; margin-top: 0.8rem; }
+
+/* Painel */
+#tela-painel { max-width: 1280px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+
+.topo {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.topo-acoes { display: flex; gap: 0.6rem; }
+
+.resumo {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.card {
+  background: linear-gradient(160deg, var(--painel), #0a1626);
+  border: 1px solid var(--borda);
+  border-radius: 14px;
+  padding: 1rem 1.2rem;
+}
+.card .rotulo { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--texto-suave); }
+.card .valor { font-family: "Sora", sans-serif; font-size: 1.5rem; font-weight: 700; margin-top: 0.3rem; }
+
+.tabela-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--borda);
+  border-radius: 14px;
+  background: rgba(13, 27, 48, 0.7);
+}
+
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 900px; }
+th, td { padding: 0.75rem 0.9rem; text-align: left; white-space: nowrap; }
+thead th {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--texto-suave);
+  border-bottom: 1px solid var(--borda);
+}
+tbody tr { border-bottom: 1px solid rgba(29, 50, 82, 0.5); }
+tbody tr:hover { background: rgba(56, 189, 248, 0.05); }
+
+.selo {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+.selo-ok { background: rgba(52, 211, 153, 0.15); color: var(--ok); }
+.selo-alerta { background: rgba(251, 191, 36, 0.15); color: var(--alerta); }
+.selo-erro { background: rgba(248, 113, 113, 0.15); color: var(--erro); }
+
+.btn-filtro-ativo {
+  border-color: var(--alerta);
+  color: var(--alerta);
+  background: rgba(251, 191, 36, 0.12);
+}
+
+.codigo { font-family: monospace; letter-spacing: 0.1em; color: var(--acento); }
+
+.bloco-provisionar {
+  background: linear-gradient(160deg, var(--painel), #0a1626);
+  border: 1px solid var(--borda);
+  border-radius: 16px;
+  padding: 1.4rem 1.5rem 1.6rem;
+  margin-bottom: 1.5rem;
+}
+.bloco-cabecalho h2 { font-size: 1.15rem; margin-bottom: 0.25rem; }
+.subtitulo-bloco { color: var(--texto-suave); font-size: 0.88rem; margin-bottom: 1.1rem; }
+
+.form-criar-conta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem 1rem;
+}
+.form-criar-conta .form-acoes {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  align-items: flex-start;
+}
+.form-criar-conta .btn-destaque { width: auto; padding: 0.75rem 1.4rem; }
+.opcional { color: var(--texto-suave); font-weight: 400; font-size: 0.75rem; }
+
+.conta-criada {
+  border: 1px dashed var(--acento-forte);
+  background: rgba(56, 189, 248, 0.08);
+  border-radius: 12px;
+  padding: 1rem 1.1rem;
+  margin-bottom: 1.1rem;
+}
+.conta-criada p { margin: 0.35rem 0; color: var(--texto-suave); font-size: 0.9rem; }
+.chave-destaque {
+  margin: 0.8rem 0 0.4rem;
+}
+.chave-rotulo {
+  display: block;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--texto-suave);
+}
+.chave-destaque strong {
+  display: block;
+  font-family: "Sora", monospace;
+  letter-spacing: 0.16em;
+  font-size: 1.6rem;
+  color: var(--acento);
+  margin: 0.3rem 0 0.7rem;
+}
+.dica { font-size: 0.8rem !important; }
+
+.acoes-loja { display: flex; gap: 0.4rem; }
+.btn-icone {
+  margin-left: 0.45rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 6px;
+  border: 1px solid var(--borda);
+  background: transparent;
+  color: var(--texto-suave);
+  cursor: pointer;
+  font-size: 0.7rem;
+}
+.btn-icone:hover { color: var(--texto); border-color: var(--acento); }
+
+@media (max-width: 720px) {
+  .form-criar-conta { grid-template-columns: 1fr; }
+  .acoes-loja { flex-direction: column; }
+}

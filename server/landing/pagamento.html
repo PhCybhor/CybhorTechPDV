@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CybhorPDV — Pagamento</title>
+  <link rel="stylesheet" href="landing.css" />
+</head>
+<body>
+  <header class="topo">
+    <div class="container topo-conteudo">
+      <a href="/" class="marca-link"><span class="marca">Cybhor<strong>PDV</strong></span></a>
+      <nav class="menu">
+        <a href="/#recursos">Recursos</a>
+        <a href="/#planos">Planos</a>
+        <a href="/#faq">Dúvidas</a>
+        <a href="/login.html" class="btn-cliente">Área do cliente</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="secao secao-cadastro">
+    <div class="container grade-cadastro">
+      <aside class="resumo-plano">
+        <p class="eyebrow">Passo 2 de 2</p>
+        <h1 id="titulo-pagamento">Pagamento</h1>
+        <p class="cadastro-sub" id="nome-loja-resumo">Carregando...</p>
+        <p class="plano-preco cadastro-preco"><span>R$</span>99,90<small>/mes</small></p>
+        <ul class="plano-lista" id="lista-metodos-mp">
+          <li>Cartao de credito</li>
+          <li>Cartao de debito</li>
+          <li>Pix</li>
+          <li>Boleto bancario</li>
+          <li>Saldo Mercado Pago</li>
+        </ul>
+      </aside>
+
+      <section class="cartao-cadastro">
+        <p class="eyebrow">Pagamento seguro pelo Mercado Pago</p>
+        <h2>Finalize sua assinatura</h2>
+        <p class="cadastro-sub">Escolha a forma de pagamento abaixo. Voce permanece no site CybhorPDV.</p>
+
+        <div id="pagamento-erro" class="form-erro oculto"></div>
+        <div id="statusScreen_container" class="brick-container oculto"></div>
+        <div id="paymentBrick_container" class="brick-container"></div>
+        <div id="pagamento-carregando" class="spinner-wrap">
+          <div class="spinner"></div>
+          <p class="cadastro-sub">Carregando formas de pagamento...</p>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="rodape">
+    <div class="container">
+      <span class="marca">Cybhor<strong>PDV</strong></span>
+      <p>Pagamento processado pelo Mercado Pago</p>
+    </div>
+  </footer>
+  <script src="https://sdk.mercadopago.com/js/v2"></script>
+  <script src="pagamento.js"></script>
+</body>
+</html>

@@ -1,0 +1,29 @@
+# Desenvolvimento local: sobe apenas o MySQL 8 (a API roda com `npm run dev`).
+#   cp .env.example .env   # preencha MYSQL_ROOT_PASSWORD e MYSQL_PASSWORD
+#   docker compose up -d
+# O schema e aplicado automaticamente na primeira inicializacao do volume.
+# DATABASE_URL correspondente: mysql://<MYSQL_USER>:<MYSQL_PASSWORD>@localhost:3306/<MYSQL_DATABASE>
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: cybhorpdv-mysql
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_0900_ai_ci"]
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Defina MYSQL_ROOT_PASSWORD no .env}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-cybhorpdv}
+      MYSQL_USER: ${MYSQL_USER:-cybhor}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Defina MYSQL_PASSWORD no .env}
+      TZ: UTC
+    ports:
+      - "127.0.0.1:3306:3306"
+    volumes:
+      - cybhorpdv_mysql_data:/var/lib/mysql
+      - ./db/schema.mysql.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  cybhorpdv_mysql_data:

@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CybhorPDV — Cadastro e pagamento</title>
+  <meta name="description" content="Cadastre sua loja e assine o CybhorPDV. Pagamento seguro via Mercado Pago." />
+  <link rel="stylesheet" href="landing.css" />
+</head>
+<body>
+  <header class="topo">
+    <div class="container topo-conteudo">
+      <a href="/" class="marca-link"><span class="marca">Cybhor<strong>PDV</strong></span></a>
+      <nav class="menu">
+        <a href="/#recursos">Recursos</a>
+        <a href="/#planos">Planos</a>
+        <a href="/#faq">Dúvidas</a>
+        <a href="/login.html" class="btn-cliente">Área do cliente</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="secao secao-cadastro">
+    <div class="container grade-cadastro">
+      <aside class="resumo-plano">
+        <p class="eyebrow">Plano selecionado</p>
+        <h1 id="nome-plano">Plano Mensal</h1>
+        <p class="plano-preco cadastro-preco"><span>R$</span>99,90<small>/mes</small></p>
+        <div class="seletor-planos" id="seletor-planos">
+          <a href="cadastro.html?plano=teste" data-plano="teste" title="Teste grátis de 30 dias">Teste</a>
+          <a href="cadastro.html?plano=mensal" data-plano="mensal">Mensal</a>
+          <a href="cadastro.html?plano=semestral" data-plano="semestral">Semestral</a>
+          <a href="cadastro.html?plano=anual" data-plano="anual">Anual</a>
+        </div>
+        <ul class="plano-lista">
+          <li>Caixas ilimitados na mesma loja</li>
+          <li>Produtos e vendas ilimitados</li>
+          <li>Impressao de cupom inclusa</li>
+          <li>Relatorios em tempo real</li>
+          <li>Codigo individual apos pagamento</li>
+        </ul>
+        <p class="plano-nota">Pagamento seguro via Mercado Pago · Sem fidelidade</p>
+      </aside>
+
+      <section class="cartao-cadastro">
+        <p class="eyebrow">Passo 1 de 2</p>
+        <h2>Cadastre sua loja</h2>
+        <p class="cadastro-sub" id="cadastro-sub">Preencha os dados abaixo. Na proxima etapa voce sera redirecionado ao Mercado Pago para pagar.</p>
+
+        <form id="form-comprar" class="form-comprar">
+          <label>Nome da loja
+            <input type="text" name="nomeLoja" required minlength="2" placeholder="Ex: Mercado Central" autofocus />
+          </label>
+          <label>Nome
+            <input type="text" name="nomeAdmin" required minlength="2" placeholder="Ex: Maria" autocomplete="given-name" />
+          </label>
+          <label>Sobrenome
+            <input type="text" name="sobrenomeAdmin" required minlength="2" placeholder="Ex: Silva" autocomplete="family-name" />
+          </label>
+          <label>CPF
+            <input type="text" name="cpf" id="campo-cpf" required inputmode="numeric" autocomplete="off" placeholder="000.000.000-00" maxlength="14" />
+          </label>
+          <label>E-mail
+            <input type="email" name="email" required placeholder="voce@email.com" />
+          </label>
+          <label>Usuario de login no PDV
+            <input type="text" name="usuario" required minlength="3" pattern="[a-zA-Z0-9._-]+" placeholder="Ex: maria" autocomplete="username" />
+          </label>
+          <label>Senha de acesso
+            <input type="password" name="senha" required minlength="8" maxlength="128" placeholder="Minimo 8 caracteres" autocomplete="new-password" />
+          </label>
+          <label>Telefone <span class="opcional">(opcional)</span>
+            <input type="tel" name="telefone" placeholder="(11) 99999-0000" />
+          </label>
+
+          <label class="campo-aceite">
+            <input type="checkbox" name="aceiteDiretrizes" id="campo-aceite-diretrizes" required />
+            <span>Li e aceito as <a href="/diretrizes.html" target="_blank" rel="noopener">Diretrizes da comunidade</a> do CybhorPDV.</span>
+          </label>
+
+          <button type="submit" class="btn-destaque btn-largo" id="btn-comprar">
+            Continuar para pagamento
+          </button>
+          <p id="comprar-erro" class="form-erro oculto"></p>
+          <p class="plano-nota" id="cadastro-nota">Na proxima tela voce paga no site (Pix, cartao ou boleto). Apos o pagamento, recebe o <strong>codigo individual</strong> da sua loja.</p>
+        </form>
+      </section>
+    </div>
+  </main>
+
+  <footer class="rodape">
+    <div class="container">
+      <span class="marca">Cybhor<strong>PDV</strong></span>
+      <a class="rodape-link" href="/diretrizes.html">Diretrizes da comunidade</a>
+      <p>© 2026 CybhorPDV. Todos os direitos reservados.</p>
+    </div>
+  </footer>
+  <script src="cadastro.js"></script>
+</body>
+</html>
