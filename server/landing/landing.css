@@ -78,9 +78,36 @@ a { color: inherit; }
   min-height: 60px;
 }
 
-.marca { font-size: 1.08rem; font-weight: 600; letter-spacing: -0.01em; }
+.marca {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 1.08rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
 .marca strong { font-weight: 800; }
-.marca-link { text-decoration: none; color: inherit; }
+.marca-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+  color: inherit;
+}
+.marca-logo {
+  display: block;
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  flex-shrink: 0;
+  border-radius: 8px;
+}
+.marca-logo--sm {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+}
+.marca--rodape { font-size: 0.98rem; }
 
 .menu { display: flex; align-items: center; gap: 1.5rem; }
 .menu a { color: var(--texto-suave); text-decoration: none; font-size: 0.92rem; }
