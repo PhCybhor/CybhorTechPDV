@@ -1,0 +1,82 @@
+name: Deploy Hostinger
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "server/**"
+      - ".github/workflows/deploy-hostinger.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-hostinger
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  URL_PRODUCAO: https://cybhor.tech
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar SSH
+        env:
+          HOSTINGER_SSH_KEY: ${{ secrets.HOSTINGER_SSH_KEY }}
+          HOSTINGER_KNOWN_HOSTS: ${{ secrets.HOSTINGER_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$HOSTINGER_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$HOSTINGER_KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      - name: Publicar server/ na Hostinger
+        env:
+          HOSTINGER_HOST: ${{ secrets.HOSTINGER_HOST }}
+          HOSTINGER_USER: ${{ secrets.HOSTINGER_USER }}
+          HOSTINGER_PORT: ${{ secrets.HOSTINGER_PORT }}
+        run: |
+          set -euo pipefail
+          DEST="${HOSTINGER_USER}@${HOSTINGER_HOST}"
+          REMOTE_APP='domains/cybhor.tech/hbuilds/current/nodejs'
+          SSH=(ssh -i ~/.ssh/deploy_key -p "$HOSTINGER_PORT" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o ServerAliveInterval=15)
+
+          "${SSH[@]}" "$DEST" "test -d ~/${REMOTE_APP} && mkdir -p ~/${REMOTE_APP}/tmp"
+
+          rsync -az --delete \
+            -e "ssh -i ~/.ssh/deploy_key -p ${HOSTINGER_PORT} -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes" \
+            --exclude node_modules \
+            --exclude .env \
+            --exclude .env.* \
+            --exclude tmp \
+            --exclude console.log \
+            --exclude stderr.log \
+            ./server/ \
+            "${DEST}:~/${REMOTE_APP}/"
+
+          printf '%s\n' "$GITHUB_SHA" | "${SSH[@]}" "$DEST" "cat > ~/${REMOTE_APP}/REVISION"
+
+          "${SSH[@]}" "$DEST" "cd ~/${REMOTE_APP} && npm ci --omit=dev && mkdir -p tmp && touch tmp/restart.txt"
+
+      - name: Conferir producao
+        run: |
+          for tentativa in $(seq 1 12); do
+            if curl -fsS --max-time 15 "$URL_PRODUCAO/api/saude" | grep -q '"ok":true'; then
+              echo "Producao respondendo em $URL_PRODUCAO"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::Producao nao respondeu apos o deploy."
+          exit 1
+
+      - name: Remover chave
+        if: always()
+        run: rm -f ~/.ssh/deploy_key
