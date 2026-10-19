@@ -63,7 +63,7 @@ jobs:
 
           printf '%s\n' "$GITHUB_SHA" | "${SSH[@]}" "$DEST" "cat > ~/${REMOTE_APP}/REVISION"
 
-          "${SSH[@]}" "$DEST" "cd ~/${REMOTE_APP} && npm ci --omit=dev && mkdir -p tmp && touch tmp/restart.txt"
+          "${SSH[@]}" "$DEST" "export PATH=/opt/alt/alt-nodejs22/root/usr/bin:\$PATH; cd ~/${REMOTE_APP} && npm ci --omit=dev && mkdir -p tmp && touch tmp/restart.txt"
 
       - name: Conferir producao
         run: |
