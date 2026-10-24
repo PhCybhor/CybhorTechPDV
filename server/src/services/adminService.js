@@ -131,8 +131,11 @@ export async function criarOuAtualizarAdminSistema({ nome, email, senha }) {
   const senhaHash = await gerarHashSenha(senhaValida, salt);
   await db.executar(
     `INSERT INTO administradores_sistema (id, nome, email, salt, senha_hash)
-     VALUES (?, ?, ?, ?, ?) AS novo
-     ON DUPLICATE KEY UPDATE nome = novo.nome, salt = novo.salt, senha_hash = novo.senha_hash`,
+     VALUES (?, ?, ?, ?, ?)
+     ON DUPLICATE KEY UPDATE
+       nome = VALUES(nome),
+       salt = VALUES(salt),
+       senha_hash = VALUES(senha_hash)`,
     [randomUUID(), nomeLimpo, emailLimpo, salt, senhaHash],
   );
   return { email: emailLimpo };

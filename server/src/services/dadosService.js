@@ -126,10 +126,12 @@ export async function salvarRecurso(cx, lojaId, recurso, dados) {
   if (Buffer.byteLength(serializado, 'utf8') > TAMANHO_MAX_DOCUMENTO_BYTES) {
     throw new ErroNegocio('Documento grande demais.', 413);
   }
+  // VALUES() é o upsert compatível com MariaDB (Hostinger) e MySQL 5.7/8.
+  // A forma `AS novo` só existe no MySQL ≥ 8.0.19 e quebra o troco/caixa.
   await cx.executar(
     `INSERT INTO documentos_loja (loja_id, recurso, dados)
-     VALUES (?, ?, ?) AS novo
-     ON DUPLICATE KEY UPDATE dados = novo.dados, atualizado_em = NOW(3)`,
+     VALUES (?, ?, ?)
+     ON DUPLICATE KEY UPDATE dados = VALUES(dados), atualizado_em = NOW(3)`,
     [lojaId, recurso, serializado],
   );
 }
