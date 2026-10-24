@@ -1,6 +1,6 @@
 {
   "name": "cybhor-pdv",
-  "version": "3.2.5",
+  "version": "3.2.6",
   "description": "CybhorPDV - PDV desktop para Windows 7, 8, 10 e 11 (um instalador para todos).",
   "author": "Loja",
   "license": "MIT",
@@ -67,10 +67,15 @@
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
+      "allowElevation": true,
+      "deleteAppDataOnUninstall": false,
+      "runAfterFinish": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "CybhorPDV",
+      "uninstallDisplayName": "CybhorPDV",
       "unicode": true,
+      "include": "build/installer.nsh",
       "installerLanguages": [
         "pt_BR"
       ],

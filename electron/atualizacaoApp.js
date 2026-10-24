@@ -2,7 +2,7 @@
 
 const { app } = require("electron");
 const { requisitarJson } = require("./httpJson");
-const { obterUrlApi } = require("./licencaApi");
+const { obterUrlApi, API_URL_PRODUCAO } = require("./licencaApi");
 
 /**
  * Compara versões "3.0.10" x "3.0.9" numericamente (ignora sufixos como "-beta").
@@ -26,12 +26,50 @@ function compararVersoes(a, b) {
 }
 
 /**
- * Um instalador por arquitetura atende Windows 7 a 11; o aviso aponta para o
- * da arquitetura desta instalação sem perguntar ao operador.
- * @returns {string}
+ * IDs do instalador desta máquina, do mais novo ao legado (3.2.0 usava win10/win7).
+ * @returns {string[]}
  */
-function idInstaladorDestaInstalacao() {
-  return process.arch === "ia32" ? "windows-ia32" : "windows-x64";
+function idsInstaladorDestaInstalacao() {
+  if (process.arch === "ia32") {
+    return ["windows-ia32", "win7-ia32"];
+  }
+  return ["windows-x64", "win10-x64", "win7-x64"];
+}
+
+/**
+ * Bases a consultar: Hostinger oficial primeiro; depois a URL embutida no .exe
+ * (apps antigos ainda apontam para a VPS). Ganha a lista com a versão mais alta.
+ * @returns {string[]}
+ */
+function basesConsultaDownloads() {
+  const vistas = new Set();
+  const bases = [];
+  for (const candidata of [API_URL_PRODUCAO, obterUrlApi()]) {
+    const limpa = String(candidata || "")
+      .trim()
+      .replace(/\/+$/, "");
+    if (!limpa || vistas.has(limpa)) continue;
+    vistas.add(limpa);
+    bases.push(limpa);
+  }
+  return bases;
+}
+
+/**
+ * @param {string} base
+ * @returns {Promise<{ base: string, atual: object } | null>}
+ */
+async function buscarListaDownloads(base) {
+  try {
+    const resposta = await requisitarJson(`${base}/api/site/downloads`, {
+      headers: { Accept: "application/json" },
+    });
+    const atual = resposta.ok ? resposta.dados?.atual : null;
+    if (!atual?.versao) return null;
+    return { base, atual };
+  } catch (_erro) {
+    return null;
+  }
 }
 
 /**
@@ -39,17 +77,18 @@ function idInstaladorDestaInstalacao() {
  * @returns {Promise<{ ok: boolean, disponivel: boolean, versaoAtual?: string, versaoNova?: string, publicadoEm?: string | null, urlDownload?: string }>}
  */
 async function verificarAtualizacao() {
-  const base = obterUrlApi().replace(/\/+$/, "");
-  const resposta = await requisitarJson(`${base}/api/site/downloads`, {
-    headers: { Accept: "application/json" },
-  });
-  const atual = resposta.ok ? resposta.dados?.atual : null;
-  if (!atual?.versao) return { ok: false, disponivel: false };
+  const resultados = await Promise.all(basesConsultaDownloads().map(buscarListaDownloads));
+  const validos = resultados.filter(Boolean);
+  if (!validos.length) return { ok: false, disponivel: false };
+
+  validos.sort((a, b) => compararVersoes(b.atual.versao, a.atual.versao));
+  const { base, atual } = validos[0];
 
   const versaoAtual = app.getVersion();
   const versaoNova = String(atual.versao);
   const instaladores = Array.isArray(atual.instaladores) ? atual.instaladores : [];
-  const instalador = instaladores.find((item) => item?.id === idInstaladorDestaInstalacao());
+  const ids = idsInstaladorDestaInstalacao();
+  const instalador = instaladores.find((item) => ids.includes(String(item?.id || "")));
   const urlDownload = instalador?.url
     ? new URL(String(instalador.url), `${base}/`).href
     : `${base}/painel.html`;

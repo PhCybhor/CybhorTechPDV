@@ -152,5 +152,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # VPS descontinuada — instaladores ficam só no GitHub Releases.
-  # Publicação no painel (Hostinger) é feita manualmente/script local após o release.
+  # Apps já instalados ainda consultam a VPS (URL antiga no .exe).
+  # Publicar lá faz o aviso de atualização aparecer sem desinstalar.
+  publicar-vps:
+    needs: [versao, build-windows]
+    uses: ./.github/workflows/publicar-instaladores.yml
+    with:
+      versao: ${{ needs.versao.outputs.version }}
+    secrets: inherit

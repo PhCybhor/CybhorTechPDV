@@ -26,7 +26,7 @@ export function iniciarAvisoAtualizacao() {
     if (!resultado?.ok || !resultado.disponivel || resultado.versaoNova === versaoAdiada) return;
     versaoOferecida = resultado.versaoNova;
     urlDownload = resultado.urlDownload;
-    texto.textContent = `Nova versão do CybhorPDV: ${resultado.versaoNova} (você usa a ${resultado.versaoAtual}). Baixe, feche o CybhorPDV e execute o instalador.`;
+    texto.textContent = `Nova versão do CybhorPDV: ${resultado.versaoNova} (você usa a ${resultado.versaoAtual}). Baixe, feche o CybhorPDV e execute o instalador por cima — não precisa desinstalar.`;
     aviso.classList.remove("oculto");
   };
 
@@ -37,7 +37,11 @@ export function iniciarAvisoAtualizacao() {
       notificar(resposta?.mensagem || "Não foi possível abrir o download.", "erro");
       return;
     }
-    notificar("Download aberto no navegador. Quando terminar, feche o CybhorPDV e execute o instalador.", "info", 7000);
+    notificar(
+      "Download aberto no navegador. Feche o CybhorPDV e execute o instalador por cima da versão atual (não desinstale).",
+      "info",
+      8000
+    );
   });
 
   // "Depois" vale até o app ser reaberto; uma versão ainda mais nova volta a avisar.

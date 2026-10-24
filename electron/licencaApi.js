@@ -3,7 +3,7 @@
 const { requisitarJson, traduzirErroRede } = require("./httpJson");
 
 /** URL publica de producao — fallback do instalador (nunca localhost no .exe). */
-const API_URL_PRODUCAO = "https://pdv.vps10229.panel.icontainer.run";
+const API_URL_PRODUCAO = "https://pdv.cybhor.tech";
 
 /**
  * @returns {boolean}
@@ -34,7 +34,7 @@ function obterUrlApi() {
  * @returns {Set<string>}
  */
 function hostsApiConfiaveis() {
-  const hosts = new Set();
+  const hosts = new Set(["pdv.cybhor.tech", "pdv.vps10229.panel.icontainer.run"]);
   try {
     hosts.add(new URL(API_URL_PRODUCAO).hostname);
   } catch (_erro) {
