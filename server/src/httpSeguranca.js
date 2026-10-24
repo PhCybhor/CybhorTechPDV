@@ -4,18 +4,21 @@ import { config } from './config.js';
 
 export const TAMANHO_MAX_REQUISICAO_BYTES = 512 * 1024;
 
+// Payment Brick (MP) busca i18n/assets em *.mlstatic.com e telemetria em api.mercadolibre.com;
+// sem esses hosts no connect-src o Brick nunca chama onReady e a tela fica em "Carregando...".
 const CSP = [
   "default-src 'self'",
   "base-uri 'self'",
   "object-src 'none'",
   "frame-ancestors 'none'",
-  "script-src 'self' https://sdk.mercadopago.com https://http2.mlstatic.com https://www.mercadopago.com https://www.mercadopago.com.br",
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-  "font-src 'self' https://fonts.gstatic.com data:",
+  "script-src 'self' https://sdk.mercadopago.com https://http2.mlstatic.com https://*.mlstatic.com https://www.mercadopago.com https://www.mercadopago.com.br https://accounts.google.com",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com https://http2.mlstatic.com https://*.mlstatic.com",
+  "font-src 'self' https://fonts.gstatic.com https://http2.mlstatic.com https://*.mlstatic.com data:",
   "img-src 'self' data: https:",
-  "connect-src 'self' https://api.mercadopago.com https://api.mercadopago.com.br https://www.mercadopago.com https://www.mercadopago.com.br",
-  'frame-src https://www.mercadopago.com https://www.mercadopago.com.br https://http2.mlstatic.com',
+  "connect-src 'self' https://api.mercadopago.com https://api.mercadopago.com.br https://www.mercadopago.com https://www.mercadopago.com.br https://sdk.mercadopago.com https://http2.mlstatic.com https://*.mlstatic.com https://api.mercadolibre.com https://www.mercadolibre.com https://accounts.google.com https://oauth2.googleapis.com",
+  'frame-src https://www.mercadopago.com https://www.mercadopago.com.br https://*.mercadopago.com https://http2.mlstatic.com https://*.mlstatic.com https://accounts.google.com',
   "form-action 'self' https://www.mercadopago.com https://www.mercadopago.com.br",
+  "worker-src 'self' blob:",
 ].join('; ');
 
 const METODOS_CORS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'];
@@ -61,7 +64,8 @@ export function cabecalhosSeguranca(req, res, next) {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()');
+  // payment=* libera a Payment Request API usada pelo wallet do Mercado Pago.
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(self "https://www.mercadopago.com" "https://www.mercadopago.com.br")');
   res.setHeader('Content-Security-Policy', CSP);
   res.setHeader('X-DNS-Prefetch-Control', 'off');
   if (config.emProducao) {

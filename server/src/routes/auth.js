@@ -9,6 +9,10 @@ export function criarRotasAuth() {
   const rotas = Router();
   const limitarLogin = criarLimitador(10, 15);
 
+  rotas.get('/auth/provedores', (_req, res) => {
+    res.json(authService.listarProvedoresAuth());
+  });
+
   rotas.post(
     '/auth/login',
     limitarLogin,
@@ -22,6 +26,20 @@ export function criarRotasAuth() {
           usuario: corpo.usuario,
           senha: corpo.senha,
           email: corpo.email,
+        }),
+      );
+    }),
+  );
+
+  rotas.post(
+    '/auth/login-google',
+    limitarLogin,
+    exigirCorpoObjeto,
+    asyncHandler(async (req, res) => {
+      const corpo = corpoDe(req);
+      res.json(
+        await authService.loginComGoogle({
+          idToken: corpo.credential || corpo.idToken,
         }),
       );
     }),

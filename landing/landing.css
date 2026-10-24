@@ -693,3 +693,28 @@ summary { cursor: pointer; font-weight: 600; font-size: 1rem; }
   .kpi-card:nth-child(odd) { border-left: 0; }
   .kpi-card:nth-child(-n + 2) { border-top: 0; }
 }
+
+/* Login Google (área do cliente) */
+.login-google { margin-top: 1.1rem; }
+.login-divisor {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0 0 1rem;
+  color: var(--texto-fraco);
+  font-size: 0.85rem;
+  text-transform: lowercase;
+}
+.login-divisor::before,
+.login-divisor::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--borda);
+}
+.login-google-btn {
+  display: flex;
+  justify-content: center;
+  min-height: 44px;
+}
+.login-google-btn > div { width: 100% !important; }

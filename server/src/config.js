@@ -84,6 +84,8 @@ export const config = Object.freeze({
 
   urlPublicaApi: lerTexto('URL_PUBLICA_API'),
   urlPublicaSite: lerTexto('URL_PUBLICA_SITE', 'http://localhost:3333'),
+  // Client ID OAuth (tipo "Aplicativo da Web") do Google Cloud Console. Vazio = botão oculto.
+  googleClientId: lerTexto('GOOGLE_CLIENT_ID').trim(),
   adminBootstrapSecret: lerTexto('ADMIN_BOOTSTRAP_SECRET'),
 
   diretorioAdmin: lerTexto('ADMIN_DIR') || resolve(DIRETORIO_SERVER, 'public/admin'),

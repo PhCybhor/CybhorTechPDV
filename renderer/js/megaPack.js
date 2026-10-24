@@ -186,17 +186,11 @@ export function instalarMegaPack(ctx) {
       const aberto = await caixaAbertoHoje();
       if (!aberto) {
         notificar(
-          "Abra o caixa do dia (Números → Gaveta) antes de vender.",
+          "Informe o troco do início antes de vender.",
           "alerta"
         );
-        if (estado.funcionario?.cargo === CARGOS.ADMIN) {
-          navegarPara("relatorios");
-          setTimeout(() => {
-            document
-              .querySelector('[data-aba-relatorio="caixa"]')
-              ?.dispatchEvent(new Event("click", { bubbles: true }));
-          }, 100);
-        }
+        abrirModal("modal-troco-inicial");
+        window.setTimeout(() => $("troco-inicial-valor")?.focus(), 50);
         return { ok: false };
       }
     }

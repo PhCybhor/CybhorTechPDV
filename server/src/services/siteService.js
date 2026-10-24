@@ -133,7 +133,7 @@ export async function obterDadosPagamento(token) {
   if (!config.mpAccessToken) throw new ErroNegocio('Pagamentos indisponiveis no momento.', 503);
 
   const linhas = await db.consultar(
-    `SELECT l.id, l.nome, l.email, l.responsavel_nome, l.responsavel_sobrenome,
+    `SELECT l.id, l.nome, l.email, l.cpf, l.responsavel_nome, l.responsavel_sobrenome,
             a.status AS assinatura_status, a.plano, a.valor_mensal,
             f.nome AS admin_nome_completo
      FROM assinaturas a
@@ -154,6 +154,7 @@ export async function obterDadosPagamento(token) {
   const plano = obterPlano(registro.plano || 'mensal');
   const valor = Number(registro.valor_mensal) || plano.valor;
 
+  const cpfLoja = texto(registro.cpf).replace(/\D/g, '');
   const resposta = {
     jaAtiva: false,
     tokenAtivacao: tokenLimpo,
@@ -162,6 +163,8 @@ export async function obterDadosPagamento(token) {
     email: registro.email,
     primeiroNome,
     sobrenome,
+    // CPF do cadastro pré-preenche o Brick (Pix/boleto exigem documento no Brasil).
+    cpf: cpfLoja.length === 11 ? cpfLoja : '',
     publicKey: config.mpPublicKey,
     valorMensal: valor,
     plano: plano.id,

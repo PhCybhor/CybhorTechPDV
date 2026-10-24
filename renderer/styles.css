@@ -773,6 +773,116 @@ html[data-tema="claro"] input[type="date"] {
   min-height: 0;
 }
 
+.busca-acoes {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.busca-acoes .busca-dica {
+  margin: 0;
+  flex: 1;
+  min-width: 12rem;
+}
+
+.pdv-produtos-painel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Grade oculta: busca à esquerda, itens no meio, finalizar à direita */
+.pdv-conteudo.produtos-recolhidos {
+  grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
+}
+
+.pdv-conteudo.produtos-recolhidos .pdv-produtos-painel {
+  display: none;
+}
+
+.pdv-conteudo.produtos-recolhidos .pdv-catalogo {
+  gap: 8px;
+}
+
+.pdv-conteudo.produtos-recolhidos .pdv-carrinho {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(300px, 400px);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  align-content: stretch;
+}
+
+.pdv-conteudo.produtos-recolhidos .carrinho-cabecalho {
+  grid-column: 1 / -1;
+}
+
+.pdv-conteudo.produtos-recolhidos .carrinho-itens {
+  grid-column: 1;
+  grid-row: 2;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.pdv-conteudo.produtos-recolhidos .upsell-carrinho {
+  grid-column: 1;
+  grid-row: 3;
+}
+
+.pdv-conteudo.produtos-recolhidos .carrinho-rodape {
+  grid-column: 2;
+  grid-row: 2 / 4;
+  max-height: none;
+  height: 100%;
+  min-height: 0;
+  border-top: none;
+  border-left: 1px solid var(--cybhor-borda);
+  padding: 12px 14px 14px;
+  margin: 0;
+  border-radius: 0;
+}
+
+.pdv-conteudo.produtos-recolhidos .carrinho-rodape-scroll {
+  flex: 1 1 auto;
+}
+
+.pdv-conteudo.produtos-recolhidos .carrinho-total strong {
+  font-size: 1.75rem;
+}
+
+@media (max-width: 980px) {
+  .pdv-conteudo.produtos-recolhidos {
+    grid-template-columns: minmax(0, 1fr);
+    overflow-y: auto;
+  }
+
+  .pdv-conteudo.produtos-recolhidos .pdv-carrinho {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(180px, 40vh) auto auto;
+    min-height: 520px;
+  }
+
+  .pdv-conteudo.produtos-recolhidos .carrinho-itens {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .pdv-conteudo.produtos-recolhidos .upsell-carrinho {
+    grid-column: 1;
+    grid-row: 3;
+  }
+
+  .pdv-conteudo.produtos-recolhidos .carrinho-rodape {
+    grid-column: 1;
+    grid-row: 4;
+    border-left: none;
+    border-top: 1px solid var(--cybhor-borda);
+    max-height: min(50vh, 100%);
+  }
+}
+
 .busca {
   position: relative;
   flex-shrink: 0;
@@ -1466,12 +1576,12 @@ html[data-tema="claro"] input[type="date"] {
 }
 
 .carrinho-itens {
-  flex: 1;
+  flex: 1 1 auto;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   padding: 0 16px;
-  min-height: 96px;
+  min-height: 64px;
 }
 
 .carrinho-vazio {
@@ -1571,7 +1681,42 @@ html[data-tema="claro"] input[type="date"] {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  /* Precisa encolher: em telas baixas o rodapé inteiro cortava o Finalizar
+     porque o painel tem overflow:hidden e só a lista de itens rolava. */
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: min(62vh, 100%);
+}
+
+.carrinho-rodape-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  padding-right: 2px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.carrinho-rodape > #btn-finalizar {
   flex-shrink: 0;
+  margin-top: 2px;
+}
+
+@media (max-height: 780px) {
+  .carrinho-rodape {
+    max-height: min(70vh, 100%);
+  }
+
+  .carrinho-itens {
+    min-height: 48px;
+  }
+
+  .carrinho-total strong {
+    font-size: 1.55rem;
+  }
 }
 
 .carrinho-opcoes {

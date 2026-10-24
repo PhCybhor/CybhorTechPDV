@@ -319,20 +319,33 @@
                 </div>
                 <div id="busca-sugestoes" class="sugestoes oculto" role="listbox"></div>
               </div>
-              <p class="busca-dica">
-                F1 ajuda · F2 busca · F5–F8 pagamento · F9 repetir · F12 finalizar · Esc limpa busca · *3 quantidade
-              </p>
-
-              <div id="atalhos-rapidos" class="atalhos-rapidos" aria-label="Produtos rápidos"></div>
-              <div id="wrap-categorias" class="wrap-categorias oculto">
-                <div class="categorias-toolbar">
-                  <button type="button" id="btn-toggle-categorias" class="btn btn-secundario btn-sm">
-                    Ocultar categorias
-                  </button>
-                </div>
-                <div id="filtros-categoria" class="filtros-categoria" aria-label="Categorias"></div>
+              <div class="busca-acoes">
+                <button
+                  type="button"
+                  id="btn-toggle-produtos"
+                  class="btn btn-secundario btn-sm"
+                  aria-expanded="true"
+                  title="Oculta a grade e amplia itens + finalizar"
+                >
+                  Minimizar produtos
+                </button>
+                <p class="busca-dica">
+                  F1 ajuda · F2 busca · F5–F8 pagamento · F9 repetir · F12 finalizar · Esc limpa busca · *3 quantidade
+                </p>
               </div>
-              <div id="lista-produtos" class="grade-produtos"></div>
+
+              <div id="pdv-produtos-painel" class="pdv-produtos-painel">
+                <div id="atalhos-rapidos" class="atalhos-rapidos" aria-label="Produtos rápidos"></div>
+                <div id="wrap-categorias" class="wrap-categorias oculto">
+                  <div class="categorias-toolbar">
+                    <button type="button" id="btn-toggle-categorias" class="btn btn-secundario btn-sm">
+                      Ocultar categorias
+                    </button>
+                  </div>
+                  <div id="filtros-categoria" class="filtros-categoria" aria-label="Categorias"></div>
+                </div>
+                <div id="lista-produtos" class="grade-produtos"></div>
+              </div>
             </div>
 
             <aside class="pdv-carrinho">
@@ -353,6 +366,7 @@
               </div>
               <div id="upsell-carrinho" class="upsell-carrinho oculto" aria-label="Leva junto"></div>
               <div class="carrinho-rodape">
+                <div class="carrinho-rodape-scroll">
                 <details id="carrinho-opcoes" class="carrinho-opcoes">
                   <summary>Cliente, cupom e desconto</summary>
                   <div class="carrinho-opcoes-corpo">
@@ -458,6 +472,7 @@
                     <span>Troco</span>
                     <strong id="carrinho-troco-valor" class="troco-valor">R$ 0,00</strong>
                   </div>
+                </div>
                 </div>
                 <button id="btn-finalizar" class="btn btn-confirmar btn-bloco btn-destaque" disabled>
                   Finalizar venda (F12)
@@ -1807,6 +1822,42 @@
         <div class="modal-acoes">
           <button type="button" id="btn-fechar-leitor-camera" class="btn btn-secundario">Fechar</button>
         </div>
+      </div>
+    </div>
+
+    <!-- Modal: troco inicial ao abrir o dia -->
+    <div id="modal-troco-inicial" class="modal oculto" data-modal-bloqueado="1">
+      <div class="modal-caixa modal-caixa--sm" role="dialog" aria-modal="true" aria-labelledby="troco-inicial-titulo">
+        <h2 class="titulo" id="troco-inicial-titulo">Troco do início</h2>
+        <p class="rota-sub">
+          Quanto de dinheiro tem na gaveta agora, para dar troco nas vendas?
+        </p>
+        <form id="form-troco-inicial" class="form form-despesa">
+          <label>Valor na gaveta (R$)
+            <input
+              type="number"
+              id="troco-inicial-valor"
+              min="0"
+              step="0.01"
+              required
+              placeholder="Ex.: 100"
+              autocomplete="off"
+            />
+          </label>
+          <div class="atalhos-troco" id="atalhos-troco-inicial" aria-label="Atalhos de valor">
+            <button type="button" class="btn btn-secundario btn-sm" data-troco-inicial="0">0</button>
+            <button type="button" class="btn btn-secundario btn-sm" data-troco-inicial="50">50</button>
+            <button type="button" class="btn btn-secundario btn-sm" data-troco-inicial="100">100</button>
+            <button type="button" class="btn btn-secundario btn-sm" data-troco-inicial="150">150</button>
+            <button type="button" class="btn btn-secundario btn-sm" data-troco-inicial="200">200</button>
+          </div>
+          <p id="troco-inicial-erro" class="mensagem-erro oculto"></p>
+          <div class="modal-acoes modal-acoes--coluna">
+            <button type="submit" class="btn btn-primario btn-bloco" id="btn-salvar-troco-inicial">
+              Abrir caixa com este troco
+            </button>
+          </div>
+        </form>
       </div>
     </div>
 

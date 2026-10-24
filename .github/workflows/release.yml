@@ -1,7 +1,7 @@
 name: Release CybhorPDV
 
-# Toda alteracao do app desktop na main gera uma versao nova, publica no GitHub
-# Releases e coloca os instaladores no painel do cliente (anteriores ficam abaixo).
+# Toda alteracao do app desktop na main gera uma versao nova e publica no GitHub Releases.
+# Instaladores: CybhorPDV-Setup-x64.exe e CybhorPDV-Setup-ia32.exe.
 on:
   push:
     tags:
@@ -113,8 +113,8 @@ jobs:
           GEMINI_API_KEY_SECRET: ${{ secrets.GEMINI_API_KEY }}
         run: |
           $apiUrl = "$env:CYBHOR_API_URL_SECRET"
-          if ([string]::IsNullOrWhiteSpace($apiUrl)) {
-            $apiUrl = "https://pdv.vps10229.panel.icontainer.run"
+          if ([string]::IsNullOrWhiteSpace($apiUrl) -or $apiUrl -match 'vps|icontainer|panel\.icontainer') {
+            $apiUrl = "https://pdv.cybhor.tech"
           }
           $gemini = "$env:GEMINI_API_KEY_SECRET"
           $linhas = @(
@@ -152,11 +152,5 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  publicar-vps:
-    needs: [versao, build-windows]
-    permissions:
-      contents: read
-    uses: ./.github/workflows/publicar-instaladores.yml
-    with:
-      versao: ${{ needs.versao.outputs.version }}
-    secrets: inherit
+  # VPS descontinuada — instaladores ficam só no GitHub Releases.
+  # Publicação no painel (Hostinger) é feita manualmente/script local após o release.

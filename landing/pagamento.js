@@ -112,64 +112,88 @@ async function montarPaymentBrick(dados) {
 
   const mp = new MercadoPago(dados.publicKey, { locale: "pt-BR" });
   const customization = dados.customization || {};
+  const cpf = String(dados.cpf || "").replace(/\D/g, "");
+  const payer = {
+    email: dados.email,
+    firstName: dados.primeiroNome,
+    lastName: dados.sobrenome,
+  };
+  if (cpf.length === 11) {
+    payer.identification = { type: "CPF", number: cpf };
+  }
 
-  brickController = await mp.bricks().create("payment", "paymentBrick_container", {
-    initialization: {
-      amount: Number(dados.valorMensal),
-      payer: {
-        email: dados.email,
-        firstName: dados.primeiroNome,
-        lastName: dados.sobrenome,
+  let brickPronto = false;
+  const avisoLento = window.setTimeout(() => {
+    if (!brickPronto) {
+      mostrarErro(
+        "O formulario de pagamento demorou para abrir. Recarregue a pagina ou tente outro navegador."
+      );
+    }
+  }, 20000);
+
+  try {
+    brickController = await mp.bricks().create("payment", "paymentBrick_container", {
+      initialization: {
+        amount: Number(dados.valorMensal),
+        payer,
       },
-    },
-    customization,
-    callbacks: {
-      onReady: () => {
-        carregandoEl.classList.add("oculto");
-        brickEl.classList.remove("oculto");
-      },
-      onSubmit: ({ formData }) =>
-        new Promise((resolve, reject) => {
+      customization,
+      callbacks: {
+        onReady: () => {
+          brickPronto = true;
+          window.clearTimeout(avisoLento);
           erroEl.classList.add("oculto");
-          fetch(`${API_BASE}/api/site/pagar`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ tokenAtivacao: token, formData }),
-          })
-            .then(async (r) => {
-              const json = await r.json();
-              if (!r.ok) throw new Error(json.erro || "Pagamento recusado.");
-
-              if (json.status === "approved") {
-                window.location.href = json.redirectUrl;
-                resolve();
-                return;
-              }
-
-              if (json.exibirStatus && json.paymentId) {
-                await exibirStatusPagamento(json.paymentId, dados.publicKey);
-                resolve();
-                return;
-              }
-
-              if (json.redirectUrl) {
-                window.location.href = json.redirectUrl;
-              }
-              resolve();
+          carregandoEl.classList.add("oculto");
+          brickEl.classList.remove("oculto");
+        },
+        onSubmit: ({ formData }) =>
+          new Promise((resolve, reject) => {
+            erroEl.classList.add("oculto");
+            fetch(`${API_BASE}/api/site/pagar`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ tokenAtivacao: token, formData }),
             })
-            .catch((erro) => {
-              mostrarErro(erro.message);
-              reject();
-            });
-        }),
-      onError: (erro) => {
-        console.error("Payment Brick MP:", erro);
-        mostrarErro(
-          erro?.message || "Erro ao carregar formas de pagamento. Recarregue a pagina."
-        );
+              .then(async (r) => {
+                const json = await r.json();
+                if (!r.ok) throw new Error(json.erro || "Pagamento recusado.");
+
+                if (json.status === "approved") {
+                  window.location.href = json.redirectUrl;
+                  resolve();
+                  return;
+                }
+
+                if (json.exibirStatus && json.paymentId) {
+                  await exibirStatusPagamento(json.paymentId, dados.publicKey);
+                  resolve();
+                  return;
+                }
+
+                if (json.redirectUrl) {
+                  window.location.href = json.redirectUrl;
+                }
+                resolve();
+              })
+              .catch((erro) => {
+                mostrarErro(erro.message);
+                reject();
+              });
+          }),
+        onError: (erro) => {
+          console.error("Payment Brick MP:", erro);
+          brickPronto = true;
+          window.clearTimeout(avisoLento);
+          mostrarErro(
+            erro?.message || "Erro ao carregar formas de pagamento. Recarregue a pagina."
+          );
+        },
       },
-    },
-  });
+    });
+  } catch (erro) {
+    window.clearTimeout(avisoLento);
+    throw erro;
+  }
 }
 
 async function iniciar() {

@@ -83,6 +83,10 @@ import {
   DICAS_OPERADOR,
 } from "./services/caixaOperadorStore.js";
 import { pode } from "./services/permissoesOperador.js";
+import {
+  abrirCaixaDia,
+  caixaAbertoHoje,
+} from "./services/caixaCicloService.js";
 import { instalarRevolucao } from "./revolucaoUi.js";
 import { instalarMegaPack } from "./megaPack.js";
 
@@ -1251,15 +1255,26 @@ async function entrarNoApp() {
   // Vendas em tempo real também no Caixa (meta do dia + “leva junto”)
   await iniciarObservacaoVendas();
   navegarPara("pdv");
+  aplicarEstadoProdutos();
   await obterRevolucao().aoEntrarSessao();
   await obterMega().aoEntrarMega();
+  await pedirTrocoInicialSeNecessario();
 }
 
 const CHAVE_CATEGORIAS_RECOLHIDAS = "cybhor_pdv_categorias_recolhidas";
+const CHAVE_PRODUTOS_RECOLHIDOS = "cybhor_pdv_produtos_recolhidos";
 
 function categoriasRecolhidas() {
   try {
     return localStorage.getItem(CHAVE_CATEGORIAS_RECOLHIDAS) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function produtosRecolhidos() {
+  try {
+    return localStorage.getItem(CHAVE_PRODUTOS_RECOLHIDOS) === "1";
   } catch {
     return false;
   }
@@ -1273,6 +1288,103 @@ function aplicarEstadoCategorias() {
   if (btn) {
     btn.setAttribute("aria-expanded", String(!recolhido));
     btn.textContent = recolhido ? "Mostrar categorias" : "Ocultar categorias";
+  }
+}
+
+/** Minimiza a grade de produtos e amplia itens + painel de finalizar. */
+function aplicarEstadoProdutos() {
+  const conteudo = document.querySelector(".pdv-conteudo");
+  const btn = $("btn-toggle-produtos");
+  const recolhido = produtosRecolhidos();
+  conteudo?.classList.toggle("produtos-recolhidos", recolhido);
+  if (btn) {
+    btn.setAttribute("aria-expanded", String(!recolhido));
+    btn.textContent = recolhido ? "Mostrar produtos" : "Minimizar produtos";
+    btn.title = recolhido
+      ? "Volta a grade de produtos na tela"
+      : "Oculta a grade e amplia itens + finalizar";
+  }
+}
+
+/**
+ * Se o caixa ainda não foi aberto hoje, pede o troco inicial (fundo da gaveta).
+ */
+async function pedirTrocoInicialSeNecessario() {
+  const modal = $("modal-troco-inicial");
+  const input = $("troco-inicial-valor");
+  if (!modal || !input || !estado.funcionario) return;
+
+  try {
+    if (await caixaAbertoHoje()) {
+      fecharModal("modal-troco-inicial");
+      return;
+    }
+  } catch {
+    // Sem rede: ainda assim pede o valor; abrirCaixaDia falhará com mensagem clara.
+  }
+
+  const erroEl = $("troco-inicial-erro");
+  erroEl?.classList.add("oculto");
+  input.value = "";
+  abrirModal("modal-troco-inicial");
+  window.setTimeout(() => {
+    input.focus();
+    input.select?.();
+  }, 80);
+}
+
+/**
+ * @param {SubmitEvent} evento
+ */
+async function tratarTrocoInicial(evento) {
+  evento.preventDefault();
+  const input = $("troco-inicial-valor");
+  const btn = $("btn-salvar-troco-inicial");
+  const erroEl = $("troco-inicial-erro");
+  const valor = Number(input?.value);
+  erroEl?.classList.add("oculto");
+
+  if (!estado.funcionario) {
+    notificar("Faça login novamente.", "alerta");
+    return;
+  }
+  if (!Number.isFinite(valor) || valor < 0) {
+    if (erroEl) {
+      erroEl.textContent = "Informe um valor válido (0 ou mais).";
+      erroEl.classList.remove("oculto");
+    }
+    input?.focus();
+    return;
+  }
+
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "Abrindo caixa…";
+  }
+  try {
+    await abrirCaixaDia({
+      fundoInicial: valor,
+      funcionario: estado.funcionario,
+    });
+    fecharModal("modal-troco-inicial");
+    notificar(
+      `Caixa aberto com troco de ${formatarMoeda(valor)}.`,
+      "sucesso"
+    );
+    window.dispatchEvent(new CustomEvent("cybhor-caixa-aberto"));
+    focarBuscaProduto();
+  } catch (erro) {
+    if (erroEl) {
+      erroEl.textContent = erro.message || "Não foi possível abrir o caixa.";
+      erroEl.classList.remove("oculto");
+    } else {
+      notificar(erro.message || "Não foi possível abrir o caixa.", "erro");
+    }
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = "Abrir caixa com este troco";
+    }
   }
 }
 
@@ -1914,7 +2026,9 @@ function definirFormaPagamento(forma) {
   select.value = valor;
   select.dispatchEvent(new Event("change"));
   sincronizarBotoesPagamento(valor);
-  if (valor === "dinheiro") {
+  if (valor === "dinheiro" && estado.carrinho) {
+    // Garante valor exato ao voltar para dinheiro sem valor informado.
+    estado.carrinho._atualizarTotais();
     $("carrinho-recebido")?.focus();
     $("carrinho-recebido")?.select();
   }
@@ -2606,7 +2720,10 @@ async function imprimirUltimaVenda() {
 async function finalizarVenda() {
   if (estado.finalizandoVenda) return;
   const itens = estado.carrinho?.obterItens() || [];
-  if (itens.length === 0) return;
+  if (itens.length === 0) {
+    notificar("Adicione itens ao carrinho para finalizar.", "alerta");
+    return;
+  }
 
   const botao = $("btn-finalizar");
   const textoBotao = botao?.textContent || "Finalizar venda (F12)";
@@ -2625,21 +2742,40 @@ async function finalizarVenda() {
     botao.classList.remove("is-carregando");
     botao.textContent = textoBotao;
     const temItens = (estado.carrinho?.obterItens() || []).length > 0;
-    botao.disabled = !temItens || !estado.carrinho?.pagamentoDinheiroOk();
+    botao.disabled = !temItens;
+    estado.carrinho?._atualizarTotais?.();
   };
 
   try {
     const mega = obterMega();
-    const validacao = await mega.validarAntesDeFinalizar(estado.carrinho);
-    if (!validacao.ok) {
-      liberarBotao();
+    let validacao;
+    try {
+      // Se a API de "caixa aberto" travar, não deixa o botão preso para sempre.
+      validacao = await Promise.race([
+        mega.validarAntesDeFinalizar(estado.carrinho),
+        new Promise((_, rejeitar) => {
+          window.setTimeout(() => {
+            rejeitar(
+              new Error(
+                "Demorou demais para validar a venda. Confira a internet e tente de novo."
+              )
+            );
+          }, 15000);
+        }),
+      ]);
+    } catch (erroValidacao) {
+      notificar(erroValidacao.message || "Falha ao validar a venda.", "erro");
       return;
     }
+    if (!validacao.ok) return;
 
     if (!validacao.foiFiado && !estado.carrinho.pagamentoDinheiroOk()) {
-      notificar("Valor recebido insuficiente.", "alerta");
-      liberarBotao();
+      notificar(
+        "Valor recebido insuficiente. Informe o valor ou use o atalho Exato.",
+        "alerta"
+      );
       $("carrinho-recebido")?.focus();
+      $("carrinho-recebido")?.select();
       return;
     }
 
@@ -2653,7 +2789,6 @@ async function finalizarVenda() {
       : estado.carrinho.obterFormasPagamento();
     if (!validacao.foiFiado && estado.carrinho.dividirPagamento && !formas) {
       notificar("Pagamento dividido: informe a parte em dinheiro.", "alerta");
-      liberarBotao();
       return;
     }
 
@@ -2699,7 +2834,6 @@ async function finalizarVenda() {
       );
     }
     obterRevolucao().atualizarMetaCaixa();
-    liberarBotao();
     abrirModalVendaSucesso(
       {
         ...venda,
@@ -2711,6 +2845,7 @@ async function finalizarVenda() {
     );
   } catch (erro) {
     notificar(erro.message || "Falha ao finalizar — tente de novo.", "erro");
+  } finally {
     liberarBotao();
   }
 }
@@ -2857,6 +2992,18 @@ function registrarEventosGerais() {
     }
     aplicarEstadoCategorias();
   });
+  $("btn-toggle-produtos")?.addEventListener("click", () => {
+    try {
+      localStorage.setItem(
+        CHAVE_PRODUTOS_RECOLHIDOS,
+        produtosRecolhidos() ? "0" : "1"
+      );
+    } catch {
+      /* ignore */
+    }
+    aplicarEstadoProdutos();
+    focarBuscaProduto();
+  });
   $("btn-sino-estoque")?.addEventListener("click", (evento) => {
     evento.stopPropagation();
     const painel = $("painel-sino-estoque");
@@ -2931,20 +3078,34 @@ function registrarEventosGerais() {
     });
   });
 
+  $("form-troco-inicial")?.addEventListener("submit", tratarTrocoInicial);
+  $("atalhos-troco-inicial")?.addEventListener("click", (evento) => {
+    const botao = evento.target.closest("[data-troco-inicial]");
+    if (!botao) return;
+    const input = $("troco-inicial-valor");
+    if (!input) return;
+    input.value = String(botao.dataset.trocoInicial || "0");
+    input.focus();
+  });
+  window.addEventListener("cybhor-caixa-aberto", () => {
+    fecharModal("modal-troco-inicial");
+  });
+
   // Fecha modal ao clicar no backdrop (fora da caixa)
   document.querySelectorAll(".modal").forEach((modal) => {
     modal.addEventListener("click", (evento) => {
-      if (evento.target === modal) {
-        modal.classList.add("oculto");
-        if (modal.id === "modal-alterar-cargo") {
-          estado.painelFuncionarios?.fecharModalAuth();
-        }
-        if (modal.id === "modal-alterar-senha") {
-          estado.painelFuncionarios?.fecharModalSenha();
-        }
-        if (modal.id === "modal-cancelar-venda") {
-          estado.painelHistorico?.fecharModalCancelar();
-        }
+      if (evento.target !== modal) return;
+      // Troco inicial é obrigatório no começo do dia — não fecha no fundo.
+      if (modal.dataset.modalBloqueado === "1") return;
+      modal.classList.add("oculto");
+      if (modal.id === "modal-alterar-cargo") {
+        estado.painelFuncionarios?.fecharModalAuth();
+      }
+      if (modal.id === "modal-alterar-senha") {
+        estado.painelFuncionarios?.fecharModalSenha();
+      }
+      if (modal.id === "modal-cancelar-venda") {
+        estado.painelHistorico?.fecharModalCancelar();
       }
     });
   });

@@ -410,13 +410,34 @@ export class Carrinho {
       this.dividirPagamento || this.selectPagamento?.value === "dinheiro";
     this.blocoTroco?.classList.toggle("oculto", !ehDinheiro);
 
+    // Dinheiro é o padrão: sem valor recebido o botão ficava cinza e parecia
+    // "quebrado". Preenche o valor exato automaticamente (operador ainda pode mudar).
+    if (
+      ehDinheiro &&
+      !this.dividirPagamento &&
+      total > 0 &&
+      this.valorRecebido <= 0 &&
+      document.activeElement !== this.inputRecebido
+    ) {
+      const exato = Number(total.toFixed(2));
+      this.valorRecebido = exato;
+      if (this.inputRecebido) this.inputRecebido.value = String(exato);
+    }
+
     if (this.elementoTroco) {
       this.elementoTroco.textContent = formatarMoeda(this.obterTroco());
     }
 
     const temItens = this.itens.size > 0;
-    this.botaoFinalizar.disabled =
-      this.bloqueadoFinalizar || !temItens || !this.pagamentoDinheiroOk();
+    // Só bloqueia sem itens ou durante a finalização — a validação de troco
+    // acontece no clique (com aviso), para o botão nunca parecer "morto".
+    this.botaoFinalizar.disabled = this.bloqueadoFinalizar || !temItens;
+    if (this.botaoFinalizar) {
+      this.botaoFinalizar.title =
+        temItens && !this.pagamentoDinheiroOk()
+          ? "Informe o valor recebido em dinheiro (atalho Exato) ou troque a forma de pagamento"
+          : "Finalizar venda (F12)";
+    }
 
     document.getElementById("bloco-dividir-pagamento")?.classList.toggle(
       "oculto",

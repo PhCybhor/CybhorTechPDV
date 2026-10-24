@@ -49,8 +49,12 @@ async function ehArquivo(caminho) {
 }
 
 async function pastaDownloads() {
+  const configurada = config.diretorioDownloads
+    ? resolve(DIRETORIO_SERVER, config.diretorioDownloads)
+    : '';
   const candidatos = [
-    config.diretorioDownloads,
+    configurada,
+    resolve(DIRETORIO_SERVER, 'downloads'),
     '/app/downloads',
     resolve(DIRETORIO_SERVER, '../backend/downloads'),
     '/home/cybhorpdv/downloads',

@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto';
+import { OAuth2Client } from 'google-auth-library';
 import { avaliarAssinatura } from '../assinatura.js';
+import { config } from '../config.js';
 import * as db from '../db.js';
 import { emitirToken } from '../deps.js';
 import { ErroNegocio } from '../errors.js';
@@ -130,38 +132,10 @@ async function buscarCandidatosLogin({ codigo, lojaId, usuario, email }) {
 }
 
 /**
- * Login do funcionário (desktop por código/lojaId; site por usuário+senha).
- * O e-mail desambigua quando o mesmo usuário existe em mais de uma loja.
+ * Monta JWT + payload de sessão a partir de uma linha do login (funcionário+loja).
+ * @param {Record<string, unknown>} conta
  */
-export async function loginLoja({ codigoLoja, lojaId, usuario, senha, email = '' }) {
-  const codigo = texto(codigoLoja).toUpperCase();
-  const lojaIdLimpo = texto(lojaId);
-  const usuarioLimpo = texto(usuario).toLowerCase();
-  const emailLimpo = texto(email).toLowerCase();
-
-  if (!usuarioLimpo) throw new ErroNegocio('Informe o usuario.', 400);
-
-  const linhas = await buscarCandidatosLogin({
-    codigo,
-    lojaId: lojaIdLimpo,
-    usuario: usuarioLimpo,
-    email: emailLimpo,
-  });
-  if (linhas.length === 0) throw new ErroNegocio('Usuario ou senha invalidos.', 401);
-
-  const candidatas = [];
-  for (const linha of linhas) {
-    if (await verificarSenha(senha || '', linha.salt, linha.senha_hash)) candidatas.push(linha);
-  }
-  if (candidatas.length === 0) throw new ErroNegocio('Usuario ou senha invalidos.', 401);
-  if (candidatas.length > 1) {
-    throw new ErroNegocio(
-      'Ha mais de uma loja com este usuario. Informe tambem o e-mail cadastrado no pagamento.',
-      400,
-    );
-  }
-
-  const conta = candidatas[0];
+async function montarSessaoLogin(conta) {
   if (!conta.ativa) {
     throw new ErroNegocio(
       'Loja ainda nao ativada ou desativada. Confirme o pagamento ou fale com o suporte.',
@@ -204,6 +178,108 @@ export async function loginLoja({ codigoLoja, lojaId, usuario, senha, email = ''
       mensagem: situacao.mensagem || '',
     },
   };
+}
+
+/**
+ * Login do funcionário (desktop por código/lojaId; site por usuário+senha).
+ * O e-mail desambigua quando o mesmo usuário existe em mais de uma loja.
+ */
+export async function loginLoja({ codigoLoja, lojaId, usuario, senha, email = '' }) {
+  const codigo = texto(codigoLoja).toUpperCase();
+  const lojaIdLimpo = texto(lojaId);
+  const usuarioLimpo = texto(usuario).toLowerCase();
+  const emailLimpo = texto(email).toLowerCase();
+
+  if (!usuarioLimpo) throw new ErroNegocio('Informe o usuario.', 400);
+
+  const linhas = await buscarCandidatosLogin({
+    codigo,
+    lojaId: lojaIdLimpo,
+    usuario: usuarioLimpo,
+    email: emailLimpo,
+  });
+  if (linhas.length === 0) throw new ErroNegocio('Usuario ou senha invalidos.', 401);
+
+  const candidatas = [];
+  for (const linha of linhas) {
+    if (await verificarSenha(senha || '', linha.salt, linha.senha_hash)) candidatas.push(linha);
+  }
+  if (candidatas.length === 0) throw new ErroNegocio('Usuario ou senha invalidos.', 401);
+  if (candidatas.length > 1) {
+    throw new ErroNegocio(
+      'Ha mais de uma loja com este usuario. Informe tambem o e-mail cadastrado no pagamento.',
+      400,
+    );
+  }
+
+  return montarSessaoLogin(candidatas[0]);
+}
+
+/** Provedores OAuth públicos (só o Client ID; sem segredos). */
+export function listarProvedoresAuth() {
+  return {
+    googleClientId: config.googleClientId || null,
+  };
+}
+
+/**
+ * Login da área do cliente via ID token do Google Identity Services.
+ * Casa o e-mail Google verificado com o e-mail da loja (ou usuario = e-mail).
+ */
+export async function loginComGoogle({ idToken }) {
+  const clientId = config.googleClientId;
+  if (!clientId) {
+    throw new ErroNegocio('Login com Google nao esta disponivel no momento.', 503);
+  }
+
+  const tokenGoogle = texto(idToken);
+  if (!tokenGoogle) throw new ErroNegocio('Token Google ausente.', 400);
+
+  let payload;
+  try {
+    const cliente = new OAuth2Client(clientId);
+    const ticket = await cliente.verifyIdToken({
+      idToken: tokenGoogle,
+      audience: clientId,
+    });
+    payload = ticket.getPayload();
+  } catch {
+    throw new ErroNegocio('Token Google invalido ou expirado.', 401);
+  }
+
+  const email = texto(payload?.email).toLowerCase();
+  if (!email) throw new ErroNegocio('Conta Google sem e-mail.', 401);
+  if (payload.email_verified === false) {
+    throw new ErroNegocio('Confirme o e-mail da conta Google e tente de novo.', 401);
+  }
+
+  const linhas = await db.consultar(
+    `${SELECAO_LOGIN}
+     WHERE l.ativa = TRUE
+       AND (LOWER(l.email) = ? OR LOWER(f.usuario) = ?)
+     ORDER BY
+       CASE WHEN LOWER(l.email) = ? THEN 0 ELSE 1 END,
+       CASE WHEN f.cargo = 'admin' THEN 0 ELSE 1 END,
+       f.criado_em ASC`,
+    [email, email, email],
+  );
+
+  if (linhas.length === 0) {
+    throw new ErroNegocio(
+      'Nenhuma loja encontrada com este e-mail Google. Use o mesmo e-mail do cadastro ou entre com usuario e senha.',
+      401,
+    );
+  }
+
+  const lojasDistintas = new Set(linhas.map((linha) => String(linha.loja_id)));
+  if (lojasDistintas.size > 1) {
+    throw new ErroNegocio(
+      'Ha mais de uma loja com este e-mail. Entre com usuario e senha e informe o e-mail da loja.',
+      400,
+    );
+  }
+
+  return montarSessaoLogin(linhas[0]);
 }
 
 /**
