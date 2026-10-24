@@ -2,7 +2,7 @@ let apiUrlCache = null;
 let tokenSessao = null;
 
 /** Fallback do instalador — nunca localhost no .exe do cliente. */
-const API_URL_PRODUCAO = "https://pdv.vps10229.panel.icontainer.run";
+const API_URL_PRODUCAO = "https://pdv.cybhor.tech";
 
 export const EVENTO_SESSAO_EXPIRADA = "cybhor:sessao-expirada";
 export const EVENTO_CONEXAO = "cybhor:conexao";
