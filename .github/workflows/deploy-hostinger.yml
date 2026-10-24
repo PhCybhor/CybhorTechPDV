@@ -17,7 +17,7 @@ permissions:
   contents: read
 
 env:
-  URL_PRODUCAO: https://cybhor.tech
+  URL_PRODUCAO: https://pdv.cybhor.tech
 
 jobs:
   deploy:
@@ -45,10 +45,10 @@ jobs:
         run: |
           set -euo pipefail
           DEST="${HOSTINGER_USER}@${HOSTINGER_HOST}"
-          REMOTE_APP='domains/cybhor.tech/hbuilds/current/nodejs'
+          REMOTE_APP='domains/pdv.cybhor.tech/hbuilds/current/nodejs'
           SSH=(ssh -i ~/.ssh/deploy_key -p "$HOSTINGER_PORT" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o ServerAliveInterval=15)
 
-          "${SSH[@]}" "$DEST" "test -d ~/${REMOTE_APP} && mkdir -p ~/${REMOTE_APP}/tmp"
+          "${SSH[@]}" "$DEST" "test -d ~/${REMOTE_APP} && mkdir -p ~/${REMOTE_APP}/tmp ~/${REMOTE_APP}/downloads"
 
           rsync -az --delete \
             -e "ssh -i ~/.ssh/deploy_key -p ${HOSTINGER_PORT} -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes" \
@@ -56,6 +56,7 @@ jobs:
             --exclude .env \
             --exclude .env.* \
             --exclude tmp \
+            --exclude downloads \
             --exclude console.log \
             --exclude stderr.log \
             ./server/ \
@@ -63,7 +64,7 @@ jobs:
 
           printf '%s\n' "$GITHUB_SHA" | "${SSH[@]}" "$DEST" "cat > ~/${REMOTE_APP}/REVISION"
 
-          "${SSH[@]}" "$DEST" "export PATH=/opt/alt/alt-nodejs22/root/usr/bin:\$PATH; cd ~/${REMOTE_APP} && npm ci --omit=dev && mkdir -p tmp && touch tmp/restart.txt"
+          "${SSH[@]}" "$DEST" "export PATH=/opt/alt/alt-nodejs22/root/usr/bin:\$PATH; cd ~/${REMOTE_APP} && npm ci --omit=dev && mkdir -p tmp downloads && touch tmp/restart.txt"
 
       - name: Conferir producao
         run: |
