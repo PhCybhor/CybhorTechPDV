@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Depends, Query, Request, Response, status
-from fastapi.responses import FileResponse
+from fastapi.responses import RedirectResponse
 from slowapi import Limiter
 
 from app.deps import (
@@ -84,24 +84,30 @@ def site_downloads() -> Dict[str, Any]:
 
 @api.get("/site/baixar/{arquivo}")
 @limiter.limit("30/hour")
-def site_baixar(request: Request, arquivo: str) -> FileResponse:
-    caminho = instaladores_service.caminho_instalador(arquivo)
-    return FileResponse(
-        path=str(caminho),
-        filename=caminho.name,
-        media_type="application/octet-stream",
+def site_baixar(request: Request, arquivo: str) -> RedirectResponse:
+    # .exe oficiais só na Hostinger — a VPS só redireciona (apps antigos ainda batem aqui).
+    _ = request
+    if (arquivo or "") not in instaladores_service.ARQUIVOS_PERMITIDOS:
+        raise ErroNegocio("Arquivo invalido.", 404)
+    return RedirectResponse(
+        url=instaladores_service.url_download_oficial(f"/api/site/baixar/{arquivo}"),
+        status_code=302,
     )
 
 
 @api.get("/site/baixar/{versao}/{arquivo}")
 @limiter.limit("30/hour")
-def site_baixar_versao(request: Request, versao: str, arquivo: str) -> FileResponse:
-    caminho = instaladores_service.caminho_instalador(arquivo, versao)
-    # Nome com a versao para o cliente distinguir setups antigos na pasta Downloads.
-    return FileResponse(
-        path=str(caminho),
-        filename=f"{caminho.stem}-v{versao}{caminho.suffix}",
-        media_type="application/octet-stream",
+def site_baixar_versao(request: Request, versao: str, arquivo: str) -> RedirectResponse:
+    _ = request
+    if not instaladores_service.VERSAO_VALIDA.match(versao or ""):
+        raise ErroNegocio("Versao invalida.", 404)
+    if (arquivo or "") not in instaladores_service.ARQUIVOS_PERMITIDOS:
+        raise ErroNegocio("Arquivo invalido.", 404)
+    return RedirectResponse(
+        url=instaladores_service.url_download_oficial(
+            f"/api/site/baixar/{versao}/{arquivo}"
+        ),
+        status_code=302,
     )
 
 

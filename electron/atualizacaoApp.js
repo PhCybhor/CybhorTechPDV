@@ -82,7 +82,9 @@ async function verificarAtualizacao() {
   if (!validos.length) return { ok: false, disponivel: false };
 
   validos.sort((a, b) => compararVersoes(b.atual.versao, a.atual.versao));
-  const { base, atual } = validos[0];
+  const { atual } = validos[0];
+  // Download sempre na Hostinger — mesmo se a versão foi descoberta na VPS antiga.
+  const baseDownload = API_URL_PRODUCAO.replace(/\/+$/, "");
 
   const versaoAtual = app.getVersion();
   const versaoNova = String(atual.versao);
@@ -90,8 +92,8 @@ async function verificarAtualizacao() {
   const ids = idsInstaladorDestaInstalacao();
   const instalador = instaladores.find((item) => ids.includes(String(item?.id || "")));
   const urlDownload = instalador?.url
-    ? new URL(String(instalador.url), `${base}/`).href
-    : `${base}/painel.html`;
+    ? new URL(String(instalador.url), `${baseDownload}/`).href
+    : `${baseDownload}/painel.html`;
 
   return {
     ok: true,

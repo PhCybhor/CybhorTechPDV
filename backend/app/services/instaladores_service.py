@@ -1,14 +1,16 @@
-"""Catalogo dos instaladores do CybhorPDV publicados no servidor.
+"""Catalogo dos instaladores do CybhorPDV.
 
-Layout mantido pelo script de publicacao da VPS (backend/deploy):
-    downloads/versoes/<versao>/CybhorPDV-Setup-*.exe
-    downloads/versoes/<versao>/info.json      {"versao", "publicado_em"}
-    downloads/CybhorPDV-Setup-*.exe           hardlinks da versao mais nova
+Fonte oficial dos .exe: Hostinger (https://pdv.cybhor.tech).
+A VPS do integrator só espelha o catálogo e redireciona o download —
+apps antigos ainda consultam a URL da VPS gravada no .exe.
 """
 from __future__ import annotations
 
 import json
+import os
 import re
+import urllib.error
+import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -58,6 +60,24 @@ SUBSTITUTOS_LEGADOS = {
     "CybhorPDV-Setup-win7-ia32.exe": "CybhorPDV-Setup-ia32.exe",
 }
 VERSAO_VALIDA = re.compile(r"^\d{1,3}\.\d{1,4}\.\d{1,4}$")
+HOSTINGER_DOWNLOADS = "https://pdv.cybhor.tech"
+
+
+def _base_publica_downloads() -> str:
+    """Origem dos .exe (nunca a VPS do integrator)."""
+    return (os.getenv("DOWNLOADS_PUBLIC_BASE") or HOSTINGER_DOWNLOADS).rstrip("/")
+
+
+def _url_catalogo_remoto() -> str:
+    """URL do JSON de catálogo. 'local' desliga o espelho (testes/dev)."""
+    bruto = (os.getenv("DOWNLOADS_CATALOG_URL") or f"{HOSTINGER_DOWNLOADS}/api/site/downloads").strip()
+    return bruto
+
+
+def url_download_oficial(caminho_api: str) -> str:
+    """Monta URL absoluta na Hostinger a partir de /api/site/baixar/..."""
+    caminho = "/" + str(caminho_api or "").lstrip("/")
+    return f"{_base_publica_downloads()}{caminho}"
 
 
 def _pasta_downloads() -> Path:
@@ -100,6 +120,19 @@ def _data_publicacao(pasta_versao: Path) -> str:
     return datetime.fromtimestamp(pasta_versao.stat().st_mtime, tz=timezone.utc).isoformat()
 
 
+def _com_urls_absolutas(bloco: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    if not bloco:
+        return bloco
+    instaladores = []
+    for item in bloco.get("instaladores") or []:
+        url = str(item.get("url") or "")
+        if url.startswith("http://") or url.startswith("https://"):
+            instaladores.append(item)
+            continue
+        instaladores.append({**item, "url": url_download_oficial(url)})
+    return {**bloco, "instaladores": instaladores}
+
+
 def _montar_versao(pasta_versao: Path, versao: str) -> Optional[Dict[str, Any]]:
     instaladores = []
     for item in INSTALADORES:
@@ -110,7 +143,7 @@ def _montar_versao(pasta_versao: Path, versao: str) -> Optional[Dict[str, Any]]:
             {
                 **item,
                 "tamanho_bytes": arquivo.stat().st_size,
-                "url": f"/api/site/baixar/{versao}/{item['arquivo']}",
+                "url": url_download_oficial(f"/api/site/baixar/{versao}/{item['arquivo']}"),
             }
         )
     if not instaladores:
@@ -128,7 +161,7 @@ def _montar_avulsos(pasta: Path) -> Optional[Dict[str, Any]]:
         {
             **item,
             "tamanho_bytes": (pasta / item["arquivo"]).stat().st_size,
-            "url": f"/api/site/baixar/{item['arquivo']}",
+            "url": url_download_oficial(f"/api/site/baixar/{item['arquivo']}"),
         }
         for item in INSTALADORES
         if (pasta / item["arquivo"]).is_file()
@@ -138,8 +171,38 @@ def _montar_avulsos(pasta: Path) -> Optional[Dict[str, Any]]:
     return {"versao": None, "publicado_em": None, "instaladores": instaladores}
 
 
+def _catalogo_remoto() -> Optional[Dict[str, Any]]:
+    origem = _url_catalogo_remoto()
+    if not origem or origem.lower() == "local":
+        return None
+    try:
+        pedido = urllib.request.Request(
+            origem,
+            headers={"Accept": "application/json", "User-Agent": "CybhorPDV-VPS-catalog/1"},
+        )
+        with urllib.request.urlopen(pedido, timeout=8) as resposta:
+            dados = json.loads(resposta.read().decode("utf-8"))
+    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, ValueError, OSError):
+        return None
+    if not isinstance(dados, dict) or not dados.get("atual", {}).get("versao"):
+        return None
+    atual = _com_urls_absolutas(dados.get("atual"))
+    anteriores = [_com_urls_absolutas(item) for item in (dados.get("anteriores") or [])]
+    anteriores = [item for item in anteriores if item]
+    return {
+        "ok": True,
+        "atual": atual,
+        "anteriores": anteriores,
+        "instaladores": atual["instaladores"] if atual else [],
+    }
+
+
 def listar_instaladores() -> Dict[str, Any]:
-    """Versao atual em destaque e as anteriores (mais nova primeiro)."""
+    """Versao atual em destaque — preferindo o catálogo oficial da Hostinger."""
+    remoto = _catalogo_remoto()
+    if remoto:
+        return remoto
+
     pasta = _pasta_downloads()
     pasta_versoes = pasta / "versoes"
     versoes = [

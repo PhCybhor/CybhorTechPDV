@@ -30,6 +30,13 @@ class InstaladoresTest(unittest.TestCase):
         )
         patcher.start()
         self.addCleanup(patcher.stop)
+        # Testes usam catálogo local e URLs relativas (sem espelhar a Hostinger).
+        cat = patch.object(instaladores_service, "_url_catalogo_remoto", return_value="local")
+        cat.start()
+        self.addCleanup(cat.stop)
+        base = patch.object(instaladores_service, "_base_publica_downloads", return_value="")
+        base.start()
+        self.addCleanup(base.stop)
         self.addCleanup(self._tmp.cleanup)
 
     def _publicar(self, versao: str, *arquivos: str, publicado_em: str = "") -> Path:

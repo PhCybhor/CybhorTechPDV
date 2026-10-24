@@ -152,11 +152,5 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # Apps já instalados ainda consultam a VPS (URL antiga no .exe).
-  # Publicar lá faz o aviso de atualização aparecer sem desinstalar.
-  publicar-vps:
-    needs: [versao, build-windows]
-    uses: ./.github/workflows/publicar-instaladores.yml
-    with:
-      versao: ${{ needs.versao.outputs.version }}
-    secrets: inherit
+  # Não publicar .exe na VPS do integrator — downloads só na Hostinger.
+  # A VPS (Python) espelha o catálogo de pdv.cybhor.tech e redireciona /baixar.

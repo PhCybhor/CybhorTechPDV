@@ -12,6 +12,9 @@ function escapeDownloadHtml(texto) {
  * @param {string} url
  * @returns {string} href seguro ou "#" se inválido
  */
+/** Hosts de onde o .exe pode ser baixado (painel pode rodar na VPS antiga). */
+const HOSTS_DOWNLOAD_CONFIAVEIS = new Set(["pdv.cybhor.tech"]);
+
 function hrefDownloadSeguro(url) {
   const bruto = String(url || "").trim();
   if (!bruto || /^javascript:/i.test(bruto) || /^data:/i.test(bruto)) {
@@ -25,7 +28,10 @@ function hrefDownloadSeguro(url) {
     if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
       return "#";
     }
-    if (parsed.origin !== window.location.origin) {
+    if (
+      parsed.origin !== window.location.origin &&
+      !HOSTS_DOWNLOAD_CONFIAVEIS.has(parsed.hostname)
+    ) {
       return "#";
     }
     return parsed.href;
