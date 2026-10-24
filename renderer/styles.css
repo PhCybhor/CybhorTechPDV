@@ -771,6 +771,10 @@ html[data-tema="claro"] input[type="date"] {
   gap: 10px;
   min-width: 0;
   min-height: 0;
+  height: 100%;
+  /* Sem isto a grade cresce com o conteúdo e o overflow:hidden do PDV corta
+     os produtos de baixo — o mouse não tem onde rolar. */
+  overflow: hidden;
 }
 
 .busca-acoes {
@@ -791,8 +795,9 @@ html[data-tema="claro"] input[type="date"] {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  flex: 1;
+  flex: 1 1 0;
   min-height: 0;
+  overflow: hidden;
 }
 
 /* Grade oculta: busca à esquerda, itens no meio, finalizar à direita */
@@ -1029,6 +1034,7 @@ html[data-tema="claro"] input[type="date"] {
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
+  flex-shrink: 0;
 }
 
 .atalhos-rapidos-rotulo {
@@ -1411,11 +1417,14 @@ html[data-tema="claro"] input[type="date"] {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(164px, 1fr));
   gap: 8px;
-  overflow-y: auto;
   align-content: start;
   padding-right: 2px;
-  flex: 1;
+  flex: 1 1 0;
   min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .produto-card {
