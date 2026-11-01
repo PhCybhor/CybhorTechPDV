@@ -1,0 +1,52 @@
+[
+  {
+    "id": "caixa",
+    "fonte": "docs-pdv",
+    "texto": "Caixa: abra o caixa com o fundo de troco antes de vender. Sem caixa aberto a venda não entra."
+  },
+  {
+    "id": "produtos",
+    "fonte": "docs-pdv",
+    "texto": "Produtos: cadastro de nome, preço, código de barras e estoque. A busca do caixa aceita nome parcial."
+  },
+  {
+    "id": "assistente",
+    "fonte": "docs-pdv",
+    "texto": "Assistente: chat no PDV para dúvidas de operação. Não altera venda, caixa ou estoque sem confirmação."
+  },
+  {
+    "id": "sangria",
+    "fonte": "docs-pdv",
+    "texto": "Sangria: retira dinheiro do caixa no meio do expediente e registra o valor e o motivo."
+  },
+  {
+    "id": "suprimento",
+    "fonte": "docs-pdv",
+    "texto": "Suprimento: entra dinheiro no caixa (troco) durante o expediente, separado da abertura."
+  },
+  {
+    "id": "fechamento",
+    "fonte": "docs-pdv",
+    "texto": "Fechamento: encerra o caixa, confere o dinheiro contado e grava o resumo do turno."
+  },
+  {
+    "id": "cancelar-venda",
+    "fonte": "docs-pdv",
+    "texto": "Cancelar venda: anula uma venda ainda não concluída ou já lançada, devolve o estoque e exige motivo."
+  },
+  {
+    "id": "offline",
+    "fonte": "docs-pdv",
+    "texto": "Offline: o caixa segue vendendo sem internet. A fila sincroniza quando a rede volta."
+  },
+  {
+    "id": "clientes",
+    "fonte": "docs-pdv",
+    "texto": "Clientes: identificação opcional na venda para fiado ou histórico. A venda anônima continua válida."
+  },
+  {
+    "id": "pagamento",
+    "fonte": "docs-pdv",
+    "texto": "Pagamento: dinheiro, cartão ou misto no fechamento da venda. O troco aparece antes de concluir."
+  }
+]

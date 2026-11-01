@@ -4,6 +4,7 @@ const { app, BrowserWindow, ipcMain, shell, dialog } = require("electron");
 const os = require("os");
 const path = require("path");
 const fs = require("fs");
+const crypto = require("crypto");
 const { pathToFileURL } = require("url");
 const {
   imprimirCupomVenda,
@@ -39,6 +40,16 @@ try {
 } catch {
   /* versoes antigas do Electron */
 }
+
+/** Probe de Ollama/RAM. O renderer não recebe motivo nem dialog. */
+const estadoIa = { localOk: false };
+const confirmacoesIaPendentes = new Map();
+const comandosIaPendentes = new Map();
+const TIMEOUT_COMANDO_IA_MS = 15000;
+let journalIa = null;
+let ragIa = null;
+let runtimeIa = null;
+let hardwareIaPromise = null;
 
 /**
  * Remove BOM e espacos que o PowerShell/Out-File às vezes coloca no .env do CI.
@@ -477,18 +488,496 @@ ipcMain.handle("limpar-licenca", () => {
   return { ok: true };
 });
 
-ipcMain.handle("consultar-assistente", async (_evento, payload) => {
+/**
+ * Mesmo bloco que assistenteGemini monta para o Gemini.
+ * O router só repassa mensagem + system do modo ao Ollama.
+ * @param {object} [contextoBruto]
+ */
+function textoContextoLoja(contextoBruto) {
+  const contexto =
+    contextoBruto && typeof contextoBruto === "object" ? contextoBruto : {};
+  return [
+    contexto.nomeLoja ? `Loja: ${contexto.nomeLoja}` : null,
+    contexto.endereco ? `Endereço/região: ${contexto.endereco}` : null,
+    Number.isFinite(contexto.receitaMes)
+      ? `Receita do mês: R$ ${Number(contexto.receitaMes).toFixed(2)}`
+      : null,
+    Number.isFinite(contexto.lucroBrutoMes)
+      ? `Lucro bruto (mês): R$ ${Number(contexto.lucroBrutoMes).toFixed(2)}`
+      : null,
+    Number.isFinite(contexto.despesasMes)
+      ? `Despesas do mês: R$ ${Number(contexto.despesasMes).toFixed(2)}`
+      : null,
+    Number.isFinite(contexto.lucroLiquidoMes)
+      ? `Lucro líquido (mês): R$ ${Number(contexto.lucroLiquidoMes).toFixed(2)}`
+      : null,
+    Array.isArray(contexto.maisVendidos) && contexto.maisVendidos.length
+      ? `Mais vendidos: ${contexto.maisVendidos
+          .slice(0, 8)
+          .map((p) => `${p.nome} (${p.quantidade})`)
+          .join("; ")}`
+      : null,
+    Array.isArray(contexto.estoqueBaixo) && contexto.estoqueBaixo.length
+      ? `Estoque baixo: ${contexto.estoqueBaixo
+          .slice(0, 8)
+          .map((p) => `${p.nome} (${p.estoque})`)
+          .join("; ")}`
+      : null,
+    Array.isArray(contexto.categorias) && contexto.categorias.length
+      ? `Categorias: ${contexto.categorias.slice(0, 20).join(", ")}`
+      : null,
+    Number.isFinite(contexto.produtosSemCusto)
+      ? `Produtos sem custo cadastrado: ${contexto.produtosSemCusto}`
+      : null,
+    contexto.equipePorArea
+      ? `Equipe por área — Caixa: ${contexto.equipePorArea.caixa || 0}, RH: ${
+          contexto.equipePorArea.rh || 0
+        }, Marketing: ${contexto.equipePorArea.marketing || 0}`
+      : null,
+    Array.isArray(contexto.fornecedores) && contexto.fornecedores.length
+      ? `Fornecedores: ${contexto.fornecedores
+          .map((f) => {
+            const tipos = f.tiposMercadoria || f.nicho || "";
+            return `${f.nome} [${tipos}]${f.contato ? ` (${f.contato})` : ""}`;
+          })
+          .join("; ")}`
+      : null,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+function mensagemErroIa(erro) {
+  const { sanitizarMensagemCliente } = require("./overflowTexto");
+  const texto = erro && erro.message ? erro.message : erro;
+  return sanitizarMensagemCliente(texto);
+}
+
+function sanitizarRespostaIa(resposta) {
+  if (!resposta || typeof resposta !== "object") {
+    return { ok: false, mensagem: "Falha ao consultar a IA." };
+  }
+  if (typeof resposta.mensagem !== "string" || !resposta.mensagem) return resposta;
+  const { sanitizarMensagemCliente } = require("./overflowTexto");
+  return { ...resposta, mensagem: sanitizarMensagemCliente(resposta.mensagem) };
+}
+
+function garantirHardwareIa() {
+  if (!hardwareIaPromise) {
+    hardwareIaPromise = (async () => {
+      try {
+        const { avaliarHardwareLocal } = require("./iaHardware");
+        const avaliacao = await avaliarHardwareLocal();
+        estadoIa.localOk = Boolean(avaliacao && avaliacao.localOk);
+      } catch (erro) {
+        estadoIa.localOk = false;
+        console.error("ia hardware:", mensagemErroIa(erro));
+      }
+    })();
+  }
+  return hardwareIaPromise;
+}
+
+function garantirJournalIa() {
+  if (journalIa) return journalIa;
+  const { criarJournal } = require("./agentJournal");
+  const caminho = path.join(app.getPath("userData"), "cybhor-ia-journal.jsonl");
+  journalIa = criarJournal(caminho);
+  return journalIa;
+}
+
+function indiceRagVazio(dir) {
+  const arquivo = path.join(dir, "index.json");
+  if (!fs.existsSync(arquivo)) return true;
   try {
-    // Carrega só quando o operador abre a IA — evita custo no boot.
-    const { consultarAssistente } = require("./assistenteGemini");
-    return await consultarAssistente(payload || {});
-  } catch (erro) {
-    console.error("assistente:", erro);
+    const data = JSON.parse(fs.readFileSync(arquivo, "utf8"));
+    return !Array.isArray(data) || data.length === 0;
+  } catch {
+    return true;
+  }
+}
+
+function garantirRagIa() {
+  if (ragIa) return ragIa;
+  const { criarRagStore } = require("./ragStore");
+  const dir = path.join(app.getPath("userData"), "cybhor-ia-rag");
+  const vazio = indiceRagVazio(dir);
+  const store = criarRagStore({ dir });
+  if (vazio) {
+    const bruto = fs.readFileSync(path.join(__dirname, "rag", "docs-pdv.json"), "utf8");
+    store.indexarDocumentos(JSON.parse(bruto));
+  }
+  ragIa = store;
+  return ragIa;
+}
+
+function webContentsDoPdv(preferido) {
+  const vivo = (wc) => wc && typeof wc.isDestroyed === "function" && !wc.isDestroyed();
+  if (vivo(preferido)) return preferido;
+  const focada = BrowserWindow.getFocusedWindow();
+  if (focada && !focada.isDestroyed() && vivo(focada.webContents)) return focada.webContents;
+  for (const janela of BrowserWindow.getAllWindows()) {
+    if (!janela.isDestroyed() && vivo(janela.webContents)) return janela.webContents;
+  }
+  return null;
+}
+
+function normalizarResultadoComando(body) {
+  const ok = Boolean(body && body.ok);
+  const saida = {
+    ok,
+    resumo: String((body && body.resumo) || (ok ? "ok" : "falha")).slice(0, 500),
+    reversivel: Boolean(body && body.reversivel),
+  };
+  if (body && body.before != null && typeof body.before === "object") saida.before = body.before;
+  if (body && body.after != null && typeof body.after === "object") saida.after = body.after;
+  return saida;
+}
+
+function executarComandoNoRenderer(sender, comando, args) {
+  const { servicoDoComando, argsComandoSeguros } = require("./iaComandoMapa");
+  if (!servicoDoComando(comando)) {
+    return Promise.resolve({
+      ok: false,
+      resumo: "comando desconhecido",
+      reversivel: false,
+    });
+  }
+  const token = crypto.randomUUID();
+  return new Promise((resolve) => {
+    let fechado = false;
+    const fechar = (resultado) => {
+      if (fechado) return;
+      fechado = true;
+      clearTimeout(timer);
+      comandosIaPendentes.delete(token);
+      resolve(normalizarResultadoComando(resultado));
+    };
+    const timer = setTimeout(() => {
+      fechar({ ok: false, resumo: "tempo esgotado ao executar comando" });
+    }, TIMEOUT_COMANDO_IA_MS);
+    const wc = webContentsDoPdv(sender);
+    if (!wc) {
+      fechar({ ok: false, resumo: "janela do PDV indisponível" });
+      return;
+    }
+    comandosIaPendentes.set(token, { fechar, senderId: wc.id });
+    try {
+      wc.send("ia-executar-comando", {
+        token,
+        comando,
+        args: argsComandoSeguros(args, comando),
+      });
+    } catch (erro) {
+      console.error("ia comando:", mensagemErroIa(erro));
+      fechar({ ok: false, resumo: "falha ao enviar comando" });
+    }
+  });
+}
+
+function servicesIaNoRenderer(sender) {
+  const { COMANDOS_SERVICO } = require("./iaComandoMapa");
+  const services = {};
+  for (const [comando, metodo] of Object.entries(COMANDOS_SERVICO)) {
+    if (metodo === "abrirRota") continue;
+    services[metodo] = (args) => executarComandoNoRenderer(sender, comando, args);
+  }
+  return services;
+}
+
+/**
+ * Chip antigo continua no router. Agente só com flag explícita.
+ * @param {object} payload
+ * @returns {""|"autorizacao"|"autonomo"}
+ */
+function pedidoUsaAgente(payload) {
+  if (payload.agente === true) {
+    return payload.modoOperacao === "autonomo" ? "autonomo" : "autorizacao";
+  }
+  const modo = String(payload.modoOperacao || "");
+  if (modo === "autonomo" || modo === "autorizacao") return modo;
+  return "";
+}
+
+function marcarProvider(res, provider) {
+  if (!res || typeof res !== "object" || res.ok !== true) return res;
+  return { ...res, provider };
+}
+
+/**
+ * @param {object} payload
+ * @param {{ injetarRag?: boolean, injetarLoja?: boolean }} [opcoes]
+ */
+async function rotearAssistente(payload, opcoes = {}) {
+  const { consultarComRouter } = require("./assistenteRouter");
+  const { consultarAssistente } = require("./assistenteGemini");
+  const { consultarOllama } = require("./assistenteLocal");
+  const injetarRag = opcoes.injetarRag !== false;
+  const injetarLoja = opcoes.injetarLoja !== false;
+  let contextoRag = "";
+  if (injetarRag) {
+    try {
+      contextoRag = garantirRagIa().montarContexto(String(payload.mensagem || ""));
+    } catch (erro) {
+      console.error("ia rag:", mensagemErroIa(erro));
+    }
+  }
+  const blocoLoja = injetarLoja ? textoContextoLoja(payload.contexto) : "";
+
+  const resultado = await consultarComRouter({
+    payload,
+    hardware: { localOk: estadoIa.localOk },
+    providers: {
+      consultarOllama(entrada) {
+        const extras = [];
+        if (blocoLoja) extras.push(`Contexto da loja (use se relevante):\n${blocoLoja}`);
+        if (contextoRag) extras.push(`Contexto recuperado:\n${contextoRag}`);
+        const system = [entrada && entrada.system, ...extras].filter(Boolean).join("\n\n");
+        return consultarOllama({
+          mensagem: entrada && entrada.mensagem,
+          system,
+        }).then((res) => marcarProvider(res, "ollama"));
+      },
+      consultarGemini(pedidoBruto) {
+        const pedido = pedidoBruto && typeof pedidoBruto === "object" ? pedidoBruto : {};
+        let mensagem = pedido.mensagem;
+        const texto = String(mensagem || "").trim();
+        if (contextoRag && texto.length >= 3) {
+          mensagem = `${texto}\n\nContexto recuperado:\n${contextoRag}`;
+        }
+        return consultarAssistente({ ...pedido, mensagem }).then((res) =>
+          marcarProvider(res, "gemini")
+        );
+      },
+    },
+  });
+  return sanitizarRespostaIa(resultado);
+}
+
+function interpretarSaidaAgente(texto) {
+  const bruto = String(texto || "").trim();
+  if (!bruto) return { texto: "", tool_calls: [] };
+  const fenced = bruto.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  const candidato = (fenced ? fenced[1] : bruto).trim();
+  if (candidato.startsWith("{") && candidato.endsWith("}")) {
+    try {
+      const obj = JSON.parse(candidato);
+      if (obj && Array.isArray(obj.tool_calls)) {
+        const tool_calls = obj.tool_calls
+          .filter((call) => call && typeof call.nome === "string" && call.nome)
+          .map((call) => ({
+            nome: call.nome,
+            args: call.args && typeof call.args === "object" ? call.args : {},
+          }));
+        return {
+          texto: typeof obj.texto === "string" ? obj.texto : "",
+          tool_calls,
+        };
+      }
+    } catch {
+      /* texto livre */
+    }
+  }
+  return { texto: bruto, tool_calls: [] };
+}
+
+async function chamarLlmAgente(entrada) {
+  const tools = Array.isArray(entrada && entrada.tools) ? entrada.tools : [];
+  const mensagem = [
+    String((entrada && entrada.prompt) || ""),
+    'Se for usar tool, responda somente JSON {"texto":"...","tool_calls":[{"nome":"...","args":{}}]}. Sem tool, responda em texto.',
+    `Tools: ${JSON.stringify(tools)}`,
+  ].join("\n\n");
+  const resultado = await rotearAssistente(
+    { modo: "livre", mensagem },
+    { injetarRag: false, injetarLoja: false }
+  );
+  if (!resultado || resultado.ok === false) {
     return {
       ok: false,
-      mensagem: erro?.message || "Falha ao consultar a IA.",
+      texto: (resultado && resultado.mensagem) || "Falha ao consultar a IA.",
+      tool_calls: [],
+      provider: (resultado && resultado.provider) || "",
     };
   }
+  const interpretado = interpretarSaidaAgente(resultado.texto);
+  return {
+    ok: true,
+    texto: interpretado.texto,
+    tool_calls: interpretado.tool_calls,
+    provider: resultado.provider || "",
+  };
+}
+
+function garantirRuntimeIa() {
+  if (runtimeIa) return runtimeIa;
+  const { criarRuntime } = require("./agentRuntime");
+  const tools = require("./agentTools");
+  runtimeIa = criarRuntime({
+    journal: garantirJournalIa(),
+    tools,
+    rag: {
+      montarContexto(mensagem) {
+        try {
+          return garantirRagIa().montarContexto(mensagem);
+        } catch (erro) {
+          console.error("ia rag:", mensagemErroIa(erro));
+          return "";
+        }
+      },
+    },
+    chamarLlm: (entrada) => chamarLlmAgente(entrada),
+  });
+  return runtimeIa;
+}
+
+function pedirConfirmacaoIa(sender, proposta) {
+  const token = crypto.randomUUID();
+  return new Promise((resolve) => {
+    let fechado = false;
+    const fechar = (aceitar) => {
+      if (fechado) return;
+      fechado = true;
+      clearTimeout(timer);
+      confirmacoesIaPendentes.delete(token);
+      resolve(Boolean(aceitar));
+    };
+    const timer = setTimeout(() => fechar(false), 120000);
+    confirmacoesIaPendentes.set(token, {
+      resolve: fechar,
+      senderId: sender && sender.id,
+    });
+    try {
+      const morto =
+        !sender || (typeof sender.isDestroyed === "function" && sender.isDestroyed());
+      if (morto) {
+        fechar(false);
+        return;
+      }
+      sender.send("ia-confirmar-acao", {
+        token,
+        resumo: proposta && proposta.resumo ? String(proposta.resumo) : "",
+        tool: proposta && proposta.tool ? String(proposta.tool) : "",
+      });
+    } catch (erro) {
+      console.error("ia confirmar:", mensagemErroIa(erro));
+      fechar(false);
+    }
+  });
+}
+
+ipcMain.handle("consultar-assistente", async (evento, payloadBruto) => {
+  const payload = payloadBruto && typeof payloadBruto === "object" ? payloadBruto : {};
+  try {
+    await garantirHardwareIa();
+    const modoAgente = pedidoUsaAgente(payload);
+    if (modoAgente) {
+      const saida = await garantirRuntimeIa().processarPedido({
+        mensagem: String(payload.mensagem || ""),
+        modo: modoAgente,
+        contextoLoja:
+          payload.contexto && typeof payload.contexto === "object"
+            ? payload.contexto
+            : undefined,
+        confirmarEscrita: (proposta) => pedirConfirmacaoIa(evento.sender, proposta),
+        ctxTools: { services: servicesIaNoRenderer(evento.sender) },
+      });
+      if (!saida || saida.ok === false) {
+        return sanitizarRespostaIa({
+          ok: false,
+          mensagem: (saida && saida.texto) || "Falha ao consultar a IA.",
+          acoes: (saida && saida.acoes) || [],
+          provider: (saida && saida.provider) || "",
+        });
+      }
+      return sanitizarRespostaIa(saida);
+    }
+
+    const resultado = await rotearAssistente(payload);
+    if (!resultado || typeof resultado !== "object") {
+      return { ok: false, mensagem: "Falha ao consultar a IA." };
+    }
+    const saida = { ...resultado };
+    delete saida.provider;
+    return saida;
+  } catch (erro) {
+    console.error("assistente:", erro);
+    return { ok: false, mensagem: mensagemErroIa(erro) };
+  }
+});
+
+ipcMain.handle("ia-listar-journal", (_evento, limite) => {
+  try {
+    const n = Number(limite);
+    const itens = garantirJournalIa().listar(Number.isFinite(n) ? n : 50);
+    return { ok: true, itens };
+  } catch (erro) {
+    console.error("ia journal:", erro);
+    return { ok: false, itens: [], mensagem: mensagemErroIa(erro) };
+  }
+});
+
+ipcMain.handle("ia-desfazer", async (evento, id) => {
+  try {
+    const journal = garantirJournalIa();
+    const entrada = journal.obter(String(id || ""));
+    if (!entrada) return { ok: false, mensagem: "Registro não encontrado." };
+    if (entrada.desfeito) return { ok: false, mensagem: "Registro já desfeito." };
+    if (entrada.reversivel && entrada.before != null) {
+      const { montarReversao } = require("./iaComandoMapa");
+      const reversao = montarReversao(entrada);
+      if (!reversao) {
+        return { ok: false, mensagem: "Não há como reaplicar o estado anterior." };
+      }
+      const res = await executarComandoNoRenderer(
+        evento.sender,
+        reversao.comando,
+        reversao.args
+      );
+      if (!res || res.ok !== true) {
+        return { ok: false, mensagem: (res && res.resumo) || "Falha ao desfazer." };
+      }
+    }
+    journal.marcarDesfeito(entrada.id);
+    return { ok: true };
+  } catch (erro) {
+    console.error("ia desfazer:", erro);
+    return { ok: false, mensagem: mensagemErroIa(erro) };
+  }
+});
+
+ipcMain.on("ia-executar-comando-resultado", (evento, body) => {
+  const token = body && typeof body.token === "string" ? body.token : "";
+  const pendente = comandosIaPendentes.get(token);
+  if (!pendente) return;
+  if (pendente.senderId != null && evento.sender && evento.sender.id !== pendente.senderId) {
+    return;
+  }
+  pendente.fechar(body);
+});
+
+ipcMain.handle("ia-indexar-loja", (_evento, snapshot) => {
+  try {
+    const { documentosDeSnapshotLoja } = require("./iaComandoMapa");
+    const docs = documentosDeSnapshotLoja(snapshot);
+    if (!docs.length) return { ok: true, indexados: 0 };
+    garantirRagIa().indexarDocumentos(docs);
+    return { ok: true, indexados: docs.length };
+  } catch (erro) {
+    console.error("ia indexar loja:", erro);
+    return { ok: false, mensagem: mensagemErroIa(erro) };
+  }
+});
+
+ipcMain.handle("ia-confirmar-acao-resposta", (evento, body) => {
+  const token = body && typeof body.token === "string" ? body.token : "";
+  const pendente = confirmacoesIaPendentes.get(token);
+  if (!pendente) return { ok: false, mensagem: "Confirmação expirada." };
+  if (pendente.senderId != null && evento.sender && evento.sender.id !== pendente.senderId) {
+    return { ok: false, mensagem: "Confirmação inválida." };
+  }
+  pendente.resolve(Boolean(body && body.aceitar));
+  return { ok: true };
 });
 
 ipcMain.handle("ler-fila-offline", () => {
@@ -551,6 +1040,7 @@ app.whenReady().then(() => {
   }
 
   carregarConfigApp();
+  void garantirHardwareIa();
   criarJanela();
   // Depois da janela: o PowerShell compilando o helper nao atrasa a abertura.
   setTimeout(prepararImpressao, 3000);

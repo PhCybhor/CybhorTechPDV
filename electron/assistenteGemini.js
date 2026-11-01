@@ -1,6 +1,14 @@
 "use strict";
 
+const fs = require("fs");
+const os = require("os");
 const { requisitarJson } = require("./httpJson");
+const {
+  prepararPayloadTexto,
+  limparOverflow,
+  sanitizarMensagemCliente,
+  caminhoOverflowEmErro,
+} = require("./overflowTexto");
 
 /**
  * Cliente Gemini (Google AI Studio) no processo principal — a chave nunca vai ao renderer.
@@ -45,11 +53,6 @@ async function consultarAssistente(payload = {}) {
   if (mensagem.length < 3) {
     return { ok: false, mensagem: "Escreva uma pergunta com pelo menos 3 caracteres." };
   }
-  const limiteMsg = modo === "nomes_produtos" ? 12000 : 4000;
-  if (mensagem.length > limiteMsg) {
-    return { ok: false, mensagem: `Mensagem muito longa (máx. ${limiteMsg} caracteres).` };
-  }
-
   const system =
     MODES_SYSTEM[modo] || MODES_SYSTEM.livre;
   const contexto = payload.contexto && typeof payload.contexto === "object"
@@ -106,21 +109,34 @@ async function consultarAssistente(payload = {}) {
     .filter(Boolean)
     .join("\n");
 
-  const prompt = [
-    system,
-    blocoContexto ? `\nContexto da loja (use se relevante):\n${blocoContexto}` : "",
-    `\nPedido do lojista:\n${mensagem}`,
-  ].join("\n");
-
-  const modelo =
-    String(process.env.GEMINI_MODEL || "gemini-2.5-flash").trim() ||
-    "gemini-2.5-flash";
-
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(
-    modelo
-  )}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  const limiteMsg = modo === "nomes_produtos" ? 12000 : 4000;
+  let arquivoOverflow = null;
 
   try {
+    const overflow = prepararPayloadTexto({
+      texto: mensagem,
+      limiteChars: limiteMsg,
+      dirTemp: os.tmpdir(),
+    });
+    arquivoOverflow = overflow.arquivoPath;
+
+    const textoPedido = overflow.usouArquivo
+      ? fs.readFileSync(overflow.arquivoPath, "utf8")
+      : mensagem;
+    const prompt = [
+      system,
+      blocoContexto ? `\nContexto da loja (use se relevante):\n${blocoContexto}` : "",
+      `\nPedido do lojista:\n${textoPedido}`,
+    ].join("\n");
+
+    const modelo =
+      String(process.env.GEMINI_MODEL || "gemini-2.5-flash").trim() ||
+      "gemini-2.5-flash";
+
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(
+      modelo
+    )}:generateContent?key=${encodeURIComponent(apiKey)}`;
+
     const resposta = await requisitarJson(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -138,7 +154,10 @@ async function consultarAssistente(payload = {}) {
       const detalhe =
         corpo?.error?.message ||
         `Falha na API Gemini (HTTP ${resposta.status}).`;
-      return { ok: false, mensagem: detalhe };
+      return {
+        ok: false,
+        mensagem: sanitizarMensagemCliente(detalhe, arquivoOverflow),
+      };
     }
 
     const partes =
@@ -154,10 +173,13 @@ async function consultarAssistente(payload = {}) {
 
     return { ok: true, texto };
   } catch (erro) {
+    if (!arquivoOverflow) arquivoOverflow = caminhoOverflowEmErro(erro);
     return {
       ok: false,
-      mensagem: erro?.message || "Não foi possível falar com a IA.",
+      mensagem: sanitizarMensagemCliente(erro?.message, arquivoOverflow),
     };
+  } finally {
+    limparOverflow(arquivoOverflow);
   }
 }
 

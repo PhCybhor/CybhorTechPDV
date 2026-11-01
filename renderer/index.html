@@ -1001,30 +1001,77 @@
             </div>
           </header>
 
-          <div class="painel-conteudo">
-            <div class="painel-grafico painel-solto assistente-painel">
-              <div id="assistente-modos" class="assistente-modos" role="tablist" aria-label="Modos do assistente"></div>
-              <p id="assistente-dica" class="subtitulo painel-sub">Escolha um modo e faça sua pergunta</p>
-              <label class="assistente-label">Sua pergunta
+          <div class="ia-chat-layout">
+            <aside class="ia-chat-sidebar" aria-label="Conversas e ações">
+              <div class="ia-chat-sidebar-bloco">
+                <p class="ia-chat-sidebar-titulo">Conversas</p>
+                <button type="button" id="ia-nova-conversa" class="btn btn-secundario btn-sm ia-chat-nova">Nova conversa</button>
+                <div id="ia-threads"></div>
+              </div>
+              <div class="ia-chat-sidebar-bloco">
+                <p class="ia-chat-sidebar-titulo">Ações recentes</p>
+                <div id="ia-journal"></div>
+              </div>
+            </aside>
+            <section class="ia-chat-main">
+              <header class="ia-chat-header">
+                <label class="ia-chat-modo">Modo
+                  <select id="ia-modo" aria-label="Modo de operação">
+                    <option value="autorizacao">Com autorização</option>
+                    <option value="autonomo">Autônomo</option>
+                  </select>
+                </label>
+                <div id="assistente-modos" class="assistente-modos" role="tablist" aria-label="Atalhos de prompt"></div>
+                <p id="assistente-dica" class="subtitulo painel-sub ia-chat-dica">Escolha um atalho ou escreva direto</p>
+              </header>
+              <div id="ia-mensagens" class="ia-mensagens"></div>
+              <div id="ia-confirm-card" class="ia-chat-confirm oculto"></div>
+              <footer class="ia-chat-input">
                 <textarea
                   id="assistente-mensagem"
-                  rows="4"
-                  maxlength="4000"
+                  rows="3"
                   placeholder="Descreva o que precisa…"
                 ></textarea>
-              </label>
-              <div class="modal-acoes">
-                <span class="assistente-atalho">Ctrl+Enter para enviar</span>
-                <button type="button" id="btn-assistente-enviar" class="btn btn-primario">Perguntar à IA</button>
-              </div>
-              <div id="assistente-resposta" class="assistente-resposta">
-                <p class="assistente-status">
-                  A IA usa o contexto da sua loja (vendas, estoque e lucro) quando disponível.
-                  Configure GEMINI_API_KEY no .env da raiz (Google AI Studio).
-                </p>
-              </div>
-            </div>
+                <button type="button" id="btn-assistente-enviar" class="btn btn-primario">Enviar</button>
+                <span class="assistente-atalho">Enter envia · Shift+Enter quebra a linha</span>
+              </footer>
+            </section>
           </div>
+        </div>
+
+        <!-- Solicitações internas (UX de caixa de e-mail; API isolada) -->
+
+          </header>
+
+          <div class="mail-shell" id="mail-shell">
+            <aside class="mail-pastas" aria-label="Pastas">
+              <button type="button" class="mail-pasta ativo" data-sol-pasta="entrada" id="sol-pasta-entrada">
+                Entrada
+              </button>
+              <button type="button" class="mail-pasta" data-sol-pasta="enviados" id="sol-pasta-enviados">
+                Enviados
+              </button>
+              <div id="sol-filtro-setor" class="mail-filtro-setor">
+                <label class="campo">
+                  <span>Setor da entrada</span>
+                  <select id="sol-caixa-departamento"></select>
+                </label>
+              </div>
+            </aside>
+
+            <section class="mail-lista-painel" aria-label="Lista de mensagens">
+              <div id="mail-lista" class="mail-lista"></div>
+            </section>
+
+            <section class="mail-leitura-painel" aria-label="Leitura">
+              <div id="mail-leitura" class="mail-leitura">
+                <div class="mail-vazio">
+                  <p>Selecione uma mensagem para ler</p>
+                </div>
+              </div>
+            </section>
+          </div>
+
         </div>
 
         <!-- Funcionários (admin) -->

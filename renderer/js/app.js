@@ -22,7 +22,8 @@ import {
 import { registrarVenda, observarVendas } from "./services/vendaService.js";
 import { imprimirCupomVenda } from "./services/impressaoService.js";
 import { obterConfigApp } from "./services/configService.js";
-import { definirTenant, obterMetaLoja } from "./services/tenantContext.js";
+import { definirTenant, obterLojaId, obterMetaLoja } from "./services/tenantContext.js";
+import { executarComandoLoja } from "./services/iaComandos.js";
 import { EVENTO_SESSAO_EXPIRADA, obterApiUrl } from "./config/apiClient.js";
 import { atualizarIndice, buscar } from "./services/buscaFuzzy.js";
 import { observarDespesas } from "./services/despesaService.js";
@@ -405,7 +406,6 @@ function navegarPara(rota) {
 
   if (rota === "funcionarios") iniciarFuncionarios();
   else pararObservacaoFuncionarios();
-
   if (rota === "configuracoes") iniciarConfiguracoes();
   if (rota === "fornecedores") iniciarFornecedores();
   if (rota === "gestao") {
@@ -460,7 +460,131 @@ function lembrarEstadoOpcoesCarrinho() {
   });
 }
 
+let ponteComandosIa = false;
+let ultimoIndiceLojaMs = 0;
+const INTERVALO_INDICE_LOJA_MS = 60_000;
+
+function responderComandoIa(token, saida) {
+  const corpo = saida && typeof saida === "object" ? saida : {};
+  window.pdvAPI.iaExecutarComandoResultado({
+    token,
+    ok: corpo.ok === true,
+    resumo: String(corpo.resumo || ""),
+    before: corpo.before ?? null,
+    after: corpo.after ?? null,
+    reversivel: corpo.reversivel === true,
+  });
+}
+
+function depsComandosIa() {
+  return {
+    pode: (chave) => podeAgora(chave),
+    funcionario: () => estado.funcionario,
+    vendas: () => estado.vendas || [],
+    sangrias: () => estado.sangrias || [],
+    suprimentos: () => estado.suprimentos || [],
+    abrirRota: (rota) => abrirRotaPeloAgente(rota),
+    abrirCancelamento: (args) => abrirCancelamentoNaTela(args),
+  };
+}
+
+function registrarPonteComandosIa() {
+  if (ponteComandosIa) return;
+  if (!window.pdvAPI?.onIaExecutarComando || !window.pdvAPI?.iaExecutarComandoResultado) return;
+  ponteComandosIa = true;
+  window.pdvAPI.onIaExecutarComando((pedido) => {
+    const token = pedido && typeof pedido.token === "string" ? pedido.token : "";
+    void executarComandoLoja(pedido && pedido.comando, pedido && pedido.args, depsComandosIa())
+      .then((saida) => responderComandoIa(token, saida))
+      .catch(() =>
+        responderComandoIa(token, {
+          ok: false,
+          resumo: "falha ao executar comando",
+          reversivel: false,
+        })
+      );
+  });
+}
+
+function abrirRotaPeloAgente(rota) {
+  const nome = String(rota || "").trim();
+  if (!ROTAS.includes(nome)) return false;
+  if (!podeAcessarRota(nome)) return false;
+  if (!moduloRotaAtivo(nome, estado.configLoja)) return false;
+  navegarPara(nome);
+  return true;
+}
+
+function abrirCancelamentoNaTela({ vendaId, motivo }) {
+  if (!podeAgora("cancelarVenda")) {
+    return { ok: false, resumo: "sem permissão para cancelar venda", reversivel: false };
+  }
+  const id = String(vendaId || "").trim();
+  if (!id) return { ok: false, resumo: "venda inválida", reversivel: false };
+  if (!abrirRotaPeloAgente("historico")) {
+    return { ok: false, resumo: "histórico indisponível", reversivel: false };
+  }
+  const painel = estado.painelHistorico;
+  const venda = (estado.vendas || []).find((item) => item.id === id);
+  if (!painel || !venda) {
+    return { ok: false, resumo: "venda não encontrada no histórico", reversivel: false };
+  }
+  if (venda.cancelada) {
+    return { ok: false, resumo: "venda já cancelada", reversivel: false };
+  }
+  painel.vendaCancelarId = venda.id;
+  painel.formCancelar?.reset();
+  const campoMotivo = painel.formCancelar?.querySelector("#cancelar-motivo");
+  if (campoMotivo && motivo) campoMotivo.value = String(motivo).slice(0, 180);
+  if (painel.erroCancelar) {
+    painel.erroCancelar.textContent = "";
+    painel.erroCancelar.classList.add("oculto");
+  }
+  if (painel.resumoCancelar) {
+    painel.resumoCancelar.textContent =
+      "Confirme usuário e senha de administrador para cancelar esta venda. O estoque será devolvido.";
+  }
+  painel.modalCancelar?.classList.remove("oculto");
+  return {
+    ok: false,
+    resumo:
+      "cancelamento não concluído: confirme usuário e senha de administrador no histórico",
+    reversivel: false,
+  };
+}
+
+function montarSnapshotLojaRag() {
+  const produtos = (estado.produtos || []).slice(0, 80).map((p) => ({
+    id: p.id,
+    nome: p.nome || "",
+    preco: p.preco,
+    estoque: p.estoque,
+    categoria: p.categoria || "",
+  }));
+  const estoqueBaixo = listarEstoqueBaixo(estado.produtos, estado.estoqueMinimo)
+    .slice(0, 15)
+    .map((p) => ({ nome: p.nome || "", estoque: p.estoque }));
+  return {
+    lojaId: obterLojaId() || "",
+    produtos,
+    estoqueBaixo,
+  };
+}
+
+function indexarLojaNoRag() {
+  const agora = Date.now();
+  if (agora - ultimoIndiceLojaMs < INTERVALO_INDICE_LOJA_MS) return;
+  if (!window.pdvAPI?.iaIndexarLoja) return;
+  ultimoIndiceLojaMs = agora;
+  void window.pdvAPI
+    .iaIndexarLoja(montarSnapshotLojaRag())
+    .catch(() => {
+      ultimoIndiceLojaMs = 0;
+    });
+}
+
 async function iniciar() {
+  registrarPonteComandosIa();
   registrarEventosGerais();
   mostrarTela("tela-carregando");
   void exibirVersaoApp();
@@ -907,6 +1031,7 @@ function iniciarAssistente() {
       obterContexto: () => montarContextoAssistente(),
     });
   }
+  indexarLojaNoRag();
 }
 
 /**
@@ -1034,6 +1159,7 @@ async function iniciarConfiguracoes() {
     $("cfg-meta-dia").value = prefs.metaDia ? String(prefs.metaDia) : "";
   }
 }
+
 
 async function iniciarFuncionarios() {
   if (estado.funcionario?.cargo !== CARGOS.ADMIN) return;
@@ -2981,6 +3107,7 @@ function registrarEventosGerais() {
   $("btn-limpar").addEventListener("click", limparCarrinhoComConfirmacao);
   $("btn-imprimir-cupom").addEventListener("click", imprimirUltimaVenda);
   $("btn-ajuda-caixa")?.addEventListener("click", abrirAjudaCaixa);
+  });
   $("btn-toggle-categorias")?.addEventListener("click", () => {
     try {
       localStorage.setItem(
