@@ -9,6 +9,8 @@ const ESPERADOS = {
   "venda.cancelar": "alto",
   "caixa.sangria": "alto",
   "caixa.fechar": "alto",
+  "backup.exportar": "baixo",
+  "backup.importar": "alto",
 };
 
 const schemas = listarTools();
@@ -47,6 +49,14 @@ const services = {
   async fecharCaixa(args) {
     chamadas.push(["fechar", args]);
     return { resumo: "caixa fechado" };
+  },
+  async exportarBackupIa() {
+    chamadas.push(["backupExport"]);
+    return { resumo: "backup preparado", after: { nomeArquivo: "x.json" } };
+  },
+  async importarBackupIa(args) {
+    chamadas.push(["backupImport", args]);
+    return { resumo: "backup importado", after: { criados: 1 } };
   },
 };
 const ctx = { lojaId: "loja-1", modo: "autonomo", services };
@@ -114,6 +124,17 @@ async function main() {
   const falta = await executarTool("produto.atualizar", {}, ctx);
   assert.strictEqual(falta.ok, false);
   assert.ok(!chamadas.some((c) => c[0] === "atualizar" && c[1].produtoId == null));
+
+  for (const app of ["CybhorPDV", "Operar"]) {
+    const backup = await executarTool(
+      "backup.importar",
+      { json: JSON.stringify({ app, produtos: [] }) },
+      ctx
+    );
+    assert.strictEqual(backup.ok, true);
+    assert.deepStrictEqual(chamadas.at(-1)[0], "backupImport");
+    assert.strictEqual(JSON.parse(chamadas.at(-1)[1].json).app, app);
+  }
 
   console.log("ok tools");
 }

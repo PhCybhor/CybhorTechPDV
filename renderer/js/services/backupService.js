@@ -1,3 +1,5 @@
+import { APP_BACKUP_ATUAL } from "../config/marcaProduto.js";
+
 /**
  * Exporta um snapshot JSON da loja (backup / migração).
  * Exportação de dados no estilo dos ERPs — sem depender de nuvem terceira.
@@ -18,7 +20,7 @@
  */
 export function montarBackupLoja(dados = {}) {
   const payload = {
-    app: "CybhorPDV",
+    app: APP_BACKUP_ATUAL,
     versao: 2,
     exportadoEm: new Date().toISOString(),
     lojaId: dados.lojaId || null,

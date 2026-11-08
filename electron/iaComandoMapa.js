@@ -7,6 +7,8 @@ const COMANDOS_SERVICO = Object.freeze({
   "venda.cancelar": "cancelarVenda",
   "caixa.sangria": "sangria",
   "caixa.fechar": "fecharCaixa",
+  "backup.exportar": "exportarBackupIa",
+  "backup.importar": "importarBackupIa",
   "navegacao.abrirRota": "abrirRota",
 });
 
@@ -93,10 +95,11 @@ function montarReversao(entrada) {
 
 function argsComandoSeguros(args, comando) {
   if (!args || typeof args !== "object" || Array.isArray(args)) return {};
+  const limiteTexto = comando === "backup.importar" ? 500000 : 500;
   const out = {};
   for (const [chave, valor] of Object.entries(args)) {
     if (CHAVE_SENSIVEL.test(chave)) continue;
-    if (typeof valor === "string") out[chave] = valor.slice(0, 500);
+    if (typeof valor === "string") out[chave] = valor.slice(0, limiteTexto);
     else if (typeof valor === "number" && Number.isFinite(valor)) out[chave] = valor;
     else if (typeof valor === "boolean") out[chave] = valor;
     else if (valor === null) out[chave] = null;
