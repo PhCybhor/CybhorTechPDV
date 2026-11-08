@@ -17,3 +17,6 @@ vendor/jp800/Exemplo_JP800_Delphi
 
 # Artefatos gerados do Reels (MP4/WebM/clips de voz)
 marketing/out/
+
+# Git worktrees locais (isolamento de feature)
+.worktrees/
