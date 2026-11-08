@@ -230,6 +230,10 @@ html[data-densidade="compacta"] body {
   margin-bottom: 20px;
 }
 
+.subtitulo-marca {
+  margin-bottom: 4px;
+}
+
 .form {
   display: flex;
   flex-direction: column;
@@ -518,6 +522,12 @@ html[data-tema="claro"] input[type="date"] {
 .sidebar-marca-texto strong {
   font-size: 0.95rem;
   font-weight: 600;
+}
+
+.sidebar-marca-texto .sidebar-by {
+  margin-left: 0.35em;
+  font-size: 0.72rem;
+  font-weight: 500;
 }
 
 .sidebar-marca-texto span {

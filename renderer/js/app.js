@@ -25,6 +25,7 @@ import { obterConfigApp } from "./services/configService.js";
 import { definirTenant, obterLojaId, obterMetaLoja } from "./services/tenantContext.js";
 import { executarComandoLoja } from "./services/iaComandos.js";
 import { EVENTO_SESSAO_EXPIRADA, obterApiUrl } from "./config/apiClient.js";
+import { NOME_PRODUTO_COMPLETO } from "./config/marcaProduto.js";
 import { atualizarIndice, buscar } from "./services/buscaFuzzy.js";
 import { observarDespesas } from "./services/despesaService.js";
 import { gerarResumo } from "./services/relatorioService.js";
@@ -429,7 +430,7 @@ async function exibirVersaoApp() {
   try {
     const versao = await window.pdvAPI?.obterVersaoApp?.();
     if (!versao) return;
-    document.title = `CybhorPDV ${versao}`;
+    document.title = `${NOME_PRODUTO_COMPLETO} ${versao}`;
     const rotulo = $("versao-app");
     if (rotulo) rotulo.textContent = `v${versao}`;
   } catch {
@@ -665,7 +666,7 @@ async function atualizarStatusConexao() {
         if (resposta.ok && dados?.ok) {
           resultado = {
             ok: true,
-            mensagem: "Conectado ao servidor CybhorPDV.",
+            mensagem: `Conectado ao servidor ${NOME_PRODUTO_COMPLETO}.`,
             apiUrl,
           };
         }
@@ -3107,7 +3108,6 @@ function registrarEventosGerais() {
   $("btn-limpar").addEventListener("click", limparCarrinhoComConfirmacao);
   $("btn-imprimir-cupom").addEventListener("click", imprimirUltimaVenda);
   $("btn-ajuda-caixa")?.addEventListener("click", abrirAjudaCaixa);
-  });
   $("btn-toggle-categorias")?.addEventListener("click", () => {
     try {
       localStorage.setItem(

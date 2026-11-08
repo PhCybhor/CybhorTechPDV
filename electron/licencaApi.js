@@ -1,6 +1,7 @@
 "use strict";
 
 const { requisitarJson, traduzirErroRede } = require("./httpJson");
+const { NOME_PRODUTO_COMPLETO } = require("./marcaProduto.cjs");
 
 /** URL publica de producao — fallback do instalador (nunca localhost no .exe). */
 const API_URL_PRODUCAO = "https://pdv.cybhor.tech";
@@ -61,7 +62,7 @@ async function testarConexaoApi() {
       headers: { Accept: "application/json" },
     });
     if (resposta.ok && (resposta.dados?.ok === true || resposta.status === 200)) {
-      return { ok: true, mensagem: "Conectado ao servidor CybhorPDV.", apiUrl };
+      return { ok: true, mensagem: `Conectado ao servidor ${NOME_PRODUTO_COMPLETO}.`, apiUrl };
     }
     return {
       ok: false,

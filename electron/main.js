@@ -31,6 +31,7 @@ const {
 } = require("./licencaApi");
 const { lerFilaOffline, gravarFilaOffline } = require("./filaOfflineStore");
 const { verificarAtualizacao } = require("./atualizacaoApp");
+const { NOME_PRODUTO, NOME_PRODUTO_COMPLETO } = require("./marcaProduto.cjs");
 
 // Win7 / GPUs antigas: evita tela preta ou crash na abertura.
 try {
@@ -250,7 +251,7 @@ function criarJanela() {
   });
 
   janela.setMenuBarVisibility(false);
-  janela.setTitle(`CybhorPDV ${app.getVersion()}`);
+  janela.setTitle(`${NOME_PRODUTO} ${app.getVersion()}`);
   janela.loadFile(path.join(__dirname, "..", "renderer", "index.html"));
 
   // Bloqueia navegação/popup inesperados (phishing via conteúdo remoto ou XSS).
@@ -285,7 +286,7 @@ function criarJanela() {
     console.error("Falha ao carregar UI:", codigo, descricao);
     exibir();
     dialog.showErrorBox(
-      "CybhorPDV",
+      NOME_PRODUTO_COMPLETO,
       "Nao foi possivel carregar a interface (" + codigo + "). Reinstale o aplicativo."
     );
   });
@@ -293,8 +294,10 @@ function criarJanela() {
   janela.webContents.on("render-process-gone", (_e, details) => {
     console.error("Renderer encerrado:", details);
     dialog.showErrorBox(
-      "CybhorPDV",
-      "O aplicativo fechou inesperadamente. No Windows 7 confira se o SP1 esta instalado e reinstale o CybhorPDV."
+      NOME_PRODUTO_COMPLETO,
+      "O aplicativo fechou inesperadamente. No Windows 7 confira se o SP1 esta instalado e reinstale o " +
+        NOME_PRODUTO_COMPLETO +
+        "."
     );
   });
 }
