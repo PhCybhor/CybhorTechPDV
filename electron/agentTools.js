@@ -78,28 +78,6 @@ const TOOLS = [
       return embrulhar(await ctx.services.fecharCaixa(args), "caixa fechado");
     },
   },
-  {
-    nome: "backup.exportar",
-    descricao: "Monta resumo/exportação do backup Operar da loja (não baixa arquivo sozinho).",
-    risco: "baixo",
-    args: {},
-    async executar(args, ctx) {
-      return embrulhar(await ctx.services.exportarBackupIa(args), "backup preparado");
-    },
-  },
-  {
-    nome: "backup.importar",
-    descricao:
-      "Importa backup Operar ou legado CybhorPDV (JSON com app=Operar ou app=CybhorPDV). Preferir produtos do payload; confirmação no modo autorização.",
-    risco: "alto",
-    args: {
-      json: { tipo: "string", obrigatorio: false },
-      produtos: { tipo: "string", obrigatorio: false },
-    },
-    async executar(args, ctx) {
-      return embrulhar(await ctx.services.importarBackupIa(args), "backup importado");
-    },
-  },
 ];
 
 function listarTools() {

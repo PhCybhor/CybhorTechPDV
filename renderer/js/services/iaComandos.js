@@ -2,10 +2,7 @@ import {
   despacharComando,
   CAMPOS_PATCH_PRODUTO_AGENTE,
 } from "../../../electron/iaComandoMapa.js";
-import { listarProdutos, atualizarProduto, criarProduto } from "./produtoService.js";
-import { montarBackupLoja } from "./backupService.js";
-import { obterLojaId, obterMetaLoja } from "./tenantContext.js";
-import { appBackupValido } from "../config/marcaProduto.js";
+import { listarProdutos, atualizarProduto } from "./produtoService.js";
 import { criarSangria, somarSangriasDoDia } from "./sangriaService.js";
 import {
   lerEstadoCaixa,
@@ -184,65 +181,6 @@ async function fecharCaixa(_args, deps) {
   };
 }
 
-async function exportarBackupCmd(_args, deps) {
-  const meta = obterMetaLoja() || {};
-  const { nomeArquivo, blob } = montarBackupLoja({
-    lojaId: obterLojaId(),
-    lojaNome: meta.nome || meta.nomeLoja || "",
-    produtos: typeof deps.produtos === "function" ? deps.produtos() : [],
-    vendas: typeof deps.vendas === "function" ? deps.vendas() : [],
-    despesas: [],
-    sangrias: typeof deps.sangrias === "function" ? deps.sangrias() : [],
-  });
-  const tamanho = blob?.size || 0;
-  return {
-    ok: true,
-    resumo: `backup pronto: ${nomeArquivo} (${tamanho} bytes). Use Exportar no menu se quiser baixar.`,
-    after: { nomeArquivo, tamanho },
-    reversivel: false,
-  };
-}
-
-async function importarBackupCmd(args) {
-  let payload = null;
-  const bruto = String(args.json || args.produtos || "").trim();
-  if (bruto) {
-    try {
-      payload = JSON.parse(bruto);
-    } catch {
-      return falha("JSON de backup inválido");
-    }
-  }
-  if (!payload || !appBackupValido(payload.app)) {
-    return falha("só importo backup Operar ou CybhorPDV (campo app)");
-  }
-  const produtos = Array.isArray(payload.produtos) ? payload.produtos : [];
-  let criados = 0;
-  const erros = [];
-  for (const p of produtos.slice(0, 500)) {
-    try {
-      await criarProduto({
-        nome: p.nome,
-        preco: p.preco,
-        estoque: p.estoque,
-        codigoBarras: p.codigoBarras,
-        categoria: p.categoria,
-        custo: p.custo,
-      });
-      criados += 1;
-    } catch (erro) {
-      erros.push(String(erro?.message || erro).slice(0, 80));
-    }
-  }
-  return {
-    ok: true,
-    resumo: `importados ${criados} produtos` +
-      (erros.length ? `; ${erros.length} falhas` : ""),
-    after: { criados, erros: erros.slice(0, 5) },
-    reversivel: false,
-  };
-}
-
 function abrirRotaCmd(args, deps) {
   const rota = String(args.rota || "").trim();
   if (!rota) return falha("informe a rota");
@@ -263,7 +201,6 @@ export function executarComandoLoja(comando, args, deps) {
   const amarrado = {
     pode,
     funcionario: () => (typeof contexto.funcionario === "function" ? contexto.funcionario() : null),
-    produtos: () => (typeof contexto.produtos === "function" ? contexto.produtos() : []),
     vendas: () => (typeof contexto.vendas === "function" ? contexto.vendas() : []),
     sangrias: () => (typeof contexto.sangrias === "function" ? contexto.sangrias() : []),
     suprimentos: () =>
@@ -277,8 +214,6 @@ export function executarComandoLoja(comando, args, deps) {
     cancelarVenda: (recebidos) => cancelarVendaCmd(recebidos, amarrado),
     sangria: (recebidos) => sangriaCmd(recebidos, amarrado),
     fecharCaixa: (recebidos) => fecharCaixa(recebidos, amarrado),
-    exportarBackupIa: (recebidos) => exportarBackupCmd(recebidos, amarrado),
-    importarBackupIa: (recebidos) => importarBackupCmd(recebidos),
     abrirRota: (recebidos) => abrirRotaCmd(recebidos, amarrado),
   });
 }

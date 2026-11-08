@@ -16,8 +16,6 @@ assert.deepStrictEqual(Object.keys(COMANDOS_SERVICO), [
   "venda.cancelar",
   "caixa.sangria",
   "caixa.fechar",
-  "backup.exportar",
-  "backup.importar",
   "navegacao.abrirRota",
 ]);
 assert.strictEqual(servicoDoComando("produto.buscar"), "buscarProduto");
