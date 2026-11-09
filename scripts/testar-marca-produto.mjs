@@ -8,6 +8,7 @@ import {
   APP_BACKUP_LEGADOS,
   appBackupValido,
 } from "../renderer/js/config/marcaProduto.js";
+import { MODULOS_LOJA } from "../renderer/js/utils/aparencia.js";
 
 const require = createRequire(import.meta.url);
 const marcaCjs = require("../electron/marcaProduto.cjs");
@@ -27,6 +28,11 @@ assert.equal(marcaCjs.APP_BACKUP_ATUAL, APP_BACKUP_ATUAL);
 assert.deepEqual([...marcaCjs.APP_BACKUP_LEGADOS], [...APP_BACKUP_LEGADOS]);
 for (const amostra of ["Operar", "CybhorPDV", "Outro", 1, null]) {
   assert.equal(marcaCjs.appBackupValido(amostra), appBackupValido(amostra));
+}
+
+for (const m of MODULOS_LOJA) {
+  assert.ok(m.chave.startsWith("modulo"));
+  assert.ok(m.camada === "nucleo" || m.camada === "comercio");
 }
 
 console.log("ok: marcaProduto");

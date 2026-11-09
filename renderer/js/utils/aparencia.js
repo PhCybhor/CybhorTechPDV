@@ -35,14 +35,14 @@ export const TEMAS = Object.freeze({
 
 /** Módulos que o admin pode desligar na loja (exceto PDV e Configurações). */
 export const MODULOS_LOJA = Object.freeze([
-  { chave: "moduloProdutos", rota: "produtos", rotulo: "Produtos" },
-  { chave: "moduloHistorico", rota: "historico", rotulo: "Histórico de vendas" },
-  { chave: "moduloClientes", rota: "clientes", rotulo: "Clientes" },
-  { chave: "moduloRelatorios", rota: "relatorios", rotulo: "Relatórios" },
-  { chave: "moduloFornecedores", rota: "fornecedores", rotulo: "Fornecedores" },
-  { chave: "moduloGestao", rota: "gestao", rotulo: "Estoque e finanças" },
-  { chave: "moduloAssistente", rota: "assistente", rotulo: "Assistente CybhorIA" },
-  { chave: "moduloFuncionarios", rota: "funcionarios", rotulo: "Equipe / Folha" },
+  { chave: "moduloProdutos", rota: "produtos", rotulo: "Produtos", camada: "comercio" },
+  { chave: "moduloHistorico", rota: "historico", rotulo: "Histórico de vendas", camada: "comercio" },
+  { chave: "moduloClientes", rota: "clientes", rotulo: "Clientes", camada: "comercio" },
+  { chave: "moduloRelatorios", rota: "relatorios", rotulo: "Relatórios", camada: "nucleo" },
+  { chave: "moduloFornecedores", rota: "fornecedores", rotulo: "Fornecedores", camada: "comercio" },
+  { chave: "moduloGestao", rota: "gestao", rotulo: "Estoque e finanças", camada: "nucleo" },
+  { chave: "moduloAssistente", rota: "assistente", rotulo: "Assistente CybhorIA", camada: "nucleo" },
+  { chave: "moduloFuncionarios", rota: "funcionarios", rotulo: "Equipe / Folha", camada: "nucleo" },
 ]);
 
 /**
