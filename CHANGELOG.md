@@ -1,5 +1,10 @@
 # Changelog
 
+## Fase 0 — identidade Operar by Cybhor
+
+- Landing, README e INSTALAR passam a apresentar **Operar by Cybhor** (antes CybhorPDV).
+- Instaladores desta fase continuam `CybhorPDV-Setup-*.exe`.
+
 ## 2.1.13 — 2026-09-22
 
 - Impressão: mutex no IPC evita reimpressão enquanto o job ainda roda após o timeout do renderer; spawn de PowerShell/copy com timeout.

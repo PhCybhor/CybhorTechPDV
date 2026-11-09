@@ -1,4 +1,4 @@
-# Checklist pré-deploy (Cybhor PDV SaaS)
+# Checklist pré-deploy (API do Operar / legado CybhorPDV)
 
 Após o pull de `main` (merges de 2026-09: webhook, índice pagamentos, CORS, `/api/saude`). Detalhes longos: `backend/README.md`.
 

@@ -1,4 +1,4 @@
-# CybhorPDV — API (Node.js / Express + MySQL 8)
+# API do Operar (legado CybhorPDV) — Node.js / Express + MySQL 8
 
 API multi-loja do CybhorPDV. Substitui o backend FastAPI + PostgreSQL
 (`../backend/`) mantendo o mesmo contrato HTTP/JWT para o desktop e a landing.

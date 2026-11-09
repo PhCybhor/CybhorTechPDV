@@ -1,6 +1,8 @@
-# Como instalar o CybhorPDV
+# Como instalar o Operar
 
-Você **não precisa baixar o código-fonte**. Basta o instalador e o **código da loja**.
+Antes **CybhorPDV**. Você **não precisa baixar o código-fonte**. Basta o instalador e o **código da loja**.
+
+Nesta fase os arquivos continuam `CybhorPDV-Setup-x64.exe` e `CybhorPDV-Setup-ia32.exe`. O executável instalado continua `CybhorPDV.exe`; na tela o nome é Operar.
 
 ## Passo a passo
 
@@ -12,7 +14,7 @@ Você **não precisa baixar o código-fonte**. Basta o instalador e o **código 
    - **Windows 7, 8, 10 ou 11 (64 bits):** `CybhorPDV-Setup-x64.exe`
    - **PC de 32 bits:** `CybhorPDV-Setup-ia32.exe`
 
-3. Instale e abra o **CybhorPDV.exe**.
+3. Instale e abra o **CybhorPDV.exe** (o app aparece como Operar).
 
 4. Na tela **Conectar sua loja**, cole o código da loja.
 
@@ -34,7 +36,7 @@ Você **não precisa baixar o código-fonte**. Basta o instalador e o **código 
 | "Loja não encontrada" / código inválido | Confira o código, a internet e se a API está no ar |
 | "Falha ao conectar ao banco de dados" | Verifique a internet e reinstale com o instalador mais recente |
 | Assinatura pendente ou cancelada | Conclua o pagamento no site (Área do cliente) — vencida/inadimplente segue liberada com aviso |
-| Antivírus bloqueou | Permita o CybhorPDV nas exceções do antivírus |
+| Antivírus bloqueou | Permita o Operar (`CybhorPDV.exe`) nas exceções do antivírus |
 | Não abre no Windows 7 | Confirme o Windows 7 **SP1**, reinstale e abra como administrador |
 | Não abre após instalar | Execute o `.exe` como administrador |
 | Quero outra loja | Cadastre outra loja no site — cada código cria um espaço separado |

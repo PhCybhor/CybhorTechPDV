@@ -1,6 +1,6 @@
-# CybhorPDV
+# Operar by Cybhor
 
-Sistema de ponto de venda (PDV) para loja, em desktop (Windows), construído com
+Antes **CybhorPDV**. Sistema de ponto de venda (PDV) para loja, em desktop (Windows), construído com
 **Electron**, API **Node.js (Express) + MySQL 8** (pasta `server/`). O backend
 legado FastAPI + PostgreSQL permanece em `backend/` até o cutover completo.
 
@@ -12,7 +12,7 @@ legado FastAPI + PostgreSQL permanece em `backend/` até o cutover completo.
 2. Baixe o instalador (o mesmo serve para Windows 7, 8, 10 e 11):
    - **64 bits:** `CybhorPDV-Setup-x64.exe`
    - **32 bits:** `CybhorPDV-Setup-ia32.exe`
-3. Instale e abra o CybhorPDV
+3. Instale e abra o Operar. Nesta fase o instalador ainda se chama `CybhorPDV-Setup-*.exe`
 
 Instrucoes detalhadas: [INSTALAR.md](INSTALAR.md)
 

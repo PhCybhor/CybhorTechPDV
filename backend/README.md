@@ -1,4 +1,4 @@
-# CybhorPDV — API (Python / FastAPI + PostgreSQL)
+# API do Operar (legado CybhorPDV) — Python / FastAPI + PostgreSQL
 
 API multi-loja do CybhorPDV. Os dados (lojas, funcionários, produtos, vendas)
 ficam em PostgreSQL. Inclui o painel do administrador do sistema e pagamentos
