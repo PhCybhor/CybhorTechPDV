@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
 import {
   NOME_PRODUTO,
   NOME_PRODUTO_COMPLETO,
@@ -34,5 +37,12 @@ for (const m of MODULOS_LOJA) {
   assert.ok(m.chave.startsWith("modulo"));
   assert.ok(m.camada === "nucleo" || m.camada === "comercio");
 }
+
+const pkgPath = join(dirname(fileURLToPath(import.meta.url)), "..", "package.json");
+const pkg = JSON.parse(readFileSync(pkgPath, "utf8"));
+assert.equal(pkg.build.productName, "Operar");
+assert.equal(pkg.build.appId, "com.cybhor.pdv");
+assert.equal(pkg.build.win.artifactName, "CybhorPDV-Setup-${arch}.${ext}");
+assert.equal(pkg.build.win.executableName, "CybhorPDV");
 
 console.log("ok: marcaProduto");

@@ -1,7 +1,7 @@
 {
   "name": "cybhor-pdv",
   "version": "3.2.6",
-  "description": "CybhorPDV - PDV desktop para Windows 7, 8, 10 e 11 (um instalador para todos).",
+  "description": "Operar by Cybhor — gestão de loja (caixa, estoque e dinheiro) para Windows 7–11.",
   "author": "Loja",
   "license": "MIT",
   "main": "electron/main.js",
@@ -28,7 +28,7 @@
   },
   "build": {
     "appId": "com.cybhor.pdv",
-    "productName": "CybhorPDV",
+    "productName": "Operar",
     "publish": [],
     "asar": true,
     "icon": "build/icon.png",
@@ -72,8 +72,8 @@
       "runAfterFinish": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "CybhorPDV",
-      "uninstallDisplayName": "CybhorPDV",
+      "shortcutName": "Operar",
+      "uninstallDisplayName": "Operar by Cybhor",
       "unicode": true,
       "include": "build/installer.nsh",
       "installerLanguages": [
